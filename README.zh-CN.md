@@ -4,16 +4,26 @@
 
 这是一个最小可行性原型：通过 [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) 展示由 **Ink Web 0.18 + WASM 真正渲染**的可点击计数器。视图默认 inline，支持向具备能力的宿主请求 fullscreen，再返回 inline。布局以宿主返回的实际模式为准。此项目暂时只有一个示例，不是完整框架。
 
-## 在 ChatGPT 桌面版 / Codex GUI 本地加载
+## 在支持本地插件的桌面宿主加载
 
-在运行桌面宿主的**同一台电脑**安装 Node.js 22+，并使用支持本地插件 marketplace 与 MCP Apps 的宿主版本。克隆仓库后在仓库根目录执行：
+在运行桌面宿主的**同一台电脑**安装 Node.js 22+，并使用支持本地插件 marketplace 与 MCP Apps 的宿主版本。在有权访问此私有仓库的电脑上从干净克隆开始：
 
 ```sh
+git clone https://github.com/yodaos-project/aiui-mcpkit.git
+cd aiui-mcpkit
+```
+
+**桌面 GUI 路径（无需 shell 中有 `codex` 命令）：**在支持仓库插件的桌面宿主中把此目录作为本地项目打开，重启应用，在 Plugins 中查找 **AIUI MCPKit**。已提交的 [仓库 marketplace](.agents/plugins/marketplace.json) 指向[完整插件包](plugins/aiui-mcpkit/)。[OpenAI 本地插件说明](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually)明确给出了 ChatGPT 桌面版的仓库 marketplace 与重启流程；并非所有 Codex 桌面版本的同一路径都经过本项目验证。
+
+**可选的 Codex CLI 路径：**安装桌面应用不代表终端的 PATH 中已有 `codex`。如果命令存在，先检查当前版本支持 `plugin` 子命令：
+
+```sh
+codex plugin --help
 codex plugin marketplace add .
 codex plugin add aiui-mcpkit@aiui-mcpkit-local
 ```
 
-仓库的 [marketplace 配置](.agents/plugins/marketplace.json) 指向[独立插件包](plugins/aiui-mcpkit/)。重启桌面应用，在 Plugins 中启用 **AIUI MCPKit**，然后输入“打开 AIUI 计数器”。`open_counter` 工具提供交互视图。点击 **+ Add one**、**Fullscreen**、**Inline** 检查效果。宿主不声明 fullscreen 能力时按钮禁用；宿主拒绝切换时保持其确认的模式。桌面宿主可能把 fullscreen 显示为侧栏，而非占满整个显示器。
+如果找不到 `codex`，可走 GUI 路径，或按 [OpenAI 官方 Codex CLI 安装说明](https://developers.openai.com/codex/cli)单独安装；如果 `codex plugin --help` 不可用，先更新 CLI。重启桌面应用，在 Plugins 中启用 **AIUI MCPKit**，然后输入“打开 AIUI 计数器”。`open_counter` 工具提供交互视图。点击 **+ Add one**、**Fullscreen**、**Inline** 检查效果。宿主不声明 fullscreen 能力时按钮禁用；宿主拒绝切换时保持其确认的模式。桌面宿主可能把 fullscreen 显示为侧栏，而非占满整个显示器。
 
 [mcp.json](plugins/aiui-mcpkit/mcp.json) 使用 `${PLUGIN_ROOT}` 下的 `dist/server.mjs` 启动本地 stdio MCP 服务。已构建的插件包不需 npm 安装、网页服务、隧道、凭据或外部资源请求。纯浏览器版 ChatGPT 不能直接启动这个本地 stdio 包。如果当前 ChatGPT 版本没有本地插件 marketplace 或 MCP App 视图，请换用支持它们的桌面版/Codex GUI；本仓库尚未在真实 ChatGPT 宿主验证。
 

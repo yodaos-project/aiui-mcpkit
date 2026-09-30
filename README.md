@@ -4,16 +4,26 @@
 
 A small feasibility prototype: an interactive [MCP App](https://github.com/modelcontextprotocol/ext-apps) whose counter is **rendered by Ink Web 0.18 on Canvas/WASM**. The view starts inline and can request fullscreen from a capable host, then return inline. The host's returned mode is authoritative. This is one example, not a framework API.
 
-## Use locally in ChatGPT desktop / Codex GUI
+## Use locally in a supported desktop host
 
-Requires Node.js 22+ on the **same computer as the desktop host**, and a host version that accepts local plugin marketplaces and MCP Apps. Clone the repository, then from its root:
+Requires Node.js 22+ on the **same computer as the desktop host**, and a host version that accepts local plugin marketplaces and MCP Apps. From a clean machine with access to this private repository:
 
 ```sh
+git clone https://github.com/yodaos-project/aiui-mcpkit.git
+cd aiui-mcpkit
+```
+
+**Desktop GUI path (no `codex` shell command needed):** Open this repository as a local project in a desktop host that supports repository plugins, restart the app, and find **AIUI MCPKit** in Plugins. The committed [repo marketplace](.agents/plugins/marketplace.json) points to [the self-contained plugin](plugins/aiui-mcpkit/). OpenAI's [local plugin instructions](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually) explicitly describe this repository marketplace and restart flow for ChatGPT desktop. We have not verified that every Codex desktop build exposes the same GUI flow.
+
+**Optional Codex CLI path:** Installing a desktop app does not by itself establish a `codex` command on your shell PATH. If `codex` is available, first check that this version supports `codex plugin`:
+
+```sh
+codex plugin --help
 codex plugin marketplace add .
 codex plugin add aiui-mcpkit@aiui-mcpkit-local
 ```
 
-The repository's [marketplace](.agents/plugins/marketplace.json) points to [the self-contained plugin](plugins/aiui-mcpkit/). Restart the desktop app, enable **AIUI MCPKit** in Plugins, and ask “Open the AIUI counter.” The `open_counter` MCP tool supplies the view. Click **+ Add one**, **Fullscreen**, then **Inline**. If the host does not advertise fullscreen, the button is disabled; a refused request leaves the confirmed mode unchanged. Desktop placement may be a side panel rather than a literal screen-filling window.
+If `codex` is missing, use the GUI path or install the separate CLI from [OpenAI's official Codex CLI instructions](https://developers.openai.com/codex/cli); if `codex plugin --help` is unavailable, update the CLI before using those two install commands. Restart the desktop app, enable **AIUI MCPKit** in Plugins, and ask “Open the AIUI counter.” The `open_counter` MCP tool supplies the view. Click **+ Add one**, **Fullscreen**, then **Inline**. If the host does not advertise fullscreen, the button is disabled; a refused request leaves the confirmed mode unchanged. Desktop placement may be a side panel rather than a literal screen-filling window.
 
 The portable [mcp.json](plugins/aiui-mcpkit/mcp.json) runs `node ${PLUGIN_ROOT}/dist/server.mjs` over stdio. No npm install, web server, tunnel, credentials, or external asset fetch is needed for an installed release. The host must run the process locally; a browser-only ChatGPT session cannot launch this local stdio package. If your ChatGPT build does not expose local plugin marketplaces or MCP App views, use a supported desktop/Codex GUI build; this repository has not been verified in a real ChatGPT host.
 
