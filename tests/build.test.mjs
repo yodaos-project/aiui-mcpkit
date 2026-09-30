@@ -26,6 +26,15 @@ test('package a developer app outside the framework checkout', async () => {
     assert.equal(manifest.extensions['com.openai'].interface.displayName, 'My Dashboard');
     const mcp = JSON.parse(await readFile(join(output, 'mcp.json'), 'utf8'));
     assert.deepEqual(mcp.mcpServers['my-dashboard'].args, ['${PLUGIN_ROOT}/dist/server.mjs']);
+    const marketplace = JSON.parse(await readFile(join(output, '.agents/plugins/marketplace.json'), 'utf8'));
+    assert.equal(marketplace.name, 'my-dashboard-local');
+    assert.deepEqual(marketplace.plugins, [{
+      name: 'my-dashboard',
+      source: { source: 'local', path: './' },
+      policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+      category: 'Developer Tools',
+    }]);
+    assert.equal(resolve(output, marketplace.plugins[0].source.path), output);
     const html = await readFile(join(output, 'view.html'), 'utf8');
     assert.match(html, /Developer dashboard/);
     assert.match(html, /pages\/home/);

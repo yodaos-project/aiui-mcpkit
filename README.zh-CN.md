@@ -34,6 +34,7 @@ npx aiui-mcpkit --ink ./ink --name my-app --out ./dist/plugin
 生成的 plugin 包含：
 
 ```text
+.agents/plugins/marketplace.json
 plugin.json
 mcp.json
 view.html
@@ -42,7 +43,7 @@ dist/server.mjs
 
 这些文件是构建产物，不是 framework 源码。服务、视图和 manifest 使用开发者应用的身份及初始页面。JS、Ink 源文件和压缩的浏览器 WASM 均内嵌；生成的 plugin 需要 Node.js 22+，无需 npm 安装或外部资源请求。目前 Ink bundle 按 UTF-8 读取文件，尚不支持打包二进制素材。
 
-通过开发者自己的 plugin marketplace 分发生成目录，或在支持 MCP Apps 的宿主中配置 Node 启动其中的 `dist/server.mjs`。生成的 `mcp.json` 使用 `${PLUGIN_ROOT}` 保证可移植性。纯浏览器宿主无法启动本地 stdio 服务。
+输出还包含指向同目录 plugin 的本地 marketplace manifest。添加 marketplace 时使用生成目录，不能使用 framework 仓库根目录。格式遵循 [OpenAI 官方本地 marketplace 文档](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually)。也可通过开发者自己的 plugin marketplace 分发生成插件，或在支持 MCP Apps 的宿主中配置 Node 启动其中的 `dist/server.mjs`。生成的 `mcp.json` 使用 `${PLUGIN_ROOT}` 保证可移植性。纯浏览器宿主无法启动本地 stdio 服务。
 
 ## 计数器示例
 
@@ -52,6 +53,15 @@ dist/server.mjs
 npm run build:example
 npm run start:example
 ```
+
+使用支持 plugin 命令的 Codex CLI 安装生成的示例：
+
+```sh
+codex plugin marketplace add ./dist/examples/counter
+codex plugin add ink-counter@ink-counter-local
+```
+
+安装后重启桌面宿主。修改后重新构建示例并重新安装，宿主缓存中的已安装副本与构建输出分开存放。
 
 `build:example` 先构建 framework，再将示例打包为 `ink-counter`，输出到 `dist/examples/counter/`，提供 `open_counter` 工具。`start:example` 启动该示例的 stdio MCP 服务。示例展示画布输入、宿主支持时的存储，以及 inline/fullscreen 切换。模式切换采用宿主确认的结果。
 

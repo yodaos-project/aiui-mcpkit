@@ -34,6 +34,7 @@ npx aiui-mcpkit --ink ./ink --name my-app --out ./dist/plugin
 The generated plugin contains:
 
 ```text
+.agents/plugins/marketplace.json
 plugin.json
 mcp.json
 view.html
@@ -42,7 +43,7 @@ dist/server.mjs
 
 These are build outputs, not framework source files. The server, view, and manifests use the application's identity and initial page. JS, Ink source files, and compressed browser WASM are embedded; the generated plugin needs Node.js 22+ but no npm install or external asset fetch. The current Ink bundle input reads files as UTF-8; binary asset packaging is not yet supported.
 
-Distribute the generated directory through your own plugin marketplace, or configure a compatible MCP Apps host to launch its `dist/server.mjs` with Node. The generated `mcp.json` uses `${PLUGIN_ROOT}` for portability. A browser-only host cannot launch the local stdio server.
+The output also includes a local marketplace manifest pointing to the plugin in the same directory. Add the generated output directory as the marketplace root; adding the framework repository itself is not supported. This follows the [official OpenAI local marketplace format](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually). You can also distribute the generated plugin through your own marketplace, or configure a compatible MCP Apps host to launch its `dist/server.mjs` with Node. The generated `mcp.json` uses `${PLUGIN_ROOT}` for portability. A browser-only host cannot launch the local stdio server.
 
 ## Counter example
 
@@ -52,6 +53,15 @@ The counter is sample application source in [examples/counter/ink](examples/coun
 npm run build:example
 npm run start:example
 ```
+
+To install the generated example locally with a compatible Codex CLI:
+
+```sh
+codex plugin marketplace add ./dist/examples/counter
+codex plugin add ink-counter@ink-counter-local
+```
+
+Restart the desktop host after installation. Rebuild the example and reinstall after changes; installed copies are cached separately from build output.
 
 `build:example` builds the framework, then packages the sample as `ink-counter` under `dist/examples/counter/`, exposing `open_counter`. `start:example` starts its stdio MCP server. The counter demonstrates canvas input, storage where supported, and inline/fullscreen mode switching. Display mode changes use the host's confirmed response.
 

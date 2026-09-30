@@ -90,7 +90,20 @@ async function main() {
     $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
     mcpServers: { [config.name]: { type: 'stdio', command: 'node', args: ['${PLUGIN_ROOT}/dist/server.mjs'], cwd: '${PLUGIN_ROOT}' } },
   }));
+  await mkdir(join(out, '.agents/plugins'), { recursive: true });
+  await writeFile(join(out, '.agents/plugins/marketplace.json'), json({
+    name: `${config.name}-local`,
+    interface: { displayName: `${title} (local)` },
+    plugins: [{
+      name: config.name,
+      source: { source: 'local', path: './' },
+      policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+      category: 'Developer Tools',
+    }],
+  }));
   console.log(`Built plugin ${config.name} in ${out}`);
+  console.log(`Local install: codex plugin marketplace add ${JSON.stringify(out)}`);
+  console.log(`Then: codex plugin add ${config.name}@${config.name}-local`);
 }
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; });
