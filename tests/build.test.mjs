@@ -8,10 +8,13 @@ import { join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-const exec = promisify(execFile);
-const cli = resolve('dist/cli.mjs');
+import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
 
-test('package a developer app outside the framework checkout', async () => {
+const exec = promisify(execFile);
+
+const cli = resolve('scripts/build-plugin.mjs');
+
+test('ESM API packages an agent outside the package checkout', async () => {
   const project = await mkdtemp(join(tmpdir(), 'mcpkit-developer-'));
   const ink = join(project, 'ink');
   const output = join(project, 'dist', 'my-dashboard');
@@ -20,9 +23,15 @@ test('package a developer app outside the framework checkout', async () => {
     await mkdir(join(ink, 'pages'), { recursive: true });
     await writeFile(join(ink, 'app.json'), JSON.stringify({ name: 'My Dashboard', pages: ['pages/home'] }));
     await writeFile(join(ink, 'pages/home.ink'), '<page><text>Developer dashboard</text></page>');
-    await exec(process.execPath, [cli, '--ink', './ink', '--name', 'my-dashboard', '--tool', 'show_dashboard'], { cwd: project });
+    const buildResult = await buildPlugin({ source: ink, outputDir: output, name: 'my-dashboard', tool: 'show_dashboard', version: '1.2.3' });
+    assert.equal(buildResult.outputDir, output);
+    assert.equal(buildResult.marketplaceName, 'my-dashboard-local');
+    assert.equal(buildResult.page, 'pages/home');
+    assert.equal(buildResult.files.view, join(output, 'view.html'));
     const manifest = JSON.parse(await readFile(join(output, 'plugin.json'), 'utf8'));
     assert.equal(manifest.name, 'my-dashboard');
+    assert.equal(manifest.version, '1.2.3');
+    assert.equal(manifest.description, 'Open My Dashboard, an interactive AIUI Agent.');
     assert.equal(manifest.extensions['com.openai'].interface.displayName, 'My Dashboard');
     const mcp = JSON.parse(await readFile(join(output, 'mcp.json'), 'utf8'));
     assert.deepEqual(mcp.mcpServers['my-dashboard'].args, ['${PLUGIN_ROOT}/dist/server.mjs']);
@@ -48,14 +57,35 @@ test('package a developer app outside the framework checkout', async () => {
     const resource = await client.readResource({ uri: 'ui://my-dashboard/app.html' });
     assert.equal(resource.contents[0].text, html);
 
-    // Invalid inputs must fail before creating output or overwriting Ink source.
-    await assert.rejects(exec(process.execPath, [cli, '--ink', ink, '--name', 'my-dashboard', '--out', ink]), /must not contain each other/);
+    // Invalid inputs must fail before creating output or overwriting agent source.
+    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: ink }), /must not contain each other/);
     const invalidOutput = join(project, 'invalid');
-    await assert.rejects(exec(process.execPath, [cli, '--ink', ink, '--name', 'my-dashboard', '--page', 'missing', '--out', invalidOutput]), /Initial page not found/);
+    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', page: 'missing', outputDir: invalidOutput }), /Initial page not found/);
     await assert.rejects(access(invalidOutput));
     assert.equal(await readFile(join(ink, 'pages/home.ink'), 'utf8'), '<page><text>Developer dashboard</text></page>');
   } finally {
     await client.close();
     await rm(project, { recursive: true, force: true });
   }
+});
+
+
+test('local CLI accepts positional source and delegates to the ESM API', async () => {
+  const project = await mkdtemp(join(tmpdir(), 'mcpkit-cli-'));
+  try {
+    const source = join(project, 'agent');
+    await mkdir(join(source, 'pages'), { recursive: true });
+    await writeFile(join(source, 'app.json'), JSON.stringify({ name: 'CLI Agent', pages: ['pages/home'] }));
+    await writeFile(join(source, 'pages/home.ink'), '<page><text>CLI agent</text></page>');
+    const output = join(project, 'dist/cli-agent');
+    await exec(process.execPath, [cli, './agent', '--name', 'cli-agent'], { cwd: project });
+    assert.equal(JSON.parse(await readFile(join(output, 'plugin.json'), 'utf8')).name, 'cli-agent');
+    // Omitted source defaults to the caller's working directory.
+    const defaultOutput = join(project, 'default-source');
+    await exec(process.execPath, [cli, '--name', 'cli-agent', '--out', defaultOutput], { cwd: source });
+    assert.equal(JSON.parse(await readFile(join(defaultOutput, 'plugin.json'), 'utf8')).name, 'cli-agent');
+    await assert.rejects(exec(process.execPath, [cli, '--ink', source, '--name', 'cli-agent']), /Unknown option/);
+    await assert.rejects(exec(process.execPath, [cli, source, source, '--name', 'cli-agent']), /at most one source/);
+    await assert.rejects(exec(process.execPath, [cli, source]), /--name is required/);
+  } finally { await rm(project, { recursive: true, force: true }); }
 });

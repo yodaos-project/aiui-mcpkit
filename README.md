@@ -4,12 +4,13 @@
 
 AIUI MCPKit turns your [AIUI Agent](https://github.com/yodaos-project/AIUI) into an interactive MCP App plugin. Build your agent with one command and open it in a compatible AI client.
 
-The toolkit packages your agent pages, runtime, and MCP server together, so you can focus on the agent experience instead of writing host integration code.
+The `@yodaos-pkg/aiui-mcpkit` ESM package bundles your agent pages, runtime, and MCP server together. Build tools can call its API directly to generate plugins as part of their own packaging workflow.
 
 [简体中文](README.zh-CN.md) · [Quick start](#quick-start) · [Build your agent](#build-your-agent) · [Development](#development) · [Issues](https://github.com/yodaos-project/aiui-mcpkit/issues)
 
 ## Features
 
+- **ESM API with TypeScript declarations.** Import `buildPlugin()` into your build tool without launching a CLI process.
 - **Your AIUI Agent, packaged as a plugin.** Use your own pages, agent name, and opener tool.
 - **Self-contained output.** JavaScript, agent source, and compressed WebAssembly are bundled; the generated plugin runs without installing npm dependencies.
 - **Inline and fullscreen layouts.** Host display modes map to the agent's `_current` and `_blank` targets, so one page can reveal more content when expanded.
@@ -76,12 +77,29 @@ Page paths in `app.json` omit the `.ink` extension. For a working example with s
 
 ### 2. Package the agent
 
-From the MCPKit checkout:
+The package's public entrypoint is an ESM API:
+
+```js
+import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
+
+const result = await buildPlugin({
+  source: './agent',
+  name: 'my-agent',
+  outputDir: './dist/plugin',
+  version: '1.0.0',
+});
+
+console.log(result.outputDir);
+console.log(result.files.view);
+```
+
+`buildPlugin()` returns the plugin identity, absolute output directory, marketplace name, and paths to the generated files. Errors reject its promise; it does not log or change the process working directory. Relative paths resolve from the caller's working directory. This provides the integration point for build tools such as AIX; `aix pack --target mcp-apps` will be implemented in AIX separately.
+
+For local testing in this checkout, build the library and use the helper script:
 
 ```sh
 npm run build
-node dist/cli.mjs \
-  --ink /path/to/my-agent/agent \
+node scripts/build-plugin.mjs /path/to/my-agent/agent \
   --name my-agent \
   --out /path/to/my-agent/dist/plugin
 ```
@@ -97,17 +115,37 @@ codex plugin add my-agent@my-agent-local
 
 The generated directory is the marketplace root. Each build creates a marketplace named `<plugin-name>-local` and an opener tool named `open_app` by default.
 
-### CLI options
+### API options
 
 | Option | Description | Default |
 | --- | --- | --- |
-| `--ink` | Agent source directory | Required |
+| `source` | Agent source directory | Required |
+| `name` | Plugin identifier | Required |
+| `outputDir` | Plugin output directory | `dist/<name>` |
+| `title` | Display name | `app.json` name, then plugin name |
+| `description` | Plugin and opener tool description | Generated from the display name |
+| `tool` | Opener tool name | `open_app` |
+| `page` | Initial page path, without `.ink` | First `app.json` pages entry |
+| `version` | Plugin and MCP server version | `0.1.0` |
+
+The package exports `BuildPluginOptions` and `BuildPluginResult` types. Its published entrypoint is the library; the CLI helper stays in this repository.
+
+### Local CLI options
+
+```sh
+node scripts/build-plugin.mjs [source] --name <plugin-name> [options]
+```
+
+| Option | Description | Default |
+| --- | --- | --- |
+| `[source]` | Agent source directory | Current working directory |
 | `--name` | Plugin identifier: lowercase letters, numbers, and hyphens; starts with a letter | Required |
 | `--out` | Plugin output directory | `dist/<plugin-name>` |
 | `--title` | Display name | `app.json` name, then plugin name |
 | `--description` | Plugin and opener tool description | Generated from the display name |
 | `--tool` | Opener tool name | `open_app` |
 | `--page` | Initial page path, without `.ink` | First `app.json` pages entry |
+| `--version` | Plugin and MCP server version | `0.1.0` |
 | `--help` | Show command help | — |
 
 ## How it works
@@ -155,7 +193,7 @@ This updates the view only. MCP server or manifest changes require reinstalling 
 
 | Command | Purpose |
 | --- | --- |
-| `npm run build` | Build the CLI and runtime templates |
+| `npm run build` | Build the ESM library, types, and runtime templates |
 | `npm run build:example` | Build and package the Counter example |
 | `npm run update:example` | Build and replace the installed Counter view |
 | `npm run start:example` | Start the generated stdio MCP server |

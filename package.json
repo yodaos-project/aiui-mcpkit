@@ -11,23 +11,32 @@
     "@types/node": "^26.6.3",
     "typescript": "^7.0.2"
   },
-  "name": "aiui-mcpkit",
+  "name": "@yodaos-pkg/aiui-mcpkit",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "build:example": "npm run build && node dist/cli.mjs --ink examples/counter/ink --name ink-counter --tool open_counter --out dist/examples/counter",
+    "build:example": "npm run build && node scripts/build-plugin.mjs examples/counter/ink --name ink-counter --tool open_counter --out dist/examples/counter",
     "update:example": "npm run build:example && node scripts/update-example.mjs",
     "typecheck": "tsc --noEmit",
     "start:example": "node dist/examples/counter/dist/server.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "prepack": "npm run build"
   },
-  "description": "Build MCP App plugins from developer-owned Ink applications.",
-  "bin": {
-    "aiui-mcpkit": "dist/cli.mjs"
-  },
+  "description": "Build MCP App plugins from AIUI Agents.",
   "files": [
-    "dist/cli.mjs",
+    "dist/index.mjs",
+    "dist/index.d.ts",
     "dist/runtime"
-  ]
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22"
+  }
 }

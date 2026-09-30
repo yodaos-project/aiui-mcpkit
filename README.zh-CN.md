@@ -4,12 +4,13 @@
 
 AIUI MCPKit 将你的 [AIUI Agent](https://github.com/yodaos-project/AIUI) 构建为可交互的 MCP App 插件。一条命令完成打包，即可在兼容的 AI 客户端中打开 Agent。
 
-工具包将 Agent 页面、运行时和 MCP 服务一起打包，让你专注于 Agent 体验，无需另行编写宿主集成代码。
+`@yodaos-pkg/aiui-mcpkit` ESM 包将 Agent 页面、运行时和 MCP 服务一起打包。构建工具可以直接调用 API，将插件生成能力集成到自己的打包流程。
 
 [English](README.md) · [快速开始](#快速开始) · [构建你的 Agent](#构建你的-agent) · [开发](#开发) · [问题反馈](https://github.com/yodaos-project/aiui-mcpkit/issues)
 
 ## 功能
 
+- **提供 ESM API 和 TypeScript 类型声明。** 在构建工具中导入 `buildPlugin()`，无需启动 CLI 子进程。
 - **将自己的 AIUI Agent 打包为插件。** 使用自己的页面、Agent 名称和打开工具。
 - **独立运行的构建产物。** JavaScript、Agent 源码和压缩的 WebAssembly 均已打包，生成的插件无需安装 npm 依赖。
 - **内联与全屏布局。** 将宿主显示模式映射到 Agent 的 `_current` 和 `_blank`，同一个页面可在展开时展示更多内容。
@@ -76,12 +77,29 @@ my-agent/
 
 ### 2. 打包 Agent
 
-在 MCPKit 仓库中执行：
+包的公开入口是 ESM API：
+
+```js
+import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
+
+const result = await buildPlugin({
+  source: './agent',
+  name: 'my-agent',
+  outputDir: './dist/plugin',
+  version: '1.0.0',
+});
+
+console.log(result.outputDir);
+console.log(result.files.view);
+```
+
+`buildPlugin()` 返回插件身份、绝对输出目录、marketplace 名称和生成文件的路径。错误通过 Promise rejection 返回；函数不输出日志，也不修改进程工作目录。相对路径基于调用方的工作目录解析。该 API 可供 AIX 等构建工具集成；`aix pack --target mcp-apps` 将由 AIX 后续实现。
+
+在本仓库中测试时，先构建库，再使用辅助脚本：
 
 ```sh
 npm run build
-node dist/cli.mjs \
-  --ink /path/to/my-agent/agent \
+node scripts/build-plugin.mjs /path/to/my-agent/agent \
   --name my-agent \
   --out /path/to/my-agent/dist/plugin
 ```
@@ -97,17 +115,37 @@ codex plugin add my-agent@my-agent-local
 
 生成的目录就是 marketplace 根目录。每次构建会创建名为 `<plugin-name>-local` 的 marketplace；打开工具默认名为 `open_app`。
 
-### CLI 参数
+### API 参数
 
 | 参数 | 说明 | 默认值 |
 | --- | --- | --- |
-| `--ink` | Agent 源码目录 | 必填 |
+| `source` | Agent 源码目录 | 必填 |
+| `name` | 插件标识 | 必填 |
+| `outputDir` | 插件输出目录 | `dist/<name>` |
+| `title` | 显示名称 | `app.json` 名称，其次为插件名称 |
+| `description` | 插件与打开工具的描述 | 根据显示名称生成 |
+| `tool` | 打开工具名称 | `open_app` |
+| `page` | 初始页面路径，不带 `.ink` | `app.json` 的第一个 pages 条目 |
+| `version` | 插件和 MCP 服务版本 | `0.1.0` |
+
+包导出 `BuildPluginOptions` 和 `BuildPluginResult` 类型。发布的入口是库，CLI 辅助脚本保留在本仓库中。
+
+### 本地 CLI 参数
+
+```sh
+node scripts/build-plugin.mjs [source] --name <plugin-name> [options]
+```
+
+| 参数 | 说明 | 默认值 |
+| --- | --- | --- |
+| `[source]` | Agent 源码目录 | 当前工作目录 |
 | `--name` | 插件标识：小写字母、数字和连字符，以字母开头 | 必填 |
 | `--out` | 插件输出目录 | `dist/<plugin-name>` |
 | `--title` | 显示名称 | `app.json` 名称，其次为插件名称 |
 | `--description` | 插件与打开工具的描述 | 根据显示名称生成 |
 | `--tool` | 打开工具名称 | `open_app` |
 | `--page` | 初始页面路径，不带 `.ink` | `app.json` 的第一个 pages 条目 |
+| `--version` | 插件和 MCP 服务版本 | `0.1.0` |
 | `--help` | 显示命令帮助 | — |
 
 ## 工作原理
@@ -155,7 +193,7 @@ npm run update:example -- --plugin-dir /absolute/path/to/installed/plugin
 
 | 命令 | 用途 |
 | --- | --- |
-| `npm run build` | 构建 CLI 和运行时模板 |
+| `npm run build` | 构建 ESM 库、类型声明和运行时模板 |
 | `npm run build:example` | 构建并打包 Counter 示例 |
 | `npm run update:example` | 构建并替换已安装的 Counter 视图 |
 | `npm run start:example` | 启动生成的 stdio MCP 服务 |

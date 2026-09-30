@@ -3,56 +3,82 @@ import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
 import { gzipSync } from 'node:zlib';
 
-async function main() {
-  const { values } = parseArgs({ options: {
-    ink: { type: 'string' }, out: { type: 'string' }, name: { type: 'string' },
-    title: { type: 'string' }, description: { type: 'string' },
-    tool: { type: 'string' }, page: { type: 'string' }, help: { type: 'boolean' },
-  } });
-  if (values.help) {
-    console.log(`Usage: aiui-mcpkit --ink <directory> --name <plugin-name> [options]
+/** Options for packaging an AIUI Agent as an MCP Apps plugin. */
+export interface BuildPluginOptions {
+  /** Agent source directory containing app.json and its pages. */
+  source: string;
+  /** Plugin identifier, starting with a lowercase letter. */
+  name: string;
+  /** Output directory. Defaults to dist/<name> in the working directory. */
+  outputDir?: string;
+  title?: string;
+  description?: string;
+  /** Opener tool name. Defaults to open_app. */
+  tool?: string;
+  /** Initial page path without its file extension. Defaults to app.json's first page. */
+  page?: string;
+  /** Plugin and MCP server version. Defaults to 0.1.0. */
+  version?: string;
+}
 
-  --out <directory>       Plugin output (default: dist/<plugin-name>)
-  --title <text>          Display name (default: app.json name or plugin name)
-  --description <text>    Plugin and MCP tool description
-  --tool <name>           Opener tool (default: open_app)
-  --page <path>           Initial page (default: first app.json pages entry)`);
-    return;
-  }
-  if (!values.ink || !values.name) throw new Error('--ink and --name are required; use --help for usage.');
-  if (!/^[a-z][a-z0-9-]*$/.test(values.name)) throw new Error('--name must use lowercase letters, numbers, and hyphens, starting with a letter.');
-  const tool = values.tool ?? 'open_app';
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(tool)) throw new Error('--tool must contain 1–128 letters, numbers, underscores, or hyphens.');
-  const ink = resolve(values.ink);
-  const out = resolve(values.out ?? join('dist', values.name));
+/** Paths and identity of the completed plugin build. */
+export interface BuildPluginResult {
+  name: string;
+  title: string;
+  version: string;
+  tool: string;
+  page: string;
+  outputDir: string;
+  marketplaceName: string;
+  files: {
+    view: string;
+    server: string;
+    plugin: string;
+    mcp: string;
+    marketplace: string;
+  };
+}
+
+/**
+ * Build a self-contained MCP Apps plugin from an AIUI Agent source directory.
+ * Resolves relative paths from the caller's working directory, validates input
+ * before writing output, and returns the generated artifact paths. Errors reject
+ * the promise; this function does not log, exit, or change the working directory.
+ */
+export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPluginResult> {
+  if (!options.source || !options.name) throw new Error('source and name are required.');
+  if (!/^[a-z][a-z0-9-]*$/.test(options.name)) throw new Error('name must use lowercase letters, numbers, and hyphens, starting with a letter.');
+  const tool = options.tool ?? 'open_app';
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(tool)) throw new Error('tool must contain 1–128 letters, numbers, underscores, or hyphens.');
+  const source = resolve(options.source);
+  const out = resolve(options.outputDir ?? join('dist', options.name));
   const nested = (parent: string, child: string) => {
     const path = relative(parent, child);
     return path === '' || (!path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) && path !== '..' && !isAbsolute(path));
   };
-  if (nested(ink, out) || nested(out, ink)) throw new Error('Ink source and output directories must not contain each other.');
-  const manifest = JSON.parse(await readFile(join(ink, 'app.json'), 'utf8'));
-  const page = values.page ?? manifest.pages?.[0];
+  if (nested(source, out) || nested(out, source)) throw new Error('Agent source and output directories must not contain each other.');
+  const manifest = JSON.parse(await readFile(join(source, 'app.json'), 'utf8'));
+  const page = options.page ?? manifest.pages?.[0];
   if (typeof page !== 'string' || !page || page.split('/').some(part => part === '..' || part === '') || isAbsolute(page)) {
-    throw new Error('Provide --page or a valid first page in app.json. Use a relative path without the .ink extension.');
+    throw new Error('Provide page or a valid first page in app.json. Use a relative path without the .ink extension.');
   }
   const files: Record<string, string> = {};
   async function walk(dir: string) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const next = join(dir, entry.name);
       if (entry.isDirectory()) await walk(next);
-      else if (entry.isFile()) files[relative(ink, next).replaceAll('\\', '/')] = await readFile(next, 'utf8');
-      else throw new Error(`Unsupported Ink source entry: ${next}`);
+      else if (entry.isFile()) files[relative(source, next).replaceAll('\\', '/')] = await readFile(next, 'utf8');
+      else throw new Error(`Unsupported Agent source entry: ${next}`);
     }
   }
-  await walk(ink);
+  await walk(source);
   if (!files[`${page}.ink`]) throw new Error(`Initial page not found: ${page}.ink`);
-  const title = values.title ?? manifest.name ?? values.name;
-  if (typeof title !== 'string' || !title) throw new Error('App title must be a nonempty string.');
-  const description = values.description ?? `Open ${title}, an interactive Ink app.`;
-  const config = { name: values.name, title, description, tool, page, version: '0.1.0' };
+  const title = options.title ?? manifest.name ?? options.name;
+  if (typeof title !== 'string' || !title) throw new Error('Agent title must be a nonempty string.');
+  const description = options.description ?? `Open ${title}, an interactive AIUI Agent.`;
+  const config = { name: options.name, title, description, tool, page, version: options.version ?? '0.1.0' };
   const runtime = new URL('./runtime/', import.meta.url);
   const require = createRequire(import.meta.url);
   const wasm = await readFile(join(dirname(require.resolve('@yodaos-pkg/ink/package.json')), 'pkg/ink_web_bg.wasm'));
@@ -101,9 +127,15 @@ async function main() {
       category: 'Developer Tools',
     }],
   }));
-  console.log(`Built plugin ${config.name} in ${out}`);
-  console.log(`Local install: codex plugin marketplace add ${JSON.stringify(out)}`);
-  console.log(`Then: codex plugin add ${config.name}@${config.name}-local`);
+  return {
+    name: config.name, title, version: config.version, tool, page, outputDir: out,
+    marketplaceName: `${config.name}-local`,
+    files: {
+      view: join(out, 'view.html'),
+      server: join(out, 'dist/server.mjs'),
+      plugin: join(out, 'plugin.json'),
+      mcp: join(out, 'mcp.json'),
+      marketplace: join(out, '.agents/plugins/marketplace.json'),
+    },
+  };
 }
-
-main().catch(error => { console.error(error.message); process.exitCode = 1; });
