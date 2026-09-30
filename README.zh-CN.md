@@ -54,7 +54,18 @@ codex plugin add ink-counter@ink-counter-local
 
 Counter 采用 AIUI 单绿设计。点击 **+ ADD ONE**，计数就会变化。在支持全屏的宿主中展开界面，还可以看到会话统计、最近操作记录和更多控制按钮。
 
-[示例源码](examples/counter/ink/pages/counter/index.ink) 展示了页面如何处理状态、调整布局。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为通过浏览器测试环境验证。
+示例还提供了两个通过页面配置定义的工具。可以让客户端调用：
+
+```text
+open_counter({ "initialCount": 5, "label": "Demo" })
+open_countdown({ "start": 8, "step": 2 })
+```
+
+`open_counter` 打开 Counter 页面，初始值为 5，标题为 “Demo”；点击 **+ ADD ONE** 后变成 6。两个参数均可选，省略 `initialCount` 时恢复已保存的计数。`open_countdown` 打开独立的 Countdown 页面，初始值为 8，每次点击减 2，最低为 0。`start` 必填，`step` 在页面逻辑中默认为 1。缺失 `start`、负数初始计数或非正数步长会被 MCP 服务端拒绝。
+
+两个工具均在各自页面的 `<script def>` 中声明，通过 `onLoad(query)` 接收参数。浏览器测试使用真实 Ink WASM 验证页面选择、初始状态和按钮交互。如果之前安装了只有一个工具的 Counter，需要重新构建、重新安装并重载插件以更新服务端；仅替换视图的 `update:example` 无法增加新工具。
+
+[Counter 源码](examples/counter/ink/pages/counter/index.ink) 展示状态管理和自适应布局；[Countdown 源码](examples/counter/ink/pages/countdown/index.ink) 展示带必填参数的第二个工具。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为和页面工具示例通过浏览器测试环境验证。
 
 ## 创建自己的 Agent
 
@@ -108,6 +119,45 @@ codex plugin add my-agent@my-agent-local
 ```
 
 安装后重新加载桌面宿主。自己的 Agent 默认通过 `open_app` 工具打开。其他客户端可以[直接连接生成的服务](#选择客户端)。
+
+### 为每个页面定义工具
+
+在 `app.json.pages` 注册的页面中，通过 `.ink` 文件的 JSON `<script def>` 声明工具。MCPKit 将 `description` 用作工具描述，将 `schema.data` 用作 MCP 输入参数 schema：
+
+```html
+<script type="application/json" def>
+{
+  "tool": "show_weather",
+  "navigationBarTitleText": "天气",
+  "description": "展示指定城市的天气。",
+  "schema": {
+    "data": {
+      "type": "object",
+      "properties": { "city": { "type": "string", "description": "城市名称" } },
+      "required": ["city"],
+      "additionalProperties": false
+    }
+  }
+}
+</script>
+
+<script setup>
+export default {
+  data: { city: '' },
+  onLoad(query) { this.setData({ city: query.city }); }
+};
+</script>
+
+<page><text>{{city}}</text></page>
+```
+
+`tool` 是 MCPKit 提供的可选字段，用于指定工具名称。不填写时，使用 `open_` 加完整页面路径，并将字母、数字、下划线和连字符之外的字符替换为 `_`。例如，`pages/weather/index` 对应 `open_pages_weather_index`。工具名称必须唯一。标题使用 `navigationBarTitleText`，未填写时使用页面路径。
+
+另一个页面声明自己的 `description`、`schema.data` 和可选的 `tool` 后，就会生成第二个工具。每个工具都有独立的 UI 资源并绑定对应页面，因此调用 `show_weather` 就会打开天气页。只有声明了 `schema.data` 的页面会注册为工具，其余已注册页面仍可供内部导航使用。所有页面均未声明 schema 时，保留单个 `open_app` 入口，也可通过 `tool` / `--tool` 覆盖。启用页面工具后，`tool` / `--tool` 不会重命名这些工具，`page` / `--page` 不会覆盖它们的目标路径。
+
+服务端先校验参数，再返回成功结果。视图接收 MCP Apps 宿主发送的完整工具参数，通过 Ink 的启动 query 传入 `onLoad(query)`。Ink 将标量暴露为字符串，将对象和数组暴露为 JSON 字符串；按需使用 `Number(query.days)` 或 `JSON.parse(query.options)`。页面工具的视图等待完整输入后再打开，确保首次加载就能收到必填参数。不支持的 schema 版本、无法解析的引用和无效的页面定义会在写入输出前令构建失败。
+
+`buildPlugin()` 通过 `result.tools` 返回工具映射，其中包含 `name`、`title`、`description`、`page`、`inputSchema` 和 `resourceUri`。原有的 `result.tool` 返回第一个已注册工具的名称。
 
 ## 接入 ESM 库
 
@@ -239,7 +289,7 @@ plugin/
 | `outputDir` | `--out` | `dist/<name>` |
 | `title` | `--title` | `app.json` 名称，其次为插件名称 |
 | `description` | `--description` | 根据显示名称生成 |
-| `tool` | `--tool` | `open_app` |
+| `tool` | `--tool` | 页面均未声明 schema 时回退为 `open_app` |
 | `page` | `--page` | `app.json` 中的第一个页面，不带 `.ink` |
 | `version` | `--version` | `0.1.0` |
 

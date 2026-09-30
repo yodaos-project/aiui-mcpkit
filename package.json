@@ -3,8 +3,10 @@
     "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "@yodaos-pkg/ink": "^0.18.0",
-    "zod": "^4.6.5",
-    "esbuild": "^0.28.2"
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "esbuild": "^0.28.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -16,7 +18,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "build:example": "npm run build && node scripts/build-plugin.mjs examples/counter/ink --name ink-counter --tool open_counter --out dist/examples/counter",
+    "build:example": "npm run build && node scripts/build-plugin.mjs examples/counter/ink --name ink-counter --out dist/examples/counter",
     "update:example": "npm run build:example && node scripts/update-example.mjs",
     "typecheck": "tsc --noEmit",
     "start:example": "node dist/examples/counter/dist/server.mjs",

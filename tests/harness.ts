@@ -11,6 +11,9 @@ if (current === 'fullscreen') {
 const bridge = new AppBridge(null, { name: 'MCPKit test host', version: '1' }, {}, {
   hostContext: { displayMode: current, availableDisplayModes: capabilities as ('inline' | 'fullscreen')[] },
 });
+bridge.oninitialized = () => {
+  setTimeout(() => { void bridge.sendToolInput({ arguments: JSON.parse(new URLSearchParams(location.search).get('args') ?? '{}') }); }, Number(new URLSearchParams(location.search).get('delay') ?? 0));
+};
 function setMode(mode: 'inline' | 'fullscreen') {
   if (capabilities.includes(mode)) current = mode;
   frame.style.height = current === 'fullscreen' ? '640px' : '280px';
@@ -20,5 +23,5 @@ function setMode(mode: 'inline' | 'fullscreen') {
 void (async () => {
   await bridge.connect(new PostMessageTransport(frame.contentWindow!, frame.contentWindow!));
   (window as any).__bridgeReady = true;
-  frame.src = '/view.html';
+  frame.src = '/view.html?page=' + (new URLSearchParams(location.search).get('page') ?? '0');
 })();

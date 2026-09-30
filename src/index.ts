@@ -4,6 +4,8 @@ import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { pageTools, type PageTool } from './runtime/page-tools.js';
+export type { PageTool } from './runtime/page-tools.js';
 
 /** Options for packaging an AIUI Agent as an MCP Apps plugin. */
 export interface BuildPluginOptions {
@@ -15,7 +17,7 @@ export interface BuildPluginOptions {
   outputDir?: string;
   title?: string;
   description?: string;
-  /** Opener tool name. Defaults to open_app. */
+  /** Fallback opener name when no page declares schema.data. Defaults to open_app. */
   tool?: string;
   /** Initial page path without its file extension. Defaults to app.json's first page. */
   page?: string;
@@ -30,6 +32,8 @@ export interface BuildPluginResult {
   version: string;
   tool: string;
   page: string;
+  /** All registered tools, including their page routes and input schemas. */
+  tools: PageTool[];
   outputDir: string;
   marketplaceName: string;
   files: {
@@ -75,10 +79,17 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   }
   await walk(source);
   if (!files[`${page}.ink`]) throw new Error(`Initial page not found: ${page}.ink`);
+  const pages = manifest.pages;
+  if (!Array.isArray(pages) || pages.some(item => typeof item !== 'string' || !item || isAbsolute(item) || item.includes('\\') || item.endsWith('.ink') || item.split('/').some(part => part === '..' || part === '.' || part === ''))) {
+    throw new Error('app.json pages must list relative page paths without the .ink extension.');
+  }
+  const tools = pageTools(files, [...new Set([...pages, page])], options.name);
   const title = options.title ?? manifest.name ?? options.name;
   if (typeof title !== 'string' || !title) throw new Error('Agent title must be a nonempty string.');
   const description = options.description ?? `Open ${title}, an interactive AIUI Agent.`;
-  const config = { name: options.name, title, description, tool, page, version: options.version ?? '0.1.0' };
+  const waitForToolInput = tools.length > 0;
+  if (!tools.length) tools.push({ name: tool, title, description, page, inputSchema: { type: 'object', properties: {} }, resourceUri: `ui://${options.name}/app.html` });
+  const config = { name: options.name, title, description, tool: tools[0].name, tools, page, waitForToolInput, version: options.version ?? '0.1.0' };
   const runtime = new URL('./runtime/', import.meta.url);
   const require = createRequire(import.meta.url);
   const wasm = await readFile(join(dirname(require.resolve('@yodaos-pkg/ink/package.json')), 'pkg/ink_web_bg.wasm'));
@@ -94,7 +105,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const script = view.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
 *{box-sizing:border-box}html,body{margin:0;padding:0;background:#000}#shell{width:100%;height:220px}body[data-mode=fullscreen] #shell{height:100vh}canvas{display:block;width:100%;height:100%;outline:none}
-</style></head><body><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><script type="module">${script}</script></body></html>`;
+</style></head><body data-page="${escapeHtml(page)}"><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><script type="module">${script}</script></body></html>`;
   const server = await build({
     entryPoints: [fileURLToPath(new URL('server.ts', runtime))],
     bundle: true, write: false, platform: 'node', format: 'esm', target: 'node22',
@@ -128,7 +139,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     }],
   }));
   return {
-    name: config.name, title, version: config.version, tool, page, outputDir: out,
+    name: config.name, title, version: config.version, tool: config.tool, tools, page, outputDir: out,
     marketplaceName: `${config.name}-local`,
     files: {
       view: join(out, 'view.html'),

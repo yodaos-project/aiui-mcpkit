@@ -54,7 +54,18 @@ Restart Codex Desktop after the initial installation, then open **AIUI MCPKit Co
 
 The Counter uses AIUI's monochrome-green design. Click **+ ADD ONE** to change the count. In a host with fullscreen support, expand the view to see session statistics, recent actions, and additional controls.
 
-The [example source](examples/counter/ink/pages/counter/index.ink) shows how the page handles state and adapts its layout. The inline Counter has been observed in Codex Desktop; fullscreen behavior is tested in the browser harness.
+The example also demonstrates two page-defined tools. Ask the client to call:
+
+```text
+open_counter({ "initialCount": 5, "label": "Demo" })
+open_countdown({ "start": 8, "step": 2 })
+```
+
+`open_counter` opens the Counter page at 5 with the label “Demo”; clicking **+ ADD ONE** changes it to 6. Both parameters are optional, and omitting `initialCount` restores the saved count. `open_countdown` opens a separate Countdown page at 8; each click subtracts 2 until zero. `start` is required and `step` defaults to 1 in Page logic. Missing `start`, negative initial counts, and nonpositive steps are rejected by the MCP server.
+
+Both tools are declared in their pages' `<script def>` blocks, with parameters received by `onLoad(query)`. The browser tests verify page selection, initial state, and interaction using real Ink WASM. If you installed an older single-tool Counter, rebuild and reinstall/reload the plugin to refresh its server; the view-only `update:example` shortcut cannot add the new tool.
+
+The [Counter source](examples/counter/ink/pages/counter/index.ink) shows state and adaptive layout; the [Countdown source](examples/counter/ink/pages/countdown/index.ink) shows a second tool with required input. The inline Counter has been observed in Codex Desktop; fullscreen and the page-tool example are tested in the browser harness.
 
 ## Create your own agent
 
@@ -108,6 +119,45 @@ codex plugin add my-agent@my-agent-local
 ```
 
 Reload the desktop host after installation. Your agent's opener tool is `open_app` by default. Other clients can [connect directly to its server](#choose-a-client).
+
+### Define tools per page
+
+For routes registered in `app.json.pages`, declare a tool in the `.ink` file's JSON `<script def>`. MCPKit uses `description` as the tool description and `schema.data` as the MCP input schema:
+
+```html
+<script type="application/json" def>
+{
+  "tool": "show_weather",
+  "navigationBarTitleText": "Weather",
+  "description": "Show weather for the requested city.",
+  "schema": {
+    "data": {
+      "type": "object",
+      "properties": { "city": { "type": "string", "description": "City name" } },
+      "required": ["city"],
+      "additionalProperties": false
+    }
+  }
+}
+</script>
+
+<script setup>
+export default {
+  data: { city: '' },
+  onLoad(query) { this.setData({ city: query.city }); }
+};
+</script>
+
+<page><text>{{city}}</text></page>
+```
+
+`tool` is an optional MCPKit field for an explicit tool name. Without it, the name is `open_` plus the full page route, replacing characters other than letters, numbers, underscores, and hyphens with `_`. For example, `pages/weather/index` becomes `open_pages_weather_index`. Names must be unique. Titles use `navigationBarTitleText`, falling back to the page route.
+
+Give another page its own `description`, `schema.data`, and optional `tool` to expose a second tool. Each tool has a separate UI resource bound to its page, so invoking `show_weather` opens the weather page. Only pages declaring `schema.data` become tools; other registered pages remain available for internal navigation. If no page declares a schema, MCPKit keeps the single `open_app` opener (or your `tool` / `--tool` override). With page tools, `tool` / `--tool` does not rename them and `page` / `--page` does not override their routes.
+
+Arguments are validated before the server returns success. The view receives complete tool arguments from the MCP Apps host and passes them as Ink's launch query to `onLoad(query)`. Ink exposes scalar values as strings and objects/arrays as JSON strings: use `Number(query.days)` or `JSON.parse(query.options)` when appropriate. Page views wait for complete input before opening, so required arguments are available on the first load. Unsupported schema dialects, unresolved references, and invalid page definitions fail the build before output is written.
+
+`buildPlugin()` returns mappings in `result.tools`, each with `name`, `title`, `description`, `page`, `inputSchema`, and `resourceUri`. The existing `result.tool` is the first registered tool name.
 
 ## Use the ESM library
 
@@ -239,7 +289,7 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `outputDir` | `--out` | `dist/<name>` |
 | `title` | `--title` | `app.json` name, then plugin name |
 | `description` | `--description` | Generated from the display name |
-| `tool` | `--tool` | `open_app` |
+| `tool` | `--tool` | `open_app` fallback when no page declares a schema |
 | `page` | `--page` | First page in `app.json`, without `.ink` |
 | `version` | `--version` | `0.1.0` |
 

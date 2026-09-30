@@ -1,5 +1,19 @@
-<script def>
-{"navigationBarTitleText":"AIUI MCPKit"}
+<script type="application/json" def>
+{
+  "tool": "open_counter",
+  "navigationBarTitleText": "Counter",
+  "description": "Open an interactive counter. Optionally choose its initial count and display label; without an initial count, restore the saved count.",
+  "schema": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "initialCount": { "type": "integer", "minimum": 0, "maximum": 1000000, "description": "Starting count; overrides the saved count when provided." },
+        "label": { "type": "string", "minLength": 1, "maxLength": 40, "description": "Display label for this counter." }
+      },
+      "additionalProperties": false
+    }
+  }
+}
 </script>
 
 <script setup>
@@ -8,12 +22,18 @@ import wx from 'wx';
 const KEY = 'aiui-mcpkit.counter';
 
 export default {
-  data: { count: 0, actions: 0, added: 0, history: [] },
-  onLoad() {
+  data: { label: 'Counter', count: 0, actions: 0, added: 0, history: [] },
+  onLoad(query) {
     try {
       const saved = wx.getStorageSync(KEY);
       if (Number.isInteger(saved) && saved >= 0) this.setData({ count: saved });
     } catch (_) { /* Storage may be unavailable in a sandbox. */ }
+    if (query.initialCount !== undefined) {
+      const count = Number(query.initialCount);
+      if (Number.isInteger(count) && count >= 0 && count <= 1000000) this.setData({ count });
+    }
+    if (query.label) this.setData({ label: query.label });
+    this.postMessage({ type: 'counter-loaded', page: 'counter', count: this.data.count, label: this.data.label });
   },
   updateCount(count, label, added) {
     const actions = this.data.actions + 1;
@@ -38,7 +58,7 @@ export default {
   <view class="screen">
     <view class="summary">
       <text class="eyebrow">AIUI MCPKIT</text>
-      <text class="title">Counter</text>
+      <text class="title">{{label}}</text>
       <text class="count">{{count}}</text>
       <button class="control add" bindtap="increment">+ ADD ONE</button>
     </view>

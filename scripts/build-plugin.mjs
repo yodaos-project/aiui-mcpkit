@@ -15,8 +15,8 @@ async function main() {
   source                 Agent source directory (default: current directory)
   --out <directory>      Plugin output (default: dist/<plugin-name>)
   --title <text>         Display name (default: app.json name or plugin name)
-  --description <text>   Plugin and MCP tool description
-  --tool <name>          Opener tool (default: open_app)
+  --description <text>   Plugin and fallback opener description
+  --tool <name>          Fallback opener without page schemas (default: open_app)
   --page <path>          Initial page (default: first app.json pages entry)
   --version <version>    Plugin and server version (default: 0.1.0)`);
     return;

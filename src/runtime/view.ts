@@ -3,7 +3,7 @@ import { createInkView, type InkView } from '@yodaos-pkg/ink';
 
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, string>;
-declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean };
 const config = __APP_CONFIG__;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
@@ -12,6 +12,26 @@ let view: InkView | undefined;
 let mode: 'inline' | 'fullscreen' = 'inline';
 let lastWidth = 0;
 let lastHeight = 0;
+let query: Record<string, unknown> | undefined = config.waitForToolInput ? undefined : {};
+let openedQuery: string | undefined;
+const initialPage = document.body.dataset.page || config.page;
+
+function openPage() {
+  if (!view || query === undefined) return;
+  const serialized = JSON.stringify(query);
+  if (serialized === openedQuery) return;
+  view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage, query,
+    hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
+  openedQuery = serialized;
+  resize();
+  document.body.dataset.ready = 'true';
+}
+
+app.ontoolinput = (input) => { query = input.arguments ?? {}; openPage(); };
+app.ontoolresult = (result) => {
+  const invocation = result._meta?.aiui as { page?: string; query?: Record<string, unknown> } | undefined;
+  if (invocation?.page === initialPage && invocation.query) { query = invocation.query; openPage(); }
+};
 
 function applyMode(actual: string) {
   if (actual !== 'inline' && actual !== 'fullscreen') return;
@@ -64,9 +84,7 @@ async function main() {
     },
   });
   view.bindDomEvents({ canvas });
-  view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage: config.page, hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
-  resize();
-  document.body.dataset.ready = 'true';
+  openPage();
 }
 
 main().catch(error => { console.error('Ink startup failed:', error); });
