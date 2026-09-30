@@ -1,26 +1,34 @@
 # AIUI MCPKit
 
-**Bring AIUI Agents to MCP Apps.**
+**Turn your AIUI Agent into an interactive app inside an AI client.**
 
-AIUI MCPKit turns your [AIUI Agent](https://github.com/yodaos-project/AIUI) into an interactive MCP App plugin. Build your agent with one command and open it in a compatible AI client.
+AI conversations can do more than return text. With AIUI MCPKit, your agent can show a page with buttons, live state, and a layout that expands when the user opens it fullscreen.
 
-The `@yodaos-pkg/aiui-mcpkit` ESM package bundles your agent pages, runtime, and MCP server together. Build tools can call its API directly to generate plugins as part of their own packaging workflow.
+Write the interface as an [AIUI Agent](https://github.com/yodaos-project/AIUI), then package it with MCPKit. The build includes the interface, its runtime, and the MCP server needed to connect it to a compatible client.
 
-[简体中文](README.zh-CN.md) · [Quick start](#quick-start) · [Build your agent](#build-your-agent) · [Development](#development) · [Issues](https://github.com/yodaos-project/aiui-mcpkit/issues)
+[简体中文](README.zh-CN.md) · [Try the example](#try-the-example) · [Create your own agent](#create-your-own-agent) · [Use the ESM library](#use-the-esm-library) · [Choose a client](#choose-a-client) · [Contribute](#contribute)
 
-## Features
+## Why MCPKit?
 
-- **ESM API with TypeScript declarations.** Import `buildPlugin()` into your build tool without launching a CLI process.
-- **Your AIUI Agent, packaged as a plugin.** Use your own pages, agent name, and opener tool.
-- **Self-contained output.** JavaScript, agent source, and compressed WebAssembly are bundled; the generated plugin runs without installing npm dependencies.
-- **Inline and fullscreen layouts.** Host display modes map to the agent's `_current` and `_blank` targets, so one page can reveal more content when expanded.
-- **Ready for local installation.** Every build includes plugin metadata, stdio MCP configuration, and a local marketplace manifest.
+- **Give users something to interact with.** Start with the Counter, then use the same packaging workflow for your own agent pages.
+- **Adapt to the space available.** Show the essentials inline and more controls or detail fullscreen. Host modes map to the agent's `_current` and `_blank` targets.
+- **Keep the build in your toolchain.** Import `buildPlugin()` from `@yodaos-pkg/aiui-mcpkit`; the ESM API includes TypeScript declarations.
+- **Ship a self-contained plugin directory.** Agent source, JavaScript, and compressed WebAssembly are bundled. The generated server still needs Node.js, but no separate npm install.
+- **Reuse the server across compatible clients.** Codex gets plugin installation metadata; other local MCP Apps clients can connect to the generated server directly.
 
-## Quick start
+New to these terms? An **AIUI Agent** is the app you write. **MCP** connects an AI client to tools. **MCP Apps** lets those tools also provide an interactive interface. **MCPKit** packages these pieces together.
 
-You need **Node.js 22+**, npm, and a compatible desktop host with MCP Apps and local stdio support. The installation commands below use a Codex CLI that supports `codex plugin`.
+## Try the example
 
-Clone the repository and build the Counter example:
+Start here if you want to see what the project does before writing code. This walkthrough builds the Counter and installs it for **Codex Desktop**.
+
+### 1. Prepare your tools
+
+Install [Node.js](https://nodejs.org/en/download) **22 or newer** (includes npm), [Git](https://git-scm.com/downloads), Codex Desktop, and a Codex CLI version with `codex plugin` support. Run the commands below in a terminal.
+
+Already using Claude Desktop or VS Code? Complete step 2, then follow [your client's setup](#choose-a-client).
+
+### 2. Download and build
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
@@ -29,22 +37,28 @@ npm ci
 npm run build:example
 ```
 
-Install the generated plugin:
+The Counter plugin is now in `dist/examples/counter`. Keep the terminal in this repository for the next step.
+
+### 3. Install in Codex
 
 ```sh
 codex plugin marketplace add ./dist/examples/counter
 codex plugin add ink-counter@ink-counter-local
 ```
 
-Restart the desktop host after the initial installation, then open **AIUI MCPKit Counter**. In a host that exposes local MCP tools, you can also invoke `open_counter`.
+The first command registers the local plugin catalog; the second installs the Counter. Copy the identifiers as shown: they must match the generated metadata.
 
-The [Counter example](examples/counter/ink) uses AIUI's monochrome-green design. Inline mode shows the count and an increment action; fullscreen adds session statistics, recent activity, and quick actions. The host controls expansion, while the plugin view displays only the agent interface.
+Restart Codex Desktop after the initial installation, then open **AIUI MCPKit Counter** from the plugin's UI entrypoint. In a Codex chat with the local tool available, you can also ask it to call `open_counter`.
 
-## Build your agent
+### 4. Explore the interface
 
-### 1. Prepare your agent source
+The Counter uses AIUI's monochrome-green design. Click **+ ADD ONE** to change the count. In a host with fullscreen support, expand the view to see session statistics, recent actions, and additional controls.
 
-An AIUI Agent contains an `app.json` manifest and its pages:
+The [example source](examples/counter/ink/pages/counter/index.ink) shows how the page handles state and adapts its layout. The inline Counter has been observed in Codex Desktop; fullscreen behavior is tested in the browser harness.
+
+## Create your own agent
+
+Once the example works, replace it with your own page. You can start with this minimal project:
 
 ```text
 my-agent/
@@ -54,7 +68,7 @@ my-agent/
         └── home.ink
 ```
 
-`app.json`:
+`app.json` gives the app a name and lists its pages:
 
 ```json
 {
@@ -63,7 +77,7 @@ my-agent/
 }
 ```
 
-`pages/home.ink`:
+`pages/home.ink` defines the first screen:
 
 ```html
 <page>
@@ -73,11 +87,39 @@ my-agent/
 </page>
 ```
 
-Page paths in `app.json` omit the `.ink` extension. For a working example with state and input handlers, see the [Counter page](examples/counter/ink/pages/counter/index.ink).
+Page paths in `app.json` omit the `.ink` extension. For buttons and state, use the [Counter page](examples/counter/ink/pages/counter/index.ink) as a working reference.
 
-### 2. Package the agent
+From the MCPKit repository, run the local build helper. Replace `/path/to/my-agent` with your project's actual path:
 
-The package's public entrypoint is an ESM API:
+```sh
+npm run build
+node scripts/build-plugin.mjs /path/to/my-agent/agent \
+  --name my-agent \
+  --out /path/to/my-agent/dist/plugin
+```
+
+Use separate source and output directories; neither may contain the other. The helper is for development in this repository. The package's public integration API is the [ESM library](#use-the-esm-library).
+
+To install your new plugin in Codex:
+
+```sh
+codex plugin marketplace add /path/to/my-agent/dist/plugin
+codex plugin add my-agent@my-agent-local
+```
+
+Reload the desktop host after installation. Your agent's opener tool is `open_app` by default. Other clients can [connect directly to its server](#choose-a-client).
+
+## Use the ESM library
+
+For developers building a packaging tool or an automated pipeline, call MCPKit directly from JavaScript. There is no need to launch a CLI subprocess.
+
+To try the package from this checkout, run `npm pack` in the MCPKit repository. It builds the library and produces `yodaos-pkg-aiui-mcpkit-0.1.0.tgz`. Then install that file in your own Node.js project:
+
+```sh
+npm install /absolute/path/to/aiui-mcpkit/yodaos-pkg-aiui-mcpkit-0.1.0.tgz
+```
+
+Create `build-agent.mjs` in your project:
 
 ```js
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
@@ -93,114 +135,136 @@ console.log(result.outputDir);
 console.log(result.files.view);
 ```
 
-`buildPlugin()` returns the plugin identity, absolute output directory, marketplace name, and paths to the generated files. Errors reject its promise; it does not log or change the process working directory. Relative paths resolve from the caller's working directory. This provides the integration point for build tools such as AIX; `aix pack --target mcp-apps` will be implemented in AIX separately.
+Run it with `node build-agent.mjs`. Relative paths resolve from the directory where you run the command. The result contains plugin identity, the absolute output directory, the marketplace name, and generated file paths.
 
-For local testing in this checkout, build the library and use the helper script:
+The API exports `BuildPluginOptions` and `BuildPluginResult`. It reports errors by rejecting the promise, without logging, exiting, or changing the working directory. This is the integration point for tools such as AIX; `aix pack --target mcp-apps` is planned for separate implementation in AIX.
 
-```sh
-npm run build
-node scripts/build-plugin.mjs /path/to/my-agent/agent \
-  --name my-agent \
-  --out /path/to/my-agent/dist/plugin
-```
+## Choose a client
 
-Keep the source and output directories separate; neither may contain the other.
+**Supporting MCP tools alone is not enough to display the interface.** A client also needs MCP Apps UI support. The current build uses **stdio**: the client starts a local Node.js process and communicates with it through standard input and output.
 
-### 3. Install the plugin
-
-```sh
-codex plugin marketplace add /path/to/my-agent/dist/plugin
-codex plugin add my-agent@my-agent-local
-```
-
-The generated directory is the marketplace root. Each build creates a marketplace named `<plugin-name>-local` and an opener tool named `open_app` by default.
-
-### API options
-
-| Option | Description | Default |
+| Client | How to connect | What to expect |
 | --- | --- | --- |
-| `source` | Agent source directory | Required |
-| `name` | Plugin identifier | Required |
-| `outputDir` | Plugin output directory | `dist/<name>` |
-| `title` | Display name | `app.json` name, then plugin name |
-| `description` | Plugin and opener tool description | Generated from the display name |
-| `tool` | Opener tool name | `open_app` |
-| `page` | Initial page path, without `.ink` | First `app.json` pages entry |
-| `version` | Plugin and MCP server version | `0.1.0` |
+| Codex Desktop | Install the local plugin | Counter inline UI observed; fullscreen tested in browser harness |
+| Codex CLI | Local plugin or direct MCP registration | Installation and terminal tool calls; use Desktop for graphical UI |
+| Claude Desktop | Local MCP server configuration | Officially listed as an MCP Apps host; this project's UI not yet tested |
+| VS Code / Copilot Chat | Workspace MCP configuration | Documents MCP Apps support; this project's UI not yet tested |
+| Other local MCP Apps clients | Client-specific stdio configuration | Requires compatible UI sandbox and resource limits |
+| Remote / HTTP-only clients | Additional HTTP server transport | Not generated by MCPKit today |
 
-The package exports `BuildPluginOptions` and `BuildPluginResult` types. Its published entrypoint is the library; the CLI helper stays in this repository.
+### Codex Desktop
 
-### Local CLI options
+Follow the [example walkthrough](#try-the-example) to install the local plugin, then open it in Desktop. Entrypoint placement and local tool availability depend on the app version and chat surface. See the official [local plugin installation guide](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually).
+
+### Codex CLI
+
+The CLI installs plugins and calls their tools. Start a new CLI session after installation and ask it to call `open_counter`. The opener returns a text response; use Desktop to interact with the graphical view.
+
+For a direct MCP connection, use this **instead of** the plugin installation commands:
 
 ```sh
-node scripts/build-plugin.mjs [source] --name <plugin-name> [options]
+codex mcp add aiui-counter -- node /absolute/path/to/aiui-mcpkit/dist/examples/counter/dist/server.mjs
 ```
 
-| Option | Description | Default |
-| --- | --- | --- |
-| `[source]` | Agent source directory | Current working directory |
-| `--name` | Plugin identifier: lowercase letters, numbers, and hyphens; starts with a letter | Required |
-| `--out` | Plugin output directory | `dist/<plugin-name>` |
-| `--title` | Display name | `app.json` name, then plugin name |
-| `--description` | Plugin and opener tool description | Generated from the display name |
-| `--tool` | Opener tool name | `open_app` |
-| `--page` | Initial page path, without `.ink` | First `app.json` pages entry |
-| `--version` | Plugin and MCP server version | `0.1.0` |
-| `--help` | Show command help | — |
+Choose one registration method to avoid duplicate tools. See the official [MCP configuration guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
 
-## How it works
+### Claude Desktop
 
-```text
-AIUI Agent source → MCPKit build → Plugin package → MCP Apps host → Agent interface
+Claude Desktop is on the official [MCP Apps host list](https://modelcontextprotocol.io/extensions/apps/overview), and the SDK documents [local stdio connections](https://github.com/modelcontextprotocol/ext-apps#with-mcp-clients). The generated server follows that connection model; the complete UI still needs testing in Claude Desktop.
+
+After building the example, merge this entry into `claude_desktop_config.json`. Replace the placeholder with the absolute path to your repository and preserve any existing server entries:
+
+```json
+{
+  "mcpServers": {
+    "aiui-counter": {
+      "command": "node",
+      "args": ["/absolute/path/to/aiui-mcpkit/dist/examples/counter/dist/server.mjs"]
+    }
+  }
+}
 ```
 
-The generated stdio MCP server registers an opener tool and a `ui://` HTML resource. The host loads that resource into its app view, where the runtime renders your agent interface. Host display-mode changes update the agent target without reopening it.
+The configuration lives at `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows. If Claude cannot find Node.js, replace `node` with its absolute executable path. Restart Claude Desktop, then call `open_counter` in a surface that exposes the configured server. See the [local-server setup guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers).
 
-Each build produces:
+Codex marketplace commands do not install a Claude extension. MCPKit currently generates neither a `.mcpb` extension nor an HTTPS server for web/mobile connectors. See [Claude connector options](https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors) for those workflows.
 
-```text
-plugin/
-├── plugin.json                       # Plugin identity and display metadata
-├── mcp.json                          # Portable stdio server configuration
-├── view.html                         # Embedded agent and runtime
-├── dist/server.mjs                   # Bundled MCP server
-└── .agents/plugins/marketplace.json  # Local installation catalog
-```
+### VS Code and other clients
 
-You can distribute this directory through your own marketplace or configure another compatible MCP Apps host to run `node /path/to/plugin/dist/server.mjs`. The generated `mcp.json` resolves server paths through `${PLUGIN_ROOT}`.
+For VS Code, put the same `mcpServers` configuration above in the workspace-root `.mcp.json`. Start the server through **MCP: List Servers**, then invoke `open_counter` in Copilot Chat. Follow the official [VS Code MCP guide](https://code.visualstudio.com/docs/agent-customization/mcp-servers) for version and setting requirements.
 
-## Development
+For another client, check the [MCP Apps host list](https://modelcontextprotocol.io/extensions/apps/overview) and register `node` with the absolute path to `dist/server.mjs` using its own configuration format. When connecting your own agent, replace the example server path and use your configured opener tool name.
 
-### Update the installed example
+OpenAI sidebar entrypoints are client-specific. A different host may render the standard app view with different expansion controls.
 
-After editing the Counter agent's page or browser view, run:
+## Edit, rebuild, repeat
+
+To change the Counter, edit its [page](examples/counter/ink/pages/counter/index.ink), then run:
 
 ```sh
 npm run update:example
 ```
 
-This rebuilds the example and atomically replaces the installed `ink-counter` plugin's `view.html`. Open a new Counter card to load the updated UI; existing cards retain their current view.
+This rebuilds the example and replaces `view.html` in the installed Codex Counter plugin. Open a **new Counter card** to request the new interface. Existing cards keep their current view; if the host caches the resource, a restart may still be needed.
 
-The script uses `$CODEX_HOME`, defaulting to `~/.codex`, and checks the matching version and `local` cache directories. To select a different installation:
+The script uses `$CODEX_HOME` (default: `~/.codex`) and checks the matching version and `local` cache directories. To specify the installation directory yourself:
 
 ```sh
 npm run update:example -- --plugin-dir /absolute/path/to/installed/plugin
 ```
 
-This updates the view only. MCP server or manifest changes require reinstalling and reloading the plugin. If the desktop host caches the UI resource, a restart may still be needed.
+This shortcut updates the Counter view only. Server or manifest changes require reinstalling and reloading the plugin. For Claude Desktop or another directly configured client, rebuild the plugin at its registered path and reload the server through that client.
 
-### Project commands
+## Build reference
+
+### Generated files
+
+```text
+plugin/
+├── plugin.json                       # Plugin name and display metadata
+├── mcp.json                          # Plugin-host stdio configuration
+├── view.html                         # Agent interface and embedded runtime
+├── dist/server.mjs                   # Bundled MCP server
+└── .agents/plugins/marketplace.json  # Local Codex installation catalog
+```
+
+The server exposes an opener tool and a `ui://` HTML resource with MIME type `text/html;profile=mcp-app`. The host loads the resource into its app view and forwards display-mode changes to the agent. In the generated `mcp.json`, `${PLUGIN_ROOT}` is resolved by the plugin host; manual client configurations need real paths.
+
+### API and helper options
+
+| ESM option | Local helper argument | Default |
+| --- | --- | --- |
+| `source` | `[source]` | API: required; helper: current directory |
+| `name` | `--name` | Required |
+| `outputDir` | `--out` | `dist/<name>` |
+| `title` | `--title` | `app.json` name, then plugin name |
+| `description` | `--description` | Generated from the display name |
+| `tool` | `--tool` | `open_app` |
+| `page` | `--page` | First page in `app.json`, without `.ink` |
+| `version` | `--version` | `0.1.0` |
+
+Plugin names start with a lowercase letter and contain lowercase letters, numbers, or hyphens. Tool names contain 1–128 letters, numbers, underscores, or hyphens. Use `node scripts/build-plugin.mjs --help` for helper usage. If you omit `[source]`, set `--out` outside the current directory to keep source and output separate.
+
+### Current scope
+
+The UI host must allow WebAssembly compilation. The embedded HTML is roughly 10 MB, so resource size limits also matter. Source files are read as UTF-8; packaging binary assets is not supported yet.
+
+Automated tests cover packaging, MCP tool/resource responses, and the browser runtime. They do not establish full compatibility with every desktop host, account-connected tool access, or resource-cache behavior.
+
+## Contribute
+
+Try the example, connect a new host, or improve the build API. [Open an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) with the client version, build command, and reproduction steps; reports from Claude Desktop and other MCP Apps hosts are especially useful.
 
 | Command | Purpose |
 | --- | --- |
 | `npm run build` | Build the ESM library, types, and runtime templates |
-| `npm run build:example` | Build and package the Counter example |
-| `npm run update:example` | Build and replace the installed Counter view |
+| `npm run build:example` | Package the Counter example |
+| `npm run update:example` | Replace the installed Codex Counter view |
 | `npm run start:example` | Start the generated stdio MCP server |
 | `npm run typecheck` | Check TypeScript types |
 | `npm test` | Run packaging, MCP, and browser tests |
 
-For the test suite, build the example and install Playwright Chromium first:
+Before submitting a code change:
 
 ```sh
 npm run build:example
@@ -209,18 +273,6 @@ npm run typecheck
 npm test
 ```
 
-Browser tests render the actual agent runtime in an MCP Apps `AppBridge` harness and cover input, state continuity, host-driven display modes, and a restrictive no-network CSP. Chromium can also be selected through `CHROMIUM_PATH` or `/usr/bin/chromium` when available.
+Browser tests use the actual agent runtime in an MCP Apps `AppBridge` harness, covering input, state continuity, display modes, and a no-network CSP. You can select an existing Chromium through `CHROMIUM_PATH`; `/usr/bin/chromium` is also supported when available. Keep the English and Chinese READMEs aligned when updating documentation.
 
-## Compatibility
-
-AIUI MCPKit currently produces local **stdio** plugins. A host must support MCP Apps, launching Node.js processes, and WebAssembly compilation in its UI sandbox. Inline, fullscreen, and sidebar entrypoints depend on host support.
-
-- **Resources:** source files are read as UTF-8; binary asset packaging is not yet supported. The embedded runtime makes the HTML resource roughly 10 MB, so host resource limits matter.
-- **Tool access:** a plugin appearing in a picker or sidebar does not establish model access to its local tools. Chat model invocation of this generated local plugin remains unverified. For an account-connected HTTPS MCP integration, follow the [developer connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt).
-- **Verification:** automated tests cover the generated package and browser harness. Plugin discovery, resource caching, placement, and sandbox policies should also be checked in your target desktop host.
-
-## Contributing
-
-Bug reports and pull requests are welcome. For a host integration issue, include the host and CLI versions, the build command, and the steps needed to reproduce it. For code changes, run the checks above and keep the English and Chinese READMEs aligned.
-
-[Report an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) · [Browse the source](https://github.com/yodaos-project/aiui-mcpkit)
+[Browse the source](https://github.com/yodaos-project/aiui-mcpkit) · [Report an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) · [Explore AIUI](https://github.com/yodaos-project/AIUI)

@@ -1,26 +1,34 @@
 # AIUI MCPKit
 
-**将 AIUI Agent 带入 MCP Apps。**
+**让你的 AIUI Agent 在 AI 客户端里变成可点击、可操作的应用。**
 
-AIUI MCPKit 将你的 [AIUI Agent](https://github.com/yodaos-project/AIUI) 构建为可交互的 MCP App 插件。一条命令完成打包，即可在兼容的 AI 客户端中打开 Agent。
+AI 对话除了返回文字，还可以展示带按钮、实时状态的页面。使用 AIUI MCPKit，你可以把这样的界面放进 AI 客户端，并在用户打开全屏时展示更多内容。
 
-`@yodaos-pkg/aiui-mcpkit` ESM 包将 Agent 页面、运行时和 MCP 服务一起打包。构建工具可以直接调用 API，将插件生成能力集成到自己的打包流程。
+用 [AIUI Agent](https://github.com/yodaos-project/AIUI) 编写界面，再交给 MCPKit 打包。构建产物包含界面、运行时，以及连接兼容客户端所需的 MCP 服务。
 
-[English](README.md) · [快速开始](#快速开始) · [构建你的 Agent](#构建你的-agent) · [开发](#开发) · [问题反馈](https://github.com/yodaos-project/aiui-mcpkit/issues)
+[English](README.md) · [体验示例](#体验示例) · [创建自己的 Agent](#创建自己的-agent) · [接入 ESM 库](#接入-esm-库) · [选择客户端](#选择客户端) · [参与贡献](#参与贡献)
 
-## 功能
+## 为什么使用 MCPKit？
 
-- **提供 ESM API 和 TypeScript 类型声明。** 在构建工具中导入 `buildPlugin()`，无需启动 CLI 子进程。
-- **将自己的 AIUI Agent 打包为插件。** 使用自己的页面、Agent 名称和打开工具。
-- **独立运行的构建产物。** JavaScript、Agent 源码和压缩的 WebAssembly 均已打包，生成的插件无需安装 npm 依赖。
-- **内联与全屏布局。** 将宿主显示模式映射到 Agent 的 `_current` 和 `_blank`，同一个页面可在展开时展示更多内容。
-- **支持本地安装。** 每次构建都会生成插件元数据、stdio MCP 配置和本地 marketplace manifest。
+- **让用户直接操作界面。** 从 Counter 计数器开始，再用同一套打包流程构建自己的 Agent 页面。
+- **根据展示空间调整内容。** 内联展示核心信息，全屏展示更多操作或详情。宿主的显示模式对应 Agent 的 `_current` 和 `_blank` 目标。
+- **直接接入已有构建工具。** 从 `@yodaos-pkg/aiui-mcpkit` 导入 `buildPlugin()` 即可使用，ESM API 同时提供 TypeScript 类型声明。
+- **交付一个完整的插件目录。** Agent 源码、JavaScript 和压缩的 WebAssembly 都已打包。生成的服务需要 Node.js，但无需另外安装 npm 依赖。
+- **在兼容客户端复用服务。** 为 Codex 生成插件安装元数据，其他本地 MCP Apps 客户端可以直接连接生成的服务。
 
-## 快速开始
+第一次接触这些名词？**AIUI Agent** 是你编写的应用；**MCP** 让 AI 客户端连接工具；**MCP Apps** 让这些工具还能提供交互界面；**MCPKit** 负责把它们打包到一起。
 
-需要 **Node.js 22+**、npm，以及支持 MCP Apps 和本地 stdio 服务的桌面宿主。以下安装命令使用支持 `codex plugin` 的 Codex CLI。
+## 体验示例
 
-克隆仓库并构建 Counter 示例：
+先运行一个现成的例子，再决定要写什么。这份教程会构建 Counter 计数器，并安装到 **Codex 桌面版**。
+
+### 1. 准备工具
+
+安装 [Node.js](https://nodejs.org/en/download) **22 或更新版本**（自带 npm）、[Git](https://git-scm.com/downloads)、Codex 桌面版，以及支持 `codex plugin` 命令的 Codex CLI。下面的命令都在终端中执行。
+
+使用 Claude Desktop 或 VS Code？完成第 2 步后，直接跳到[对应客户端的接入说明](#选择客户端)。
+
+### 2. 下载并构建
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
@@ -29,22 +37,28 @@ npm ci
 npm run build:example
 ```
 
-安装生成的插件：
+完成后，Counter 插件位于 `dist/examples/counter`。下一步继续在当前仓库目录中执行。
+
+### 3. 安装到 Codex
 
 ```sh
 codex plugin marketplace add ./dist/examples/counter
 codex plugin add ink-counter@ink-counter-local
 ```
 
-首次安装后重启桌面宿主，然后打开 **AIUI MCPKit Counter**。在提供本地 MCP 工具的宿主中，也可以调用 `open_counter`。
+第一条命令注册本地插件目录，第二条安装 Counter。请按示例复制插件标识，它们需要与生成的元数据一致。
 
-[Counter 示例](examples/counter/ink) 采用 AIUI 单绿设计。内联模式展示计数和递增操作，全屏模式增加会话统计、最近操作记录和快捷操作。展开由宿主控制，插件视图只展示 Agent 界面。
+首次安装后重启 Codex 桌面版，从插件的界面入口打开 **AIUI MCPKit Counter**。在已提供本地工具的 Codex 对话中，也可以让它调用 `open_counter`。
 
-## 构建你的 Agent
+### 4. 试着操作
 
-### 1. 准备 Agent 源码
+Counter 采用 AIUI 单绿设计。点击 **+ ADD ONE**，计数就会变化。在支持全屏的宿主中展开界面，还可以看到会话统计、最近操作记录和更多控制按钮。
 
-AIUI Agent 由 `app.json` manifest 和页面组成：
+[示例源码](examples/counter/ink/pages/counter/index.ink) 展示了页面如何处理状态、调整布局。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为通过浏览器测试环境验证。
+
+## 创建自己的 Agent
+
+示例跑通后，就可以换成自己的页面。最小项目结构如下：
 
 ```text
 my-agent/
@@ -54,7 +68,7 @@ my-agent/
         └── home.ink
 ```
 
-`app.json`：
+`app.json` 定义应用名称和页面列表：
 
 ```json
 {
@@ -63,7 +77,7 @@ my-agent/
 }
 ```
 
-`pages/home.ink`：
+`pages/home.ink` 定义第一个界面：
 
 ```html
 <page>
@@ -73,11 +87,39 @@ my-agent/
 </page>
 ```
 
-`app.json` 中的页面路径不带 `.ink` 后缀。包含状态管理和输入事件的完整示例见 [Counter 页面](examples/counter/ink/pages/counter/index.ink)。
+`app.json` 中的页面路径不带 `.ink` 后缀。需要按钮和状态管理时，可以参考完整的 [Counter 页面](examples/counter/ink/pages/counter/index.ink)。
 
-### 2. 打包 Agent
+在 MCPKit 仓库中运行本地构建脚本。把 `/path/to/my-agent` 换成自己项目的实际路径：
 
-包的公开入口是 ESM API：
+```sh
+npm run build
+node scripts/build-plugin.mjs /path/to/my-agent/agent \
+  --name my-agent \
+  --out /path/to/my-agent/dist/plugin
+```
+
+源码和输出目录需要分开，两者不能互相包含。这个脚本用于在仓库内调试；包对外提供的集成入口是 [ESM 库](#接入-esm-库)。
+
+将自己的插件安装到 Codex：
+
+```sh
+codex plugin marketplace add /path/to/my-agent/dist/plugin
+codex plugin add my-agent@my-agent-local
+```
+
+安装后重新加载桌面宿主。自己的 Agent 默认通过 `open_app` 工具打开。其他客户端可以[直接连接生成的服务](#选择客户端)。
+
+## 接入 ESM 库
+
+如果你在开发打包工具或自动构建流程，可以直接从 JavaScript 调用 MCPKit，无需启动 CLI 子进程。
+
+要使用当前仓库中的包，先在 MCPKit 仓库运行 `npm pack`。它会构建库并生成 `yodaos-pkg-aiui-mcpkit-0.1.0.tgz`。然后在自己的 Node.js 项目中安装这个文件：
+
+```sh
+npm install /absolute/path/to/aiui-mcpkit/yodaos-pkg-aiui-mcpkit-0.1.0.tgz
+```
+
+在自己的项目中创建 `build-agent.mjs`：
 
 ```js
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
@@ -93,114 +135,136 @@ console.log(result.outputDir);
 console.log(result.files.view);
 ```
 
-`buildPlugin()` 返回插件身份、绝对输出目录、marketplace 名称和生成文件的路径。错误通过 Promise rejection 返回；函数不输出日志，也不修改进程工作目录。相对路径基于调用方的工作目录解析。该 API 可供 AIX 等构建工具集成；`aix pack --target mcp-apps` 将由 AIX 后续实现。
+运行 `node build-agent.mjs` 即可打包。相对路径基于执行命令时所在的目录解析。返回结果包含插件身份、绝对输出目录、marketplace 名称和生成文件的路径。
 
-在本仓库中测试时，先构建库，再使用辅助脚本：
+API 导出 `BuildPluginOptions` 和 `BuildPluginResult` 类型。错误通过 Promise rejection 返回，不输出日志、不退出进程、不修改工作目录。这也是 AIX 等工具的集成入口；`aix pack --target mcp-apps` 计划在 AIX 中单独实现。
 
-```sh
-npm run build
-node scripts/build-plugin.mjs /path/to/my-agent/agent \
-  --name my-agent \
-  --out /path/to/my-agent/dist/plugin
-```
+## 选择客户端
 
-源码目录与输出目录需要分开，两者不能互相包含。
+**能调用 MCP 工具，不等于能展示界面。** 客户端还需要支持 MCP Apps UI。当前构建使用 **stdio**：由客户端启动本地 Node.js 进程，通过标准输入和输出与它通信。
 
-### 3. 安装插件
-
-```sh
-codex plugin marketplace add /path/to/my-agent/dist/plugin
-codex plugin add my-agent@my-agent-local
-```
-
-生成的目录就是 marketplace 根目录。每次构建会创建名为 `<plugin-name>-local` 的 marketplace；打开工具默认名为 `open_app`。
-
-### API 参数
-
-| 参数 | 说明 | 默认值 |
+| 客户端 | 接入方式 | 当前可预期的效果 |
 | --- | --- | --- |
-| `source` | Agent 源码目录 | 必填 |
-| `name` | 插件标识 | 必填 |
-| `outputDir` | 插件输出目录 | `dist/<name>` |
-| `title` | 显示名称 | `app.json` 名称，其次为插件名称 |
-| `description` | 插件与打开工具的描述 | 根据显示名称生成 |
-| `tool` | 打开工具名称 | `open_app` |
-| `page` | 初始页面路径，不带 `.ink` | `app.json` 的第一个 pages 条目 |
-| `version` | 插件和 MCP 服务版本 | `0.1.0` |
+| Codex 桌面版 | 安装本地插件 | 已观察到 Counter 内联界面；全屏经过浏览器测试 |
+| Codex CLI | 本地插件或直接注册 MCP | 安装与终端工具调用；图形界面使用桌面版 |
+| Claude Desktop | 配置本地 MCP 服务 | 官方列为 MCP Apps 宿主；本项目界面尚未实测 |
+| VS Code / Copilot Chat | 工作区 MCP 配置 | 官方文档提供 MCP Apps 支持；本项目界面尚未实测 |
+| 其他本地 MCP Apps 客户端 | 按客户端格式配置 stdio | 需要兼容的 UI 沙箱和资源大小限制 |
+| 远程或仅支持 HTTP 的客户端 | 额外提供 HTTP 服务传输层 | MCPKit 目前不生成此类服务 |
 
-包导出 `BuildPluginOptions` 和 `BuildPluginResult` 类型。发布的入口是库，CLI 辅助脚本保留在本仓库中。
+### Codex 桌面版
 
-### 本地 CLI 参数
+按照[示例教程](#体验示例)安装本地插件，再在桌面版中打开。入口位置、本地工具能否用于当前对话，取决于应用版本和对话类型。详见官方[本地插件安装指南](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually)。
+
+### Codex CLI
+
+CLI 用于安装插件和调用工具。安装后开启一个新的 CLI 会话，让它调用 `open_counter`。打开工具会返回文字响应；操作图形界面需要使用桌面版。
+
+如果只需要直接连接 MCP 服务，可以用下面的命令**替代**插件安装命令：
 
 ```sh
-node scripts/build-plugin.mjs [source] --name <plugin-name> [options]
+codex mcp add aiui-counter -- node /absolute/path/to/aiui-mcpkit/dist/examples/counter/dist/server.mjs
 ```
 
-| 参数 | 说明 | 默认值 |
-| --- | --- | --- |
-| `[source]` | Agent 源码目录 | 当前工作目录 |
-| `--name` | 插件标识：小写字母、数字和连字符，以字母开头 | 必填 |
-| `--out` | 插件输出目录 | `dist/<plugin-name>` |
-| `--title` | 显示名称 | `app.json` 名称，其次为插件名称 |
-| `--description` | 插件与打开工具的描述 | 根据显示名称生成 |
-| `--tool` | 打开工具名称 | `open_app` |
-| `--page` | 初始页面路径，不带 `.ink` | `app.json` 的第一个 pages 条目 |
-| `--version` | 插件和 MCP 服务版本 | `0.1.0` |
-| `--help` | 显示命令帮助 | — |
+选择一种注册方式，避免出现重复工具。详见官方 [MCP 配置指南](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)。
 
-## 工作原理
+### Claude Desktop
 
-```text
-AIUI Agent 源码 → MCPKit 构建 → 插件包 → MCP Apps 宿主 → Agent 界面
+Claude Desktop 位于官方 [MCP Apps 宿主列表](https://modelcontextprotocol.io/extensions/apps/overview)中，SDK 也提供[本地 stdio 接入说明](https://github.com/modelcontextprotocol/ext-apps#with-mcp-clients)。生成的服务遵循这套连接方式，完整界面仍需要在 Claude Desktop 中实测。
+
+构建示例后，把下面的配置合并到 `claude_desktop_config.json`。将占位路径替换为仓库的绝对路径，并保留已有服务配置：
+
+```json
+{
+  "mcpServers": {
+    "aiui-counter": {
+      "command": "node",
+      "args": ["/absolute/path/to/aiui-mcpkit/dist/examples/counter/dist/server.mjs"]
+    }
+  }
+}
 ```
 
-生成的 stdio MCP 服务注册一个打开工具和一个 `ui://` HTML 资源。宿主将资源加载到应用视图，运行时渲染你的 Agent 界面。宿主切换显示模式时，Agent target 随之更新，无需重新打开 Agent。
+macOS 的配置位置是 `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 是 `%APPDATA%\Claude\claude_desktop_config.json`。如果 Claude 找不到 Node.js，把 `node` 替换为可执行文件的绝对路径。重启 Claude Desktop 后，在提供该服务的界面中调用 `open_counter`。详见[本地服务配置指南](https://modelcontextprotocol.io/docs/develop/connect-local-servers)。
 
-每次构建生成：
+Codex marketplace 命令不会安装 Claude 扩展。MCPKit 目前不生成 `.mcpb` 扩展，也不提供网页或手机连接器所需的 HTTPS 服务。这些接入方式见 [Claude 连接器说明](https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors)。
 
-```text
-plugin/
-├── plugin.json                       # 插件身份和显示元数据
-├── mcp.json                          # 可移植的 stdio 服务配置
-├── view.html                         # 内嵌的 Agent 和运行时
-├── dist/server.mjs                   # 打包后的 MCP 服务
-└── .agents/plugins/marketplace.json  # 本地安装目录
-```
+### VS Code 与其他客户端
 
-你可以通过自己的 marketplace 分发该目录，也可以在其他兼容的 MCP Apps 宿主中配置 `node /path/to/plugin/dist/server.mjs`。生成的 `mcp.json` 通过 `${PLUGIN_ROOT}` 解析服务路径。
+对于 VS Code，将上面的 `mcpServers` 配置放入工作区根目录的 `.mcp.json`。通过 **MCP: List Servers** 启动服务，然后在 Copilot Chat 中调用 `open_counter`。版本与设置要求见官方 [VS Code MCP 指南](https://code.visualstudio.com/docs/agent-customization/mcp-servers)。
 
-## 开发
+其他客户端可以先查阅 [MCP Apps 宿主列表](https://modelcontextprotocol.io/extensions/apps/overview)，再按自己的配置格式注册 `node` 和 `dist/server.mjs` 的绝对路径。接入自己的 Agent 时，替换示例的服务路径，并使用实际配置的打开工具名称。
 
-### 更新已安装的示例
+OpenAI 的侧栏入口属于客户端专用能力。其他宿主可以展示标准应用视图，但展开控件可能不同。
 
-修改 Counter Agent 的页面或浏览器视图后，运行：
+## 修改、构建、再体验
+
+修改 Counter 的[页面](examples/counter/ink/pages/counter/index.ink)后，运行：
 
 ```sh
 npm run update:example
 ```
 
-命令会重新构建示例，并以原子替换方式更新已安装 `ink-counter` 插件的 `view.html`。重新打开 Counter 卡片即可请求新 UI；已有卡片保留当前视图。
+它会重新构建示例，并替换 Codex 已安装 Counter 插件中的 `view.html`。打开一个**新的 Counter 卡片**来请求更新后的界面。已经打开的卡片保留当前内容；宿主如果缓存了资源，仍可能需要重启。
 
-脚本使用 `$CODEX_HOME`，默认是 `~/.codex`，并检查匹配版本和 `local` 缓存目录。指定其他安装路径：
+脚本使用 `$CODEX_HOME`（默认 `~/.codex`），检查对应版本和 `local` 缓存目录。也可以自己指定安装目录：
 
 ```sh
 npm run update:example -- --plugin-dir /absolute/path/to/installed/plugin
 ```
 
-该命令只更新视图。MCP 服务或 manifest 变更需要重新安装并重载插件。桌面宿主缓存 UI 资源时，仍可能需要重启。
+这个快捷操作只更新 Counter 界面。修改服务或 manifest 后，需要重新安装并加载插件。对于 Claude Desktop 等直接配置服务的客户端，在已注册的路径重新构建插件，再通过客户端重新加载服务。
 
-### 项目命令
+## 构建参考
+
+### 生成的文件
+
+```text
+plugin/
+├── plugin.json                       # Plugin name and display metadata
+├── mcp.json                          # Plugin-host stdio configuration
+├── view.html                         # Agent interface and embedded runtime
+├── dist/server.mjs                   # Bundled MCP server
+└── .agents/plugins/marketplace.json  # Local Codex installation catalog
+```
+
+服务提供打开工具，以及 MIME 类型为 `text/html;profile=mcp-app` 的 `ui://` HTML 资源。宿主把资源加载到应用视图中，并将显示模式变化传递给 Agent。生成的 `mcp.json` 中，`${PLUGIN_ROOT}` 由插件宿主解析；手动配置其他客户端时需要使用真实路径。
+
+### API 与辅助脚本参数
+
+| ESM 参数 | 本地脚本参数 | 默认值 |
+| --- | --- | --- |
+| `source` | `[source]` | API 必填；脚本默认为当前目录 |
+| `name` | `--name` | 必填 |
+| `outputDir` | `--out` | `dist/<name>` |
+| `title` | `--title` | `app.json` 名称，其次为插件名称 |
+| `description` | `--description` | 根据显示名称生成 |
+| `tool` | `--tool` | `open_app` |
+| `page` | `--page` | `app.json` 中的第一个页面，不带 `.ink` |
+| `version` | `--version` | `0.1.0` |
+
+插件名称以小写字母开头，仅包含小写字母、数字或连字符。工具名称由 1–128 个字母、数字、下划线或连字符组成。运行 `node scripts/build-plugin.mjs --help` 查看脚本用法。如果省略 `[source]`，请把 `--out` 设在当前目录之外，确保源码与输出目录分开。
+
+### 当前支持范围
+
+UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需要留意宿主的资源大小限制。源码按 UTF-8 读取，目前不支持打包二进制资源。
+
+自动测试覆盖打包、MCP 工具与资源响应，以及浏览器运行时。它们不能证明所有桌面宿主都完整兼容，也不能保证账号连接后的工具访问权限或资源缓存行为。
+
+## 参与贡献
+
+欢迎体验示例、接入新的宿主，或改进构建 API。[提交问题](https://github.com/yodaos-project/aiui-mcpkit/issues)时，请附上客户端版本、构建命令和复现步骤；Claude Desktop 和其他 MCP Apps 宿主的实测反馈尤其有帮助。
 
 | 命令 | 用途 |
 | --- | --- |
 | `npm run build` | 构建 ESM 库、类型声明和运行时模板 |
-| `npm run build:example` | 构建并打包 Counter 示例 |
-| `npm run update:example` | 构建并替换已安装的 Counter 视图 |
+| `npm run build:example` | 打包 Counter 示例 |
+| `npm run update:example` | 替换 Codex 已安装的 Counter 界面 |
 | `npm run start:example` | 启动生成的 stdio MCP 服务 |
 | `npm run typecheck` | 检查 TypeScript 类型 |
 | `npm test` | 运行打包、MCP 和浏览器测试 |
 
-运行测试前，先构建示例并安装 Playwright Chromium：
+提交代码改动前运行：
 
 ```sh
 npm run build:example
@@ -209,18 +273,6 @@ npm run typecheck
 npm test
 ```
 
-浏览器测试在 MCP Apps `AppBridge` 测试宿主中使用真实的 Agent 运行时进行渲染，覆盖输入、状态连续性、宿主控制的显示模式和禁止外部连接的 CSP。也可通过 `CHROMIUM_PATH` 指定 Chromium，或使用系统已有的 `/usr/bin/chromium`。
+浏览器测试在 MCP Apps `AppBridge` 测试环境中运行真实 Agent，覆盖输入、状态连续性、显示模式和禁止网络访问的 CSP。可以通过 `CHROMIUM_PATH` 指定已有 Chromium，也支持可用的 `/usr/bin/chromium`。修改文档时请保持中英文 README 一致。
 
-## 兼容性
-
-AIUI MCPKit 当前生成本地 **stdio** 插件。宿主需要支持 MCP Apps、启动 Node.js 进程，以及在 UI 沙箱中编译 WebAssembly。内联、全屏和侧栏入口取决于宿主支持。
-
-- **资源：** 源文件按 UTF-8 读取，尚不支持打包二进制素材。内嵌运行时使 HTML 资源约为 10 MB，需要留意宿主的资源大小限制。
-- **工具接入：** 插件出现在选择器或侧栏中，不代表模型能够调用它的本地工具。生成的本地插件尚未验证 Chat 模型调用。如需账号连接的 HTTPS MCP 集成，请参考[开发者连接指南](https://developers.openai.com/plugins/deploy/connect-chatgpt)。
-- **验证范围：** 自动化测试覆盖生成的插件包和浏览器测试宿主。插件发现、资源缓存、显示位置和沙箱策略还需在目标桌面宿主中检查。
-
-## 参与贡献
-
-欢迎提交问题和 Pull Request。反馈宿主集成问题时，请附上宿主及 CLI 版本、构建命令和复现步骤。修改代码后，请运行上述检查，并保持中英文 README 同步。
-
-[反馈问题](https://github.com/yodaos-project/aiui-mcpkit/issues) · [查看源码](https://github.com/yodaos-project/aiui-mcpkit)
+[查看源码](https://github.com/yodaos-project/aiui-mcpkit) · [反馈问题](https://github.com/yodaos-project/aiui-mcpkit/issues) · [了解 AIUI](https://github.com/yodaos-project/AIUI)
