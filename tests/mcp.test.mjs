@@ -22,6 +22,8 @@ test('stdio MCP exposes opener and self-contained UI resource', async () => {
     assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline', 'fullscreen']);
     assert.equal(content._meta['openai/ui'].preferredDisplayMode, 'inline');
     assert.ok(content.text.length > 1_000_000);
+    // Internal transport-size budget; this is not a documented host limit.
+    assert.ok(Buffer.byteLength(JSON.stringify(resource), 'utf8') < 10_000_000);
   } finally {
     await client.close();
   }

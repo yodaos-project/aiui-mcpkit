@@ -17,7 +17,7 @@ await walk('ink');
 const wasm = await readFile(path('node_modules/@yodaos-pkg/ink/pkg/ink_web_bg.wasm'));
 const gzip = gzipSync(wasm, { level: 9 }).toString('base64');
 const result = await build({
-  entryPoints: [path('src/view.ts').pathname], bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022',
+  entryPoints: [path('src/view.ts').pathname], bundle: true, write: false, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
   define: { __WASM_GZIP_BASE64__: JSON.stringify(gzip), __INK_FILES__: JSON.stringify(files) },
 });
 const script = result.outputFiles[0].text.replaceAll('</script', '<\\/script');

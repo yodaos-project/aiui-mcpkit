@@ -28,12 +28,12 @@ npm test
 
 `npm run build` 将 `.ink` 页面和压缩后的非共享浏览器 WASM 内嵌进单个本地 HTML 资源，同时将 Node MCP 服务打包到 `plugins/aiui-mcpkit/`。修改源码后应重新构建并重新安装。`npm test` 需要 `/usr/bin/chromium`，通过 MCP Apps `AppBridge` 测试宿主实际运行 WASM、画布输入、尺寸变化、接受/拒绝/不支持的模式请求、切换后的状态，以及禁止外部连接的 CSP；另有 stdio 工具与资源测试。这是测试宿主，不等同于 ChatGPT 桌面验证。
 
-Ink 页面在 [ink/pages/counter/index.ink](ink/pages/counter/index.ink)。可用时通过 Ink 的 `wx` 存储保存计数；切换模式时保留同一个视图并调整 viewport。MCP 服务 stdout 仅输出协议数据。UI 资源不声明外部连接或资源域名；JS、Ink 资源和 WASM 均在本地。压缩 WASM 使 HTML 资源约 10 MB，某些宿主可能设有更小的资源上限。宿主的沙箱 CSP 也必须允许本地 WebAssembly 编译；测试宿主允许 `wasm-unsafe-eval`。
+Ink 页面在 [ink/pages/counter/index.ink](ink/pages/counter/index.ink)。可用时通过 Ink 的 `wx` 存储保存计数；切换模式时保留同一个视图并调整 viewport。MCP 服务 stdout 仅输出协议数据。UI 资源不声明外部连接或资源域名；JS、Ink 资源和 WASM 均在本地。当前 HTML 正文为 9,571,548 字节，完整 stdio `resources/read` JSON 响应行为 9,610,758 字节。没有查到 ChatGPT 桌面版针对此资源公布的大小上限，因此仍需在真实宿主确认能否接收。宿主的沙箱 CSP 也必须允许本地 WebAssembly 编译；测试宿主允许 `wasm-unsafe-eval`。
 
 ## 验证边界
 
 - 已在云端 Linux 环境通过 `npm run typecheck`、`npm run build`、`npm test`（4 项），并用隔离的 Codex CLI 配置完成本地 marketplace 安装。
-- 尚需在真实 ChatGPT 桌面版/Codex GUI 核对插件发现、视图位置、实际 CSP/资源上限与模式切换。没有在用户 Mac 上安装或测试。
+- 尚需在真实 ChatGPT 桌面版/Codex GUI 核对插件发现、视图位置、实际 CSP/资源上限与模式切换。没有在用户 Mac 上安装或测试。仓库已提交构建好的完整插件包，本地安装**不需要**先运行 `npm ci` 或 `npm run build`。
 - Claude Desktop 和其他 MCP Apps 宿主可作为后续目标；本版本未测试其兼容性。
 
 参考：[MCP Apps 规范](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx)、[OpenAI 插件打包与本地 marketplace](https://developers.openai.com/plugins/build/plugins)、[Ink Web SDK](https://www.npmjs.com/package/@yodaos-pkg/ink)。
