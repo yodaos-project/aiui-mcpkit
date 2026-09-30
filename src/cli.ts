@@ -67,8 +67,8 @@ async function main() {
   const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
   const script = view.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
-*{box-sizing:border-box}body{margin:0;padding:12px;font:13px system-ui;color:#25304b;background:#fff}#shell{width:100%;height:220px;min-width:180px}body[data-mode=fullscreen] #shell{height:calc(100vh - 64px)}canvas{display:block;width:100%;height:100%;outline:none}#controls{display:flex;gap:8px;align-items:center;padding-top:8px}button{padding:5px 10px;border:1px solid #c8d0e0;border-radius:7px;background:white;color:#25304b;cursor:pointer}button[hidden]{display:none}#status{font-size:11px;color:#65718a}
-</style></head><body><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><div id="controls"><button id="expand">Fullscreen</button><button id="collapse" hidden>Inline</button><span id="status">Connecting…</span></div><script type="module">${script}</script></body></html>`;
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:#000}#shell{width:100%;height:220px}body[data-mode=fullscreen] #shell{height:100vh}canvas{display:block;width:100%;height:100%;outline:none}
+</style></head><body><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><script type="module">${script}</script></body></html>`;
   const server = await build({
     entryPoints: [fileURLToPath(new URL('server.ts', runtime))],
     bundle: true, write: false, platform: 'node', format: 'esm', target: 'node22',

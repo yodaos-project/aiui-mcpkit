@@ -18,7 +18,10 @@ registerAppTool(server, config.tool, {
   title: `Open ${config.title}`,
   description: config.description,
   inputSchema: {},
-  _meta: { ui: { resourceUri: uri } },
+  _meta: {
+    ui: { resourceUri: uri },
+    'openai/ui': { entrypoints: [{ type: 'thread' }, { type: 'global' }] },
+  },
 }, async () => ({ content: [{ type: 'text', text: `${config.title} opened.` }] }));
 
 registerAppResource(server, config.title, uri, {

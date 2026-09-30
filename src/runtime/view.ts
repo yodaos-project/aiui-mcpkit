@@ -7,13 +7,9 @@ declare const __APP_CONFIG__: { name: string; version: string; title: string; pa
 const config = __APP_CONFIG__;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
-const status = document.querySelector<HTMLElement>('#status')!;
-const expand = document.querySelector<HTMLButtonElement>('#expand')!;
-const collapse = document.querySelector<HTMLButtonElement>('#collapse')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
 let view: InkView | undefined;
 let mode: 'inline' | 'fullscreen' = 'inline';
-let transitioning = false;
 let lastWidth = 0;
 let lastHeight = 0;
 
@@ -21,11 +17,7 @@ function applyMode(actual: string) {
   if (actual !== 'inline' && actual !== 'fullscreen') return;
   mode = actual;
   document.body.dataset.mode = actual;
-  expand.hidden = actual === 'fullscreen';
-  collapse.hidden = actual === 'inline';
-  const available = app.getHostContext()?.availableDisplayModes;
-  expand.disabled = !available?.includes('fullscreen');
-  collapse.disabled = !available?.includes('inline');
+  view?.setTarget(actual === 'fullscreen' ? '_blank' : '_current');
   resize();
 }
 
@@ -42,35 +34,10 @@ function resize() {
   if (mode === 'inline') app.sendSizeChanged({ height: Math.ceil(document.body.scrollHeight) }).catch(() => {});
 }
 
-async function changeMode(requested: 'inline' | 'fullscreen') {
-  if (transitioning || requested === mode) return;
-  const available = app.getHostContext()?.availableDisplayModes;
-  if (!available?.includes(requested)) {
-    status.textContent = `${requested} is unavailable in this host`;
-    return;
-  }
-  transitioning = true;
-  try {
-    const result = await app.requestDisplayMode({ mode: requested });
-    applyMode(result.mode);
-    status.textContent = result.mode === requested ? `${result.mode} confirmed` : `Host kept ${result.mode}`;
-  } catch (error) {
-    status.textContent = `Mode request failed: ${String(error)}`;
-  } finally {
-    transitioning = false;
-  }
-}
-
-expand.addEventListener('click', () => void changeMode('fullscreen'));
-collapse.addEventListener('click', () => void changeMode('inline'));
 new ResizeObserver(resize).observe(canvas);
 window.addEventListener('resize', resize);
 app.onhostcontextchanged = (context) => {
   if (context.displayMode) applyMode(context.displayMode);
-  if (context.availableDisplayModes) {
-    expand.disabled = !context.availableDisplayModes.includes('fullscreen');
-    collapse.disabled = !context.availableDisplayModes.includes('inline');
-  }
 };
 
 async function wasmBytes(): Promise<Uint8Array> {
@@ -93,14 +60,13 @@ async function main() {
     wasm: { moduleOrPath: binary },
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
-      status.textContent = typeof message.data === 'string' ? message.data : JSON.stringify(message.data);
+      console.debug('Ink message:', JSON.stringify(message.data));
     },
   });
   view.bindDomEvents({ canvas });
-  view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage: config.page });
+  view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage: config.page, hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   resize();
-  status.textContent = 'Ink ready';
   document.body.dataset.ready = 'true';
 }
 
-main().catch(error => { status.textContent = `Startup failed: ${String(error)}`; console.error(error); });
+main().catch(error => { console.error('Ink startup failed:', error); });

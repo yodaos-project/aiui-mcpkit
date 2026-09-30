@@ -63,7 +63,13 @@ codex plugin add ink-counter@ink-counter-local
 
 安装后重启桌面宿主。修改后重新构建示例并重新安装，宿主缓存中的已安装副本与构建输出分开存放。
 
-`build:example` 先构建 framework，再将示例打包为 `ink-counter`，输出到 `dist/examples/counter/`，提供 `open_counter` 工具。`start:example` 启动该示例的 stdio MCP 服务。示例展示画布输入、宿主支持时的存储，以及 inline/fullscreen 切换。模式切换采用宿主确认的结果。
+频繁修改 Ink 页面时，可运行 `npm run update:example`，重新构建并以原子替换方式更新已安装 Counter 的 `view.html`。脚本使用 `$CODEX_HOME`（默认 `~/.codex`），检查匹配版本和 `local` 缓存目录。其他安装路径可通过 `npm run update:example -- --plugin-dir /absolute/path/to/installed/plugin` 指定。尚未安装时会提示安装命令。更新后重新打开 Counter 卡片；已有卡片保留当前视图。该命令不重载 MCP 服务代码或插件元数据，桌面宿主缓存资源时仍可能需要重启。
+
+打开工具通过 [OpenAI Extensions](https://developers.openai.com/plugins/build/extensions#sidebar-apps) 声明会话侧栏（`thread`）和全局侧栏（`global`）入口。支持这些入口的桌面宿主可以直接打开本地 UI，无需让模型调用打开工具。服务仍使用 stdio，视图资源仍全部内嵌。
+
+插件出现在 Chat 的 `@` 选择器中，不代表 Chat 模型已经收到本地 MCP 工具。直接打开 UI 的入口与模型工具接入是两项独立的宿主能力。生成的本地插件尚未验证 Chat 模型调用。如果桌面宿主没有将本地工具转发给 Chat，单独修改 manifest 或 publish 无法建立这条连接。Chat 模型接入应通过[官方开发者连接方式](https://developers.openai.com/plugins/deploy/connect-chatgpt) 注册部署后的 HTTPS MCP 端点。通过 CLI 安装本地 marketplace plugin 不会注册这项账号连接。
+
+`build:example` 先构建 framework，再将示例打包为 `ink-counter`，输出到 `dist/examples/counter/`，提供 `open_counter` 工具。`start:example` 启动该示例的 stdio MCP 服务。示例展示画布输入、宿主支持时的存储，以及 inline/fullscreen 切换。视图只展示 Ink 画布，模式切换由宿主控制。
 
 ## 验证
 
@@ -74,6 +80,6 @@ npx playwright install chromium
 npm test
 ```
 
-测试覆盖独立开发者应用的打包、stdio MCP 工具和资源，以及 MCP Apps `AppBridge` 浏览器测试宿主中的真实 Ink WASM 渲染。浏览器测试使用 Playwright Chromium；存在 `/usr/bin/chromium` 时使用该路径，也可通过 `CHROMIUM_PATH` 指定。测试检查模式请求被接受、被拒绝和不受支持的情况，以及输入、状态连续性和禁止外部连接的 CSP。
+测试覆盖独立开发者应用的打包、stdio MCP 工具和资源，以及 MCP Apps `AppBridge` 浏览器测试宿主中的真实 Ink WASM 渲染。浏览器测试使用 Playwright Chromium；存在 `/usr/bin/chromium` 时使用该路径，也可通过 `CHROMIUM_PATH` 指定。测试检查宿主控制的模式切换、仅支持内联的宿主、首次全屏渲染，以及输入、状态连续性和禁止外部连接的 CSP。
 
 这些检查不等同于真实 ChatGPT 桌面版/Codex GUI 验证。plugin 发现、显示位置、资源大小限制及宿主 CSP 仍需在目标宿主验证。浏览器视图经过 minify；测试限制资源响应低于内部 10 MB 预算，这并非宿主公布的上限。内嵌 WASM 仍使 HTML 资源约 10 MB，沙箱必须允许 WebAssembly 编译。宿主声明支持时，运行时提供 inline/fullscreen 模式。

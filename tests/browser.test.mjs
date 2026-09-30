@@ -20,43 +20,84 @@ const base = `http://127.0.0.1:${server.address().port}`;
 
 test.after(() => server.close());
 
-for (const scenario of ['accept', 'refuse', 'inline-only']) {
+for (const scenario of ['host-modes', 'inline-only', 'initial-fullscreen']) {
   test(`real Ink WASM render and mode handling: ${scenario}`, async () => {
     const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : await access('/usr/bin/chromium').then(() => ({ executablePath: '/usr/bin/chromium' }), () => ({}))), headless: true, args: ['--no-sandbox'] });
     try {
       const page = await browser.newPage();
       const errors = [];
+      const counts = [];
+      page.on('console', message => {
+        if (message.text().startsWith('Ink message: ')) {
+          const data = JSON.parse(message.text().slice('Ink message: '.length));
+          if (data.type === 'counter-change') counts.push(data.count);
+        }
+      });
+      async function expectCount(count) {
+        await new Promise((resolve, reject) => {
+          const deadline = Date.now() + 10000;
+          function check() {
+            if (counts.at(-1) === count) return resolve();
+            if (Date.now() > deadline) return reject(new Error(`Expected count ${count}, got ${counts}`));
+            setTimeout(check, 20);
+          }
+          check();
+        });
+      }
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${base}/?mode=${scenario}`);
       const frame = page.frameLocator('iframe');
       try {
         await frame.locator('body[data-ready="true"]').waitFor({ timeout: 15000 });
       } catch (error) {
-        console.error('Browser startup:', await frame.locator('#status').textContent().catch(() => 'no status'), 'bridgeReady', await page.evaluate(() => window.__bridgeReady), errors);
+        console.error('Browser startup:', await frame.locator('body').getAttribute('data-ready'), 'bridgeReady', await page.evaluate(() => window.__bridgeReady), errors);
         throw error;
       }
+      assert.equal(await frame.locator('#controls, #status, button').count(), 0);
       const pixels = await frame.locator('canvas').evaluate(canvas => {
         const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-        return new Set(Array.from(data.filter((_, i) => i % 4 === 0))).size;
+        let green = 0;
+        let other = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 1] > data[i] && data[i + 1] > data[i + 2]) green++;
+          else if (data[i] > 0 || data[i + 1] > 0 || data[i + 2] > 0) other++;
+        }
+        return { green, other };
       });
-      assert.ok(pixels > 2, `canvas appears blank: ${pixels} red channel values`);
+      assert.ok(pixels.green > 100, `canvas appears blank: ${pixels.green} green pixels`);
+      assert.equal(pixels.other, 0, 'canvas should use only the monochrome-green palette');
+      if (scenario === 'initial-fullscreen') {
+        assert.equal(await frame.locator('body').getAttribute('data-mode'), 'fullscreen');
+        if (process.env.INK_SCREENSHOTS) await frame.locator('canvas').screenshot({ path: `${process.env.INK_SCREENSHOTS}/fullscreen-480x352.png` });
+        // This action exists only in the _blank layout, including on first open.
+        await frame.locator('canvas').click({ position: { x: 120, y: 224 } });
+        await expectCount(10);
+        assert.equal(errors.length, 0, errors.join('\n'));
+        return;
+      }
+      if (process.env.INK_SCREENSHOTS) await frame.locator('canvas').screenshot({ path: `${process.env.INK_SCREENSHOTS}/inline.png` });
       await frame.locator('canvas').click({ position: { x: 210, y: 176 } });
-      await frame.locator('#status').getByText('"count":1', { exact: false }).waitFor({ timeout: 10000 });
-      if (scenario !== 'inline-only') await frame.locator('#expand').click();
-      if (scenario === 'accept') {
+      await expectCount(1);
+      await page.evaluate(() => window.__setMode('fullscreen'));
+      if (scenario === 'host-modes') {
         await frame.locator('body[data-mode="fullscreen"]').waitFor();
-        await frame.locator('#collapse').click();
+        // The expanded Ink content must be painted below the compact summary.
+        await page.waitForFunction(() => {
+          const canvas = document.querySelector('iframe').contentDocument.querySelector('canvas');
+          const data = canvas.getContext('2d').getImageData(0, Math.round(canvas.height / 3), canvas.width, Math.round(canvas.height / 2)).data;
+          return data.some((value, i) => i % 4 === 1 && value > 0);
+        });
+        if (process.env.INK_SCREENSHOTS) await frame.locator('canvas').screenshot({ path: `${process.env.INK_SCREENSHOTS}/fullscreen.png` });
+        await frame.locator('canvas').click({ position: { x: 100, y: 224 } });
+        await expectCount(11);
+        await frame.locator('canvas').click({ position: { x: 290, y: 224 } });
+        await expectCount(0);
+        await page.evaluate(() => window.__setMode('inline'));
         await frame.locator('body[data-mode="inline"]').waitFor();
         await frame.locator('canvas').click({ position: { x: 210, y: 176 } });
-        await frame.locator('#status').getByText('"count":2', { exact: false }).waitFor({ timeout: 10000 });
-        assert.equal((await page.evaluate(() => window.__requests)).length, 2);
+        await expectCount(1);
       } else {
         assert.equal(await frame.locator('body').getAttribute('data-mode'), 'inline');
-        if (scenario === 'refuse') await frame.locator('#status').getByText('Host kept inline').waitFor();
-        else {
-          assert.equal(await frame.locator('#expand').isDisabled(), true);
-          assert.equal((await page.evaluate(() => window.__requests)).length, 0);
-        }
       }
       assert.equal(errors.length, 0, errors.join('\n'));
     } finally { await browser.close(); }

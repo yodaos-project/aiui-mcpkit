@@ -17,6 +17,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:example": "npm run build && node dist/cli.mjs --ink examples/counter/ink --name ink-counter --tool open_counter --out dist/examples/counter",
+    "update:example": "npm run build:example && node scripts/update-example.mjs",
     "typecheck": "tsc --noEmit",
     "start:example": "node dist/examples/counter/dist/server.mjs",
     "test": "node --test tests/*.test.mjs"

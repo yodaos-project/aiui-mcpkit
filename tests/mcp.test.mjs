@@ -11,6 +11,7 @@ test('stdio MCP exposes opener and self-contained UI resource', async () => {
     const tools = await client.listTools();
     const opener = tools.tools.find(tool => tool.name === 'open_counter');
     assert.equal(opener?._meta?.ui?.resourceUri, 'ui://ink-counter/app.html');
+    assert.deepEqual(opener._meta['openai/ui'].entrypoints, [{ type: 'thread' }, { type: 'global' }]);
     const result = await client.callTool({ name: 'open_counter', arguments: {} });
     assert.equal(result.isError, undefined);
     const resource = await client.readResource({ uri: 'ui://ink-counter/app.html' });
