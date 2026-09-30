@@ -1,18 +1,18 @@
 # AIUI MCPKit
 
-**Bring Ink applications to MCP Apps.**
+**Bring AIUI Agents to MCP Apps.**
 
-AIUI MCPKit turns your [Ink](https://github.com/yodaos-project/ink) application into an interactive MCP App plugin. Write your interface in Ink, build it with one command, and open it in a compatible AI client.
+AIUI MCPKit turns your [AIUI Agent](https://github.com/yodaos-project/AIUI) into an interactive MCP App plugin. Build your agent with one command and open it in a compatible AI client.
 
-The toolkit packages your pages, the Ink Web runtime, and an MCP server together, so you can focus on the application instead of writing host integration code.
+The toolkit packages your agent pages, runtime, and MCP server together, so you can focus on the agent experience instead of writing host integration code.
 
-[简体中文](README.zh-CN.md) · [Quick start](#quick-start) · [Build your app](#build-your-app) · [Development](#development) · [Issues](https://github.com/yodaos-project/aiui-mcpkit/issues)
+[简体中文](README.zh-CN.md) · [Quick start](#quick-start) · [Build your agent](#build-your-agent) · [Development](#development) · [Issues](https://github.com/yodaos-project/aiui-mcpkit/issues)
 
 ## Features
 
-- **Your Ink application, packaged as a plugin.** Use your own pages, application name, and opener tool.
-- **Self-contained output.** JavaScript, Ink source, and compressed WebAssembly are bundled; the generated plugin runs without installing npm dependencies.
-- **Inline and fullscreen layouts.** Host display modes map to Ink's `_current` and `_blank` targets, so one page can reveal more content when expanded.
+- **Your AIUI Agent, packaged as a plugin.** Use your own pages, agent name, and opener tool.
+- **Self-contained output.** JavaScript, agent source, and compressed WebAssembly are bundled; the generated plugin runs without installing npm dependencies.
+- **Inline and fullscreen layouts.** Host display modes map to the agent's `_current` and `_blank` targets, so one page can reveal more content when expanded.
 - **Ready for local installation.** Every build includes plugin metadata, stdio MCP configuration, and a local marketplace manifest.
 
 ## Quick start
@@ -37,17 +37,17 @@ codex plugin add ink-counter@ink-counter-local
 
 Restart the desktop host after the initial installation, then open **AIUI MCPKit Counter**. In a host that exposes local MCP tools, you can also invoke `open_counter`.
 
-The [Counter example](examples/counter/ink) uses AIUI's monochrome-green design. Inline mode shows the count and an increment action; fullscreen adds session statistics, recent activity, and quick actions. The host controls expansion, while the plugin view displays only the Ink canvas.
+The [Counter example](examples/counter/ink) uses AIUI's monochrome-green design. Inline mode shows the count and an increment action; fullscreen adds session statistics, recent activity, and quick actions. The host controls expansion, while the plugin view displays only the agent interface.
 
-## Build your app
+## Build your agent
 
-### 1. Prepare your Ink source
+### 1. Prepare your agent source
 
-An application contains an `app.json` manifest and its Ink pages:
+An AIUI Agent contains an `app.json` manifest and its pages:
 
 ```text
-my-app/
-└── ink/
+my-agent/
+└── agent/
     ├── app.json
     └── pages/
         └── home.ink
@@ -57,7 +57,7 @@ my-app/
 
 ```json
 {
-  "name": "My App",
+  "name": "My Agent",
   "pages": ["pages/home"]
 }
 ```
@@ -67,23 +67,23 @@ my-app/
 ```html
 <page>
   <view>
-    <text>Hello from Ink</text>
+    <text>Hello from AIUI Agent</text>
   </view>
 </page>
 ```
 
 Page paths in `app.json` omit the `.ink` extension. For a working example with state and input handlers, see the [Counter page](examples/counter/ink/pages/counter/index.ink).
 
-### 2. Package the application
+### 2. Package the agent
 
 From the MCPKit checkout:
 
 ```sh
 npm run build
 node dist/cli.mjs \
-  --ink /path/to/my-app/ink \
-  --name my-app \
-  --out /path/to/my-app/dist/plugin
+  --ink /path/to/my-agent/agent \
+  --name my-agent \
+  --out /path/to/my-agent/dist/plugin
 ```
 
 Keep the source and output directories separate; neither may contain the other.
@@ -91,8 +91,8 @@ Keep the source and output directories separate; neither may contain the other.
 ### 3. Install the plugin
 
 ```sh
-codex plugin marketplace add /path/to/my-app/dist/plugin
-codex plugin add my-app@my-app-local
+codex plugin marketplace add /path/to/my-agent/dist/plugin
+codex plugin add my-agent@my-agent-local
 ```
 
 The generated directory is the marketplace root. Each build creates a marketplace named `<plugin-name>-local` and an opener tool named `open_app` by default.
@@ -101,11 +101,11 @@ The generated directory is the marketplace root. Each build creates a marketplac
 
 | Option | Description | Default |
 | --- | --- | --- |
-| `--ink` | Ink source directory | Required |
+| `--ink` | Agent source directory | Required |
 | `--name` | Plugin identifier: lowercase letters, numbers, and hyphens; starts with a letter | Required |
 | `--out` | Plugin output directory | `dist/<plugin-name>` |
 | `--title` | Display name | `app.json` name, then plugin name |
-| `--description` | Plugin and opener tool description | `Open <title>, an interactive Ink app.` |
+| `--description` | Plugin and opener tool description | Generated from the display name |
 | `--tool` | Opener tool name | `open_app` |
 | `--page` | Initial page path, without `.ink` | First `app.json` pages entry |
 | `--help` | Show command help | — |
@@ -113,10 +113,10 @@ The generated directory is the marketplace root. Each build creates a marketplac
 ## How it works
 
 ```text
-Ink source → MCPKit build → Plugin package → MCP Apps host → Ink canvas
+AIUI Agent source → MCPKit build → Plugin package → MCP Apps host → Agent interface
 ```
 
-The generated stdio MCP server registers an opener tool and a `ui://` HTML resource. The host loads that resource into its app view, where Ink Web renders your application through Canvas2D and WebAssembly. Host display-mode changes update the Ink target without reopening the application.
+The generated stdio MCP server registers an opener tool and a `ui://` HTML resource. The host loads that resource into its app view, where the runtime renders your agent interface. Host display-mode changes update the agent target without reopening it.
 
 Each build produces:
 
@@ -124,7 +124,7 @@ Each build produces:
 plugin/
 ├── plugin.json                       # Plugin identity and display metadata
 ├── mcp.json                          # Portable stdio server configuration
-├── view.html                         # Embedded application and Ink runtime
+├── view.html                         # Embedded agent and runtime
 ├── dist/server.mjs                   # Bundled MCP server
 └── .agents/plugins/marketplace.json  # Local installation catalog
 ```
@@ -135,7 +135,7 @@ You can distribute this directory through your own marketplace or configure anot
 
 ### Update the installed example
 
-After editing the Counter's Ink page or browser view, run:
+After editing the Counter agent's page or browser view, run:
 
 ```sh
 npm run update:example
@@ -171,7 +171,7 @@ npm run typecheck
 npm test
 ```
 
-Browser tests render real Ink WASM in an MCP Apps `AppBridge` harness and cover input, state continuity, host-driven display modes, and a restrictive no-network CSP. Chromium can also be selected through `CHROMIUM_PATH` or `/usr/bin/chromium` when available.
+Browser tests render the actual agent runtime in an MCP Apps `AppBridge` harness and cover input, state continuity, host-driven display modes, and a restrictive no-network CSP. Chromium can also be selected through `CHROMIUM_PATH` or `/usr/bin/chromium` when available.
 
 ## Compatibility
 

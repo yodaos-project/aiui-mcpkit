@@ -1,18 +1,18 @@
 # AIUI MCPKit
 
-**将 Ink 应用带入 MCP Apps。**
+**将 AIUI Agent 带入 MCP Apps。**
 
-AIUI MCPKit 将你的 [Ink](https://github.com/yodaos-project/ink) 应用构建为可交互的 MCP App 插件。使用 Ink 编写界面，一条命令完成打包，即可在兼容的 AI 客户端中打开应用。
+AIUI MCPKit 将你的 [AIUI Agent](https://github.com/yodaos-project/AIUI) 构建为可交互的 MCP App 插件。一条命令完成打包，即可在兼容的 AI 客户端中打开 Agent。
 
-工具包将页面、Ink Web 运行时和 MCP 服务一起打包，让你专注于应用本身，无需另行编写宿主集成代码。
+工具包将 Agent 页面、运行时和 MCP 服务一起打包，让你专注于 Agent 体验，无需另行编写宿主集成代码。
 
-[English](README.md) · [快速开始](#快速开始) · [构建你的应用](#构建你的应用) · [开发](#开发) · [问题反馈](https://github.com/yodaos-project/aiui-mcpkit/issues)
+[English](README.md) · [快速开始](#快速开始) · [构建你的 Agent](#构建你的-agent) · [开发](#开发) · [问题反馈](https://github.com/yodaos-project/aiui-mcpkit/issues)
 
 ## 功能
 
-- **将自己的 Ink 应用打包为插件。** 使用自己的页面、应用名称和打开工具。
-- **独立运行的构建产物。** JavaScript、Ink 源码和压缩的 WebAssembly 均已打包，生成的插件无需安装 npm 依赖。
-- **内联与全屏布局。** 将宿主显示模式映射到 Ink 的 `_current` 和 `_blank`，同一个页面可在展开时展示更多内容。
+- **将自己的 AIUI Agent 打包为插件。** 使用自己的页面、Agent 名称和打开工具。
+- **独立运行的构建产物。** JavaScript、Agent 源码和压缩的 WebAssembly 均已打包，生成的插件无需安装 npm 依赖。
+- **内联与全屏布局。** 将宿主显示模式映射到 Agent 的 `_current` 和 `_blank`，同一个页面可在展开时展示更多内容。
 - **支持本地安装。** 每次构建都会生成插件元数据、stdio MCP 配置和本地 marketplace manifest。
 
 ## 快速开始
@@ -37,17 +37,17 @@ codex plugin add ink-counter@ink-counter-local
 
 首次安装后重启桌面宿主，然后打开 **AIUI MCPKit Counter**。在提供本地 MCP 工具的宿主中，也可以调用 `open_counter`。
 
-[Counter 示例](examples/counter/ink) 采用 AIUI 单绿设计。内联模式展示计数和递增操作，全屏模式增加会话统计、最近操作记录和快捷操作。展开由宿主控制，插件视图只展示 Ink 画布。
+[Counter 示例](examples/counter/ink) 采用 AIUI 单绿设计。内联模式展示计数和递增操作，全屏模式增加会话统计、最近操作记录和快捷操作。展开由宿主控制，插件视图只展示 Agent 界面。
 
-## 构建你的应用
+## 构建你的 Agent
 
-### 1. 准备 Ink 源码
+### 1. 准备 Agent 源码
 
-应用由 `app.json` manifest 和 Ink 页面组成：
+AIUI Agent 由 `app.json` manifest 和页面组成：
 
 ```text
-my-app/
-└── ink/
+my-agent/
+└── agent/
     ├── app.json
     └── pages/
         └── home.ink
@@ -57,7 +57,7 @@ my-app/
 
 ```json
 {
-  "name": "My App",
+  "name": "My Agent",
   "pages": ["pages/home"]
 }
 ```
@@ -67,23 +67,23 @@ my-app/
 ```html
 <page>
   <view>
-    <text>Hello from Ink</text>
+    <text>Hello from AIUI Agent</text>
   </view>
 </page>
 ```
 
 `app.json` 中的页面路径不带 `.ink` 后缀。包含状态管理和输入事件的完整示例见 [Counter 页面](examples/counter/ink/pages/counter/index.ink)。
 
-### 2. 打包应用
+### 2. 打包 Agent
 
 在 MCPKit 仓库中执行：
 
 ```sh
 npm run build
 node dist/cli.mjs \
-  --ink /path/to/my-app/ink \
-  --name my-app \
-  --out /path/to/my-app/dist/plugin
+  --ink /path/to/my-agent/agent \
+  --name my-agent \
+  --out /path/to/my-agent/dist/plugin
 ```
 
 源码目录与输出目录需要分开，两者不能互相包含。
@@ -91,8 +91,8 @@ node dist/cli.mjs \
 ### 3. 安装插件
 
 ```sh
-codex plugin marketplace add /path/to/my-app/dist/plugin
-codex plugin add my-app@my-app-local
+codex plugin marketplace add /path/to/my-agent/dist/plugin
+codex plugin add my-agent@my-agent-local
 ```
 
 生成的目录就是 marketplace 根目录。每次构建会创建名为 `<plugin-name>-local` 的 marketplace；打开工具默认名为 `open_app`。
@@ -101,11 +101,11 @@ codex plugin add my-app@my-app-local
 
 | 参数 | 说明 | 默认值 |
 | --- | --- | --- |
-| `--ink` | Ink 源码目录 | 必填 |
+| `--ink` | Agent 源码目录 | 必填 |
 | `--name` | 插件标识：小写字母、数字和连字符，以字母开头 | 必填 |
 | `--out` | 插件输出目录 | `dist/<plugin-name>` |
 | `--title` | 显示名称 | `app.json` 名称，其次为插件名称 |
-| `--description` | 插件与打开工具的描述 | `Open <title>, an interactive Ink app.` |
+| `--description` | 插件与打开工具的描述 | 根据显示名称生成 |
 | `--tool` | 打开工具名称 | `open_app` |
 | `--page` | 初始页面路径，不带 `.ink` | `app.json` 的第一个 pages 条目 |
 | `--help` | 显示命令帮助 | — |
@@ -113,10 +113,10 @@ codex plugin add my-app@my-app-local
 ## 工作原理
 
 ```text
-Ink 源码 → MCPKit 构建 → 插件包 → MCP Apps 宿主 → Ink 画布
+AIUI Agent 源码 → MCPKit 构建 → 插件包 → MCP Apps 宿主 → Agent 界面
 ```
 
-生成的 stdio MCP 服务注册一个打开工具和一个 `ui://` HTML 资源。宿主将资源加载到应用视图，Ink Web 通过 Canvas2D 和 WebAssembly 渲染你的应用。宿主切换显示模式时，Ink target 随之更新，无需重新打开应用。
+生成的 stdio MCP 服务注册一个打开工具和一个 `ui://` HTML 资源。宿主将资源加载到应用视图，运行时渲染你的 Agent 界面。宿主切换显示模式时，Agent target 随之更新，无需重新打开 Agent。
 
 每次构建生成：
 
@@ -124,7 +124,7 @@ Ink 源码 → MCPKit 构建 → 插件包 → MCP Apps 宿主 → Ink 画布
 plugin/
 ├── plugin.json                       # 插件身份和显示元数据
 ├── mcp.json                          # 可移植的 stdio 服务配置
-├── view.html                         # 内嵌的应用和 Ink 运行时
+├── view.html                         # 内嵌的 Agent 和运行时
 ├── dist/server.mjs                   # 打包后的 MCP 服务
 └── .agents/plugins/marketplace.json  # 本地安装目录
 ```
@@ -135,7 +135,7 @@ plugin/
 
 ### 更新已安装的示例
 
-修改 Counter 的 Ink 页面或浏览器视图后，运行：
+修改 Counter Agent 的页面或浏览器视图后，运行：
 
 ```sh
 npm run update:example
@@ -171,7 +171,7 @@ npm run typecheck
 npm test
 ```
 
-浏览器测试在 MCP Apps `AppBridge` 测试宿主中渲染真实 Ink WASM，覆盖输入、状态连续性、宿主控制的显示模式和禁止外部连接的 CSP。也可通过 `CHROMIUM_PATH` 指定 Chromium，或使用系统已有的 `/usr/bin/chromium`。
+浏览器测试在 MCP Apps `AppBridge` 测试宿主中使用真实的 Agent 运行时进行渲染，覆盖输入、状态连续性、宿主控制的显示模式和禁止外部连接的 CSP。也可通过 `CHROMIUM_PATH` 指定 Chromium，或使用系统已有的 `/usr/bin/chromium`。
 
 ## 兼容性
 
