@@ -19,6 +19,8 @@ test('stdio MCP exposes opener and self-contained UI resource', async () => {
     assert.match(content.text, /Ink counter/);
     assert.deepEqual(content._meta.ui.csp.resourceDomains, []);
     assert.deepEqual(content._meta.ui.csp.connectDomains, []);
+    assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline', 'fullscreen']);
+    assert.equal(content._meta['openai/ui'].preferredDisplayMode, 'inline');
     assert.ok(content.text.length > 1_000_000);
   } finally {
     await client.close();

@@ -23405,6 +23405,10 @@ function G(B, Q, F, V, q) {
 
 // src/server.ts
 var uri = "ui://aiui-mcpkit/counter.html";
+var viewMeta = {
+  ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true },
+  "openai/ui": { availableDisplayModes: ["inline", "fullscreen"], preferredDisplayMode: "inline" }
+};
 var server = new McpServer({ name: "aiui-mcpkit", version: "0.1.0" });
 var htmlPath = fileURLToPath(new URL("../view.html", import.meta.url));
 j(server, "open_counter", {
@@ -23414,11 +23418,11 @@ j(server, "open_counter", {
   _meta: { ui: { resourceUri: uri } }
 }, async () => ({ content: [{ type: "text", text: "AIUI counter opened. Use the view to increment or change display mode." }] }));
 G(server, "AIUI Counter", uri, {
-  _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true } }
+  _meta: viewMeta
 }, async () => ({ contents: [{
   uri,
   mimeType: L,
   text: await readFile(htmlPath, "utf8"),
-  _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true } }
+  _meta: viewMeta
 }] }));
 await server.connect(new StdioServerTransport());

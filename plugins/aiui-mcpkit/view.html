@@ -32614,7 +32614,7 @@ var canvas = document.querySelector("#ink");
 var status = document.querySelector("#status");
 var expand = document.querySelector("#expand");
 var collapse = document.querySelector("#collapse");
-var app = new l({ name: "AIUI MCPKit", version: "0.1.0" }, {}, { autoResize: false });
+var app = new l({ name: "AIUI MCPKit", version: "0.1.0" }, { availableDisplayModes: ["inline", "fullscreen"] }, { autoResize: false });
 var view;
 var mode = "inline";
 var transitioning = false;

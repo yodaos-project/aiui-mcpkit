@@ -8,7 +8,7 @@ const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const status = document.querySelector<HTMLElement>('#status')!;
 const expand = document.querySelector<HTMLButtonElement>('#expand')!;
 const collapse = document.querySelector<HTMLButtonElement>('#collapse')!;
-const app = new App({ name: 'AIUI MCPKit', version: '0.1.0' }, {}, { autoResize: false });
+const app = new App({ name: 'AIUI MCPKit', version: '0.1.0' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
 let view: InkView | undefined;
 let mode: 'inline' | 'fullscreen' = 'inline';
 let transitioning = false;
