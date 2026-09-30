@@ -1,0 +1,11 @@
+{
+  "name": "aiui-mcpkit-local",
+  "plugins": [
+    {
+      "name": "aiui-mcpkit",
+      "source": { "source": "local", "path": "./plugins/aiui-mcpkit" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}

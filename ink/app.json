@@ -1,0 +1,4 @@
+{
+  "name": "AIUI MCPKit Counter",
+  "pages": ["pages/counter/index"]
+}

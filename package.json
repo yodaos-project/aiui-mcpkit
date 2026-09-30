@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@yodaos-pkg/ink": "^0.18.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "name": "aiui-mcpkit",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "node plugins/aiui-mcpkit/dist/server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}
