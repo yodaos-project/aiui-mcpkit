@@ -3,12 +3,14 @@ import { createInkView, type InkView } from '@yodaos-pkg/ink';
 
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, string>;
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string };
+const config = __APP_CONFIG__;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const status = document.querySelector<HTMLElement>('#status')!;
 const expand = document.querySelector<HTMLButtonElement>('#expand')!;
 const collapse = document.querySelector<HTMLButtonElement>('#collapse')!;
-const app = new App({ name: 'AIUI MCPKit', version: '0.1.0' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
+const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
 let view: InkView | undefined;
 let mode: 'inline' | 'fullscreen' = 'inline';
 let transitioning = false;
@@ -91,12 +93,11 @@ async function main() {
     wasm: { moduleOrPath: binary },
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
-      const data = message.data as { type?: string; count?: number };
-      if (data?.type === 'counter-change') status.textContent = `Count ${data.count}`;
+      status.textContent = typeof message.data === 'string' ? message.data : JSON.stringify(message.data);
     },
   });
   view.bindDomEvents({ canvas });
-  view.openBundle({ appId: 'aiui-mcpkit', files: __INK_FILES__, initialPage: 'pages/counter/index' });
+  view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage: config.page });
   resize();
   status.textContent = 'Ink ready';
   document.body.dataset.ready = 'true';

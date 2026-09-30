@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 import { build } from 'esbuild';
 
 const harnessJs = (await build({ entryPoints: ['tests/harness.ts'], bundle: true, write: false, platform: 'browser', format: 'iife' })).outputFiles[0].text;
-const view = await readFile('plugins/aiui-mcpkit/view.html');
+const view = await readFile('dist/examples/counter/view.html');
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   if (req.url.startsWith('/view')) {
@@ -22,7 +22,7 @@ test.after(() => server.close());
 
 for (const scenario of ['accept', 'refuse', 'inline-only']) {
   test(`real Ink WASM render and mode handling: ${scenario}`, async () => {
-    const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
+    const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : await access('/usr/bin/chromium').then(() => ({ executablePath: '/usr/bin/chromium' }), () => ({}))), headless: true, args: ['--no-sandbox'] });
     try {
       const page = await browser.newPage();
       const errors = [];
@@ -41,14 +41,14 @@ for (const scenario of ['accept', 'refuse', 'inline-only']) {
       });
       assert.ok(pixels > 2, `canvas appears blank: ${pixels} red channel values`);
       await frame.locator('canvas').click({ position: { x: 210, y: 176 } });
-      await frame.locator('#status').getByText('Count 1').waitFor({ timeout: 10000 });
+      await frame.locator('#status').getByText('"count":1', { exact: false }).waitFor({ timeout: 10000 });
       if (scenario !== 'inline-only') await frame.locator('#expand').click();
       if (scenario === 'accept') {
         await frame.locator('body[data-mode="fullscreen"]').waitFor();
         await frame.locator('#collapse').click();
         await frame.locator('body[data-mode="inline"]').waitFor();
         await frame.locator('canvas').click({ position: { x: 210, y: 176 } });
-        await frame.locator('#status').getByText('Count 2').waitFor({ timeout: 10000 });
+        await frame.locator('#status').getByText('"count":2', { exact: false }).waitFor({ timeout: 10000 });
         assert.equal((await page.evaluate(() => window.__requests)).length, 2);
       } else {
         assert.equal(await frame.locator('body').getAttribute('data-mode'), 'inline');

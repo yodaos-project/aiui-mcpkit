@@ -2,48 +2,68 @@
 
 [English](README.md)
 
-这是一个最小可行性原型：通过 [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) 展示由 **Ink Web 0.18 + WASM 真正渲染**的可点击计数器。视图默认 inline，支持向具备能力的宿主请求 fullscreen，再返回 inline。布局以宿主返回的实际模式为准。此项目暂时只有一个示例，不是完整框架。
+AIUI MCPKit 是一个将开发者自己的 Ink 应用构建成 MCP App plugin 的 framework。它将 Ink 页面、Ink Web Canvas/WASM 运行时、MCP Apps 视图和本地 stdio MCP 服务打包为独立插件。仓库本身不是 plugin，也不提供 plugin marketplace。
 
-## 在支持本地插件的桌面宿主加载
+## 构建 framework
 
-在运行桌面宿主的**同一台电脑**安装 Node.js 22+，并使用支持本地插件 marketplace 与 MCP Apps 的宿主版本。在有权访问此私有仓库的电脑上从干净克隆开始：
-
-```sh
-git clone https://github.com/yodaos-project/aiui-mcpkit.git
-cd aiui-mcpkit
-```
-
-**桌面 GUI 路径（无需 shell 中有 `codex` 命令）：**在支持仓库插件的桌面宿主中把此目录作为本地项目打开，重启应用，在 Plugins 中查找 **AIUI MCPKit**。已提交的 [仓库 marketplace](.agents/plugins/marketplace.json) 指向[完整插件包](plugins/aiui-mcpkit/)。[OpenAI 本地插件说明](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually)明确给出了 ChatGPT 桌面版的仓库 marketplace 与重启流程；并非所有 Codex 桌面版本的同一路径都经过本项目验证。
-
-**可选的 Codex CLI 路径：**安装桌面应用不代表终端的 PATH 中已有 `codex`。如果命令存在，先检查当前版本支持 `plugin` 子命令：
-
-```sh
-codex plugin --help
-codex plugin marketplace add .
-codex plugin add aiui-mcpkit@aiui-mcpkit-local
-```
-
-如果找不到 `codex`，可走 GUI 路径，或按 [OpenAI 官方 Codex CLI 安装说明](https://developers.openai.com/codex/cli)单独安装；如果 `codex plugin --help` 不可用，先更新 CLI。重启桌面应用，在 Plugins 中启用 **AIUI MCPKit**，然后输入“打开 AIUI 计数器”。`open_counter` 工具提供交互视图。点击 **+ Add one**、**Fullscreen**、**Inline** 检查效果。宿主不声明 fullscreen 能力时按钮禁用；宿主拒绝切换时保持其确认的模式。桌面宿主可能把 fullscreen 显示为侧栏，而非占满整个显示器。
-
-[mcp.json](plugins/aiui-mcpkit/mcp.json) 使用 `${PLUGIN_ROOT}` 下的 `dist/server.mjs` 启动本地 stdio MCP 服务。已构建的插件包不需 npm 安装、网页服务、隧道、凭据或外部资源请求。纯浏览器版 ChatGPT 不能直接启动这个本地 stdio 包。如果当前 ChatGPT 版本没有本地插件 marketplace 或 MCP App 视图，请换用支持它们的桌面版/Codex GUI；本仓库尚未在真实 ChatGPT 宿主验证。
-
-## 开发与验证
+需要 Node.js 22+。
 
 ```sh
 npm ci
-npm run typecheck
 npm run build
+```
+
+此命令只在 `dist/` 下生成 framework CLI 和运行时模板，不会自动打包示例或生成 plugin。npm 包提供 `aiui-mcpkit` 命令；在当前仓库中使用 `node dist/cli.mjs`。
+
+## 打包自己的 Ink 应用
+
+指定开发者自己的 Ink 源码目录，其中包含 `app.json` 和 `.ink` 页面：
+
+```sh
+node dist/cli.mjs --ink /path/to/my-app/ink --name my-app --out /path/to/my-app/dist/plugin
+```
+
+将 framework 安装为 npm 依赖后，可使用：
+
+```sh
+npx aiui-mcpkit --ink ./ink --name my-app --out ./dist/plugin
+```
+
+`--ink` 和 `--name` 必填。`--title` 默认采用 `app.json` 的应用名称；`--page` 默认采用其 `pages` 第一项，路径不带 `.ink` 后缀。`--tool` 默认是 `open_app`；`--description` 设置 plugin 和打开工具的描述。未指定 `--out` 时，输出到当前工作目录下的 `dist/<plugin-name>`。运行 `--help` 查看参数。
+
+生成的 plugin 包含：
+
+```text
+plugin.json
+mcp.json
+view.html
+dist/server.mjs
+```
+
+这些文件是构建产物，不是 framework 源码。服务、视图和 manifest 使用开发者应用的身份及初始页面。JS、Ink 源文件和压缩的浏览器 WASM 均内嵌；生成的 plugin 需要 Node.js 22+，无需 npm 安装或外部资源请求。目前 Ink bundle 按 UTF-8 读取文件，尚不支持打包二进制素材。
+
+通过开发者自己的 plugin marketplace 分发生成目录，或在支持 MCP Apps 的宿主中配置 Node 启动其中的 `dist/server.mjs`。生成的 `mcp.json` 使用 `${PLUGIN_ROOT}` 保证可移植性。纯浏览器宿主无法启动本地 stdio 服务。
+
+## 计数器示例
+
+计数器作为示例应用源码放在 [examples/counter/ink](examples/counter/ink)，与 framework 运行时独立：
+
+```sh
+npm run build:example
+npm run start:example
+```
+
+`build:example` 先构建 framework，再将示例打包为 `ink-counter`，输出到 `dist/examples/counter/`，提供 `open_counter` 工具。`start:example` 启动该示例的 stdio MCP 服务。示例展示画布输入、宿主支持时的存储，以及 inline/fullscreen 切换。模式切换采用宿主确认的结果。
+
+## 验证
+
+```sh
+npm run typecheck
+npm run build:example
+npx playwright install chromium
 npm test
 ```
 
-`npm run build` 将 `.ink` 页面和压缩后的非共享浏览器 WASM 内嵌进单个本地 HTML 资源，同时将 Node MCP 服务打包到 `plugins/aiui-mcpkit/`。修改源码后应重新构建并重新安装。`npm test` 需要 `/usr/bin/chromium`，通过 MCP Apps `AppBridge` 测试宿主实际运行 WASM、画布输入、尺寸变化、接受/拒绝/不支持的模式请求、切换后的状态，以及禁止外部连接的 CSP；另有 stdio 工具与资源测试。这是测试宿主，不等同于 ChatGPT 桌面验证。
+测试覆盖独立开发者应用的打包、stdio MCP 工具和资源，以及 MCP Apps `AppBridge` 浏览器测试宿主中的真实 Ink WASM 渲染。浏览器测试使用 Playwright Chromium；存在 `/usr/bin/chromium` 时使用该路径，也可通过 `CHROMIUM_PATH` 指定。测试检查模式请求被接受、被拒绝和不受支持的情况，以及输入、状态连续性和禁止外部连接的 CSP。
 
-Ink 页面在 [ink/pages/counter/index.ink](ink/pages/counter/index.ink)。可用时通过 Ink 的 `wx` 存储保存计数；切换模式时保留同一个视图并调整 viewport。MCP 服务 stdout 仅输出协议数据。UI 资源不声明外部连接或资源域名；JS、Ink 资源和 WASM 均在本地。当前 HTML 正文为 9,571,548 字节，完整 stdio `resources/read` JSON 响应行为 9,610,758 字节。没有查到 ChatGPT 桌面版针对此资源公布的大小上限，因此仍需在真实宿主确认能否接收。宿主的沙箱 CSP 也必须允许本地 WebAssembly 编译；测试宿主允许 `wasm-unsafe-eval`。
-
-## 验证边界
-
-- 已在云端 Linux 环境通过 `npm run typecheck`、`npm run build`、`npm test`（4 项），并用隔离的 Codex CLI 配置完成本地 marketplace 安装。
-- 尚需在真实 ChatGPT 桌面版/Codex GUI 核对插件发现、视图位置、实际 CSP/资源上限与模式切换。没有在用户 Mac 上安装或测试。仓库已提交构建好的完整插件包，本地安装**不需要**先运行 `npm ci` 或 `npm run build`。
-- Claude Desktop 和其他 MCP Apps 宿主可作为后续目标；本版本未测试其兼容性。
-
-参考：[MCP Apps 规范](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx)、[OpenAI 插件打包与本地 marketplace](https://developers.openai.com/plugins/build/plugins)、[Ink Web SDK](https://www.npmjs.com/package/@yodaos-pkg/ink)。
+这些检查不等同于真实 ChatGPT 桌面版/Codex GUI 验证。plugin 发现、显示位置、资源大小限制及宿主 CSP 仍需在目标宿主验证。浏览器视图经过 minify；测试限制资源响应低于内部 10 MB 预算，这并非宿主公布的上限。内嵌 WASM 仍使 HTML 资源约 10 MB，沙箱必须允许 WebAssembly 编译。宿主声明支持时，运行时提供 inline/fullscreen 模式。

@@ -4,22 +4,24 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 
-const uri = 'ui://aiui-mcpkit/counter.html';
+declare const __APP_CONFIG__: { name: string; version: string; title: string; description: string; tool: string };
+const config = __APP_CONFIG__;
+const uri = `ui://${config.name}/app.html`;
 const viewMeta = {
   ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true },
   'openai/ui': { availableDisplayModes: ['inline', 'fullscreen'], preferredDisplayMode: 'inline' },
 };
-const server = new McpServer({ name: 'aiui-mcpkit', version: '0.1.0' });
+const server = new McpServer({ name: config.name, version: config.version });
 const htmlPath = fileURLToPath(new URL('../view.html', import.meta.url));
 
-registerAppTool(server, 'open_counter', {
-  title: 'Open AIUI Counter',
-  description: 'Open an interactive Ink-rendered counter with inline and fullscreen modes.',
+registerAppTool(server, config.tool, {
+  title: `Open ${config.title}`,
+  description: config.description,
   inputSchema: {},
   _meta: { ui: { resourceUri: uri } },
-}, async () => ({ content: [{ type: 'text', text: 'AIUI counter opened. Use the view to increment or change display mode.' }] }));
+}, async () => ({ content: [{ type: 'text', text: `${config.title} opened.` }] }));
 
-registerAppResource(server, 'AIUI Counter', uri, {
+registerAppResource(server, config.title, uri, {
   _meta: viewMeta,
 }, async () => ({ contents: [{
   uri,

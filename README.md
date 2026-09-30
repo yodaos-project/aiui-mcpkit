@@ -2,48 +2,68 @@
 
 [简体中文](README.zh-CN.md)
 
-A small feasibility prototype: an interactive [MCP App](https://github.com/modelcontextprotocol/ext-apps) whose counter is **rendered by Ink Web 0.18 on Canvas/WASM**. The view starts inline and can request fullscreen from a capable host, then return inline. The host's returned mode is authoritative. This is one example, not a framework API.
+AIUI MCPKit is a framework for building MCP App plugins from developer-owned Ink applications. It packages Ink pages, the Ink Web Canvas/WASM runtime, an MCP Apps view, and a local stdio MCP server into a self-contained plugin. The repository itself is not a plugin or a plugin marketplace.
 
-## Use locally in a supported desktop host
+## Build the framework
 
-Requires Node.js 22+ on the **same computer as the desktop host**, and a host version that accepts local plugin marketplaces and MCP Apps. From a clean machine with access to this private repository:
-
-```sh
-git clone https://github.com/yodaos-project/aiui-mcpkit.git
-cd aiui-mcpkit
-```
-
-**Desktop GUI path (no `codex` shell command needed):** Open this repository as a local project in a desktop host that supports repository plugins, restart the app, and find **AIUI MCPKit** in Plugins. The committed [repo marketplace](.agents/plugins/marketplace.json) points to [the self-contained plugin](plugins/aiui-mcpkit/). OpenAI's [local plugin instructions](https://developers.openai.com/plugins/build/plugins#install-a-local-plugin-manually) explicitly describe this repository marketplace and restart flow for ChatGPT desktop. We have not verified that every Codex desktop build exposes the same GUI flow.
-
-**Optional Codex CLI path:** Installing a desktop app does not by itself establish a `codex` command on your shell PATH. If `codex` is available, first check that this version supports `codex plugin`:
-
-```sh
-codex plugin --help
-codex plugin marketplace add .
-codex plugin add aiui-mcpkit@aiui-mcpkit-local
-```
-
-If `codex` is missing, use the GUI path or install the separate CLI from [OpenAI's official Codex CLI instructions](https://developers.openai.com/codex/cli); if `codex plugin --help` is unavailable, update the CLI before using those two install commands. Restart the desktop app, enable **AIUI MCPKit** in Plugins, and ask “Open the AIUI counter.” The `open_counter` MCP tool supplies the view. Click **+ Add one**, **Fullscreen**, then **Inline**. If the host does not advertise fullscreen, the button is disabled; a refused request leaves the confirmed mode unchanged. Desktop placement may be a side panel rather than a literal screen-filling window.
-
-The portable [mcp.json](plugins/aiui-mcpkit/mcp.json) runs `node ${PLUGIN_ROOT}/dist/server.mjs` over stdio. No npm install, web server, tunnel, credentials, or external asset fetch is needed for an installed release. The host must run the process locally; a browser-only ChatGPT session cannot launch this local stdio package. If your ChatGPT build does not expose local plugin marketplaces or MCP App views, use a supported desktop/Codex GUI build; this repository has not been verified in a real ChatGPT host.
-
-## Develop and verify
+Requires Node.js 22+.
 
 ```sh
 npm ci
-npm run typecheck
 npm run build
+```
+
+This builds the framework CLI and runtime templates in `dist/`. It does not package an example or generate a plugin automatically. The npm package exposes the `aiui-mcpkit` command; in this checkout, run it with `node dist/cli.mjs`.
+
+## Package your Ink application
+
+Supply your own Ink source directory containing `app.json` and `.ink` pages:
+
+```sh
+node dist/cli.mjs --ink /path/to/my-app/ink --name my-app --out /path/to/my-app/dist/plugin
+```
+
+With the framework installed as an npm dependency, the equivalent command is:
+
+```sh
+npx aiui-mcpkit --ink ./ink --name my-app --out ./dist/plugin
+```
+
+`--ink` and `--name` are required. `--title` defaults to the name in `app.json`; `--page` defaults to its first `pages` entry. Page paths omit the `.ink` extension. `--tool` defaults to `open_app`; `--description` supplies the plugin and opener description. Without `--out`, output goes to `dist/<plugin-name>` relative to the current working directory. Use `--help` for options.
+
+The generated plugin contains:
+
+```text
+plugin.json
+mcp.json
+view.html
+dist/server.mjs
+```
+
+These are build outputs, not framework source files. The server, view, and manifests use the application's identity and initial page. JS, Ink source files, and compressed browser WASM are embedded; the generated plugin needs Node.js 22+ but no npm install or external asset fetch. The current Ink bundle input reads files as UTF-8; binary asset packaging is not yet supported.
+
+Distribute the generated directory through your own plugin marketplace, or configure a compatible MCP Apps host to launch its `dist/server.mjs` with Node. The generated `mcp.json` uses `${PLUGIN_ROOT}` for portability. A browser-only host cannot launch the local stdio server.
+
+## Counter example
+
+The counter is sample application source in [examples/counter/ink](examples/counter/ink), independent of the framework runtime:
+
+```sh
+npm run build:example
+npm run start:example
+```
+
+`build:example` builds the framework, then packages the sample as `ink-counter` under `dist/examples/counter/`, exposing `open_counter`. `start:example` starts its stdio MCP server. The counter demonstrates canvas input, storage where supported, and inline/fullscreen mode switching. Display mode changes use the host's confirmed response.
+
+## Verify
+
+```sh
+npm run typecheck
+npm run build:example
+npx playwright install chromium
 npm test
 ```
 
-`npm run build` embeds the Ink `.ink` bundle and compressed nonshared browser WASM into one local HTML UI resource and bundles the Node MCP server under `plugins/aiui-mcpkit/`. Rebuild before reinstalling after source edits. `npm test` needs `/usr/bin/chromium`; it uses an MCP Apps `AppBridge` host harness to exercise actual WASM rendering, canvas input, resize, accepted/refused/unsupported display mode requests, state continuity, and a restrictive no-network CSP. It also performs a stdio MCP tool/resource round trip. The tests are a harness, not a ChatGPT desktop verification.
+The tests verify packaging a separate developer application, stdio MCP tools/resources, and real Ink WASM rendering in an MCP Apps `AppBridge` browser harness. Browser tests use Playwright Chromium, `/usr/bin/chromium` when available, or `CHROMIUM_PATH` when specified. They check accepted/refused/unsupported display mode requests, input, state continuity, and a restrictive no-network CSP.
 
-The Ink page lives in [ink/pages/counter/index.ink](ink/pages/counter/index.ink). Its count is stored with Ink's `wx` storage where available; the live view is retained and resized during display-mode changes. The MCP server emits protocol messages only on stdout. The resource declares no external connection or resource domains. All JS, Ink assets, and WASM are local. The current HTML body is 9,571,548 bytes; the full stdio `resources/read` JSON response line is 9,610,758 bytes. We found no published ChatGPT desktop size limit for this resource, so host acceptance remains unverified. A host also needs to allow local WebAssembly compilation in its sandbox CSP; the test harness allows `wasm-unsafe-eval`.
-
-## Scope and verification limits
-
-- Verified in the cloud Linux workspace: `npm run typecheck`, `npm run build`, `npm test` (4 tests), and local Codex CLI marketplace installation using an isolated configuration directory.
-- Pending on a real ChatGPT desktop/Codex GUI host: plugin discovery, UI placement, its exact CSP/resource-size policy, and visual mode switching. Nothing was installed on the user's Mac. The committed plugin package already contains the built server and UI; local installation does **not** require `npm ci` or `npm run build`.
-- Claude Desktop and other MCP Apps hosts are possible future targets, but compatibility has not been tested here.
-
-Protocol references: [MCP Apps specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx), [OpenAI plugin packaging and local marketplace](https://developers.openai.com/plugins/build/plugins), [Ink Web SDK](https://www.npmjs.com/package/@yodaos-pkg/ink).
+These checks do not verify a real ChatGPT desktop/Codex GUI host. Plugin discovery, placement, resource-size limits, and host CSP remain host-specific verification work. The browser view is minified; tests enforce an internal 10 MB resource-response budget, which is not a documented host limit. The embedded WASM still produces a roughly 10 MB HTML resource; the sandbox must allow WebAssembly compilation. The runtime supports inline/fullscreen when advertised by the host.

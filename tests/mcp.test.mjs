@@ -5,18 +5,18 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 test('stdio MCP exposes opener and self-contained UI resource', async () => {
   const client = new Client({ name: 'test-client', version: '1.0.0' });
-  const transport = new StdioClientTransport({ command: 'node', args: ['dist/server.mjs'], cwd: `${process.cwd()}/plugins/aiui-mcpkit` });
+  const transport = new StdioClientTransport({ command: 'node', args: ['dist/server.mjs'], cwd: `${process.cwd()}/dist/examples/counter` });
   try {
     await client.connect(transport);
     const tools = await client.listTools();
     const opener = tools.tools.find(tool => tool.name === 'open_counter');
-    assert.equal(opener?._meta?.ui?.resourceUri, 'ui://aiui-mcpkit/counter.html');
+    assert.equal(opener?._meta?.ui?.resourceUri, 'ui://ink-counter/app.html');
     const result = await client.callTool({ name: 'open_counter', arguments: {} });
     assert.equal(result.isError, undefined);
-    const resource = await client.readResource({ uri: 'ui://aiui-mcpkit/counter.html' });
+    const resource = await client.readResource({ uri: 'ui://ink-counter/app.html' });
     const content = resource.contents[0];
     assert.equal(content.mimeType, 'text/html;profile=mcp-app');
-    assert.match(content.text, /Ink counter/);
+    assert.match(content.text, /AIUI MCPKit Counter/);
     assert.deepEqual(content._meta.ui.csp.resourceDomains, []);
     assert.deepEqual(content._meta.ui.csp.connectDomains, []);
     assert.deepEqual(content._meta['openai/ui'].availableDisplayModes, ['inline', 'fullscreen']);
