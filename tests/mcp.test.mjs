@@ -16,6 +16,10 @@ test('Counter example exposes page tools, validates arguments, and serves their 
     assert.deepEqual(opener._meta['openai/ui'].entrypoints, [{ type: 'thread' }, { type: 'global' }]);
     const result = await client.callTool({ name: 'open_counter', arguments: {} });
     assert.equal(result.isError, undefined);
+    assert.equal(result._meta.request.state, 'ready');
+    assert.equal(typeof result._meta.request.requestId, 'string');
+    assert.equal(result._meta.request.policy.maxRetries, 0);
+    assert.equal(opener._meta.requestPolicy.totalTimeoutMs, 60000);
     const configured = await client.callTool({ name: 'open_counter', arguments: { initialCount: 5, label: 'Demo' } });
     assert.deepEqual(configured._meta.aiui, { page: 'pages/counter/index', query: { initialCount: 5, label: 'Demo' } });
     const countdown = tools.tools.find(tool => tool.name === 'open_countdown');

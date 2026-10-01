@@ -25,6 +25,7 @@ test('ESM API packages an agent outside the package checkout', async () => {
     await writeFile(join(ink, 'pages/home.ink'), '<page><text>Developer dashboard</text></page>');
     const buildResult = await buildPlugin({ source: ink, outputDir: output, name: 'my-dashboard', tool: 'show_dashboard', version: '1.2.3' });
     assert.equal(buildResult.outputDir, output);
+    assert.equal(buildResult.requestPolicy.requestTimeoutMs, 60000);
     assert.equal(buildResult.marketplaceName, 'my-dashboard-local');
     assert.equal(buildResult.page, 'pages/home');
     assert.equal(buildResult.files.view, join(output, 'view.html'));
@@ -60,6 +61,8 @@ test('ESM API packages an agent outside the package checkout', async () => {
     // Invalid inputs must fail before creating output or overwriting agent source.
     await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: ink }), /must not contain each other/);
     const invalidOutput = join(project, 'invalid');
+    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: invalidOutput, requestPolicy: { totalTimeoutMs: 0 } }), /totalTimeoutMs/);
+    await assert.rejects(access(invalidOutput));
     await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', page: 'missing', outputDir: invalidOutput }), /Initial page not found/);
     await assert.rejects(access(invalidOutput));
     assert.equal(await readFile(join(ink, 'pages/home.ink'), 'utf8'), '<page><text>Developer dashboard</text></page>');

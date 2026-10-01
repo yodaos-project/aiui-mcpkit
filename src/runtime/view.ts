@@ -1,14 +1,31 @@
 import { App, PostMessageTransport } from '@modelcontextprotocol/ext-apps';
+import { AgentToolBridge } from './tool-bridge.js';
+import type { RequestPolicy } from './lifecycle.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
 
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, string>;
-declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[] };
 const config = __APP_CONFIG__;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
 let view: InkView | undefined;
+const toolBridge = new AgentToolBridge({
+  policy: config.requestPolicy, retrySafeTools: config.retrySafeTools,
+  callTool: (params, context) => app.callServerTool(params, {
+    signal: context.signal, onprogress: context.progress,
+    // Lifecycle owns the budgets; prevent the SDK default from expiring first.
+    timeout: 2_147_483_647,
+  }),
+  send: state => view?.dispatchMessageEvent(state),
+});
+window.addEventListener('pagehide', () => toolBridge.cancelAll('View closed'));
+app.onteardown = () => { toolBridge.cancelAll('View closed'); return {}; };
+app.ontoolcancelled = params => {
+  toolBridge.cancelAll(params.reason || 'Host cancelled');
+  document.body.dataset.requestState = 'cancelled';
+};
 let mode: 'inline' | 'fullscreen' = 'inline';
 let lastWidth = 0;
 let lastHeight = 0;
@@ -17,9 +34,11 @@ let openedQuery: string | undefined;
 const initialPage = document.body.dataset.page || config.page;
 
 function openPage() {
-  if (!view || query === undefined) return;
+  if (!view || query === undefined || document.body.dataset.requestState === 'cancelled') return;
+  document.body.dataset.requestState = 'ready';
   const serialized = JSON.stringify(query);
   if (serialized === openedQuery) return;
+  toolBridge.cancelAll('Page replaced');
   view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage, query,
     hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   openedQuery = serialized;
@@ -27,10 +46,14 @@ function openPage() {
   document.body.dataset.ready = 'true';
 }
 
-app.ontoolinput = (input) => { query = input.arguments ?? {}; openPage(); };
+app.ontoolinput = (input) => { document.body.dataset.requestState = 'pending'; query = input.arguments ?? {}; openPage(); };
 app.ontoolresult = (result) => {
+  if (document.body.dataset.requestState === 'cancelled') return;
   const invocation = result._meta?.aiui as { page?: string; query?: Record<string, unknown> } | undefined;
-  if (invocation?.page === initialPage && invocation.query) { query = invocation.query; openPage(); }
+  // Host notifications have no correlation ID: accept only the current launch query.
+  if (invocation?.query && query !== undefined && JSON.stringify(invocation.query) !== JSON.stringify(query)) return;
+  document.body.dataset.requestState = result.isError ? 'error' : 'ready';
+  if (!result.isError && invocation?.page === initialPage && invocation.query) { query = invocation.query; openPage(); }
 };
 
 function applyMode(actual: string) {
@@ -80,6 +103,7 @@ async function main() {
     wasm: { moduleOrPath: binary },
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
+      toolBridge.receive(message.data);
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });

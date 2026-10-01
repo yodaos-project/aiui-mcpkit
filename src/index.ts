@@ -5,6 +5,9 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { pageTools, type PageTool } from './runtime/page-tools.js';
+import { resolveRequestPolicy, type RequestPolicy } from './runtime/lifecycle.js';
+export * from './runtime/lifecycle.js';
+export * from './runtime/tool-bridge.js';
 export type { PageTool } from './runtime/page-tools.js';
 
 /** Options for packaging an AIUI Agent as an MCP Apps plugin. */
@@ -15,6 +18,10 @@ export interface BuildPluginOptions {
   name: string;
   /** Output directory. Defaults to dist/<name> in the working directory. */
   outputDir?: string;
+  /** Shared timeout policy for generated server and Agent tool bridge. */
+  requestPolicy?: Partial<RequestPolicy>;
+  /** Tool names explicitly safe to repeat after a request timeout. */
+  retrySafeTools?: string[];
   title?: string;
   description?: string;
   /** Fallback opener name when no page declares schema.data. Defaults to open_app. */
@@ -36,6 +43,7 @@ export interface BuildPluginResult {
   tools: PageTool[];
   outputDir: string;
   marketplaceName: string;
+  requestPolicy: RequestPolicy;
   files: {
     view: string;
     server: string;
@@ -54,6 +62,9 @@ export interface BuildPluginResult {
 export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPluginResult> {
   if (!options.source || !options.name) throw new Error('source and name are required.');
   if (!/^[a-z][a-z0-9-]*$/.test(options.name)) throw new Error('name must use lowercase letters, numbers, and hyphens, starting with a letter.');
+  const requestPolicy = resolveRequestPolicy(options.requestPolicy);
+  const retrySafeTools = options.retrySafeTools ?? [];
+  if (!Array.isArray(retrySafeTools) || retrySafeTools.some(name => typeof name !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(name))) throw new Error('retrySafeTools must contain valid tool names.');
   const tool = options.tool ?? 'open_app';
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(tool)) throw new Error('tool must contain 1–128 letters, numbers, underscores, or hyphens.');
   const source = resolve(options.source);
@@ -89,7 +100,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const description = options.description ?? `Open ${title}, an interactive AIUI Agent.`;
   const waitForToolInput = tools.length > 0;
   if (!tools.length) tools.push({ name: tool, title, description, page, inputSchema: { type: 'object', properties: {} }, resourceUri: `ui://${options.name}/app.html` });
-  const config = { name: options.name, title, description, tool: tools[0].name, tools, page, waitForToolInput, version: options.version ?? '0.1.0' };
+  const config = { requestPolicy, retrySafeTools, name: options.name, title, description, tool: tools[0].name, tools, page, waitForToolInput, version: options.version ?? '0.1.0' };
   const runtime = new URL('./runtime/', import.meta.url);
   const require = createRequire(import.meta.url);
   const wasm = await readFile(join(dirname(require.resolve('@yodaos-pkg/ink/package.json')), 'pkg/ink_web_bg.wasm'));
@@ -140,7 +151,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   }));
   return {
     name: config.name, title, version: config.version, tool: config.tool, tools, page, outputDir: out,
-    marketplaceName: `${config.name}-local`,
+    marketplaceName: `${config.name}-local`, requestPolicy,
     files: {
       view: join(out, 'view.html'),
       server: join(out, 'dist/server.mjs'),
