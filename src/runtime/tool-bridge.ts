@@ -40,7 +40,9 @@ export class AgentToolBridge {
     const handle = this.lifecycle.start(async context => {
       const result = await this.options.callTool({ name: request.name, arguments: request.arguments }, context);
       if (result && typeof result === 'object' && (result as { isError?: boolean }).isError) {
-        throw new RequestLifecycleError('tool_error', JSON.stringify(result));
+        const response = result as { content?: { type: string; text?: string }[] };
+        const message = response.content?.filter(item => item.type === 'text').map(item => item.text).join('\n');
+        throw new RequestLifecycleError('tool_error', message || 'Tool execution failed.');
       }
       return result;
     }, {

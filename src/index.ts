@@ -1,11 +1,13 @@
 import { build } from 'esbuild';
-import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, mkdir, writeFile, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import { pageTools, type PageTool } from './runtime/page-tools.js';
+import { inputValidator, pageTools, type PageTool } from './runtime/page-tools.js';
 import { resolveRequestPolicy, type RequestPolicy } from './runtime/lifecycle.js';
+import type { BusinessToolDefinition } from './runtime/business-tools.js';
+export * from './runtime/business-tools.js';
 export * from './runtime/lifecycle.js';
 export * from './runtime/tool-bridge.js';
 export type { PageTool } from './runtime/page-tools.js';
@@ -22,6 +24,8 @@ export interface BuildPluginOptions {
   requestPolicy?: Partial<RequestPolicy>;
   /** Tool names explicitly safe to repeat after a request timeout. */
   retrySafeTools?: string[];
+  /** Serializable contracts and a JS/TS module exporting a typed `handlers` map. */
+  businessTools?: { tools: readonly BusinessToolDefinition[]; handlers: string };
   title?: string;
   description?: string;
   /** Fallback opener name when no page declares schema.data. Defaults to open_app. */
@@ -74,6 +78,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     return path === '' || (!path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) && path !== '..' && !isAbsolute(path));
   };
   if (nested(source, out) || nested(out, source)) throw new Error('Agent source and output directories must not contain each other.');
+  const realSource = await realpath(source);
   const manifest = JSON.parse(await readFile(join(source, 'app.json'), 'utf8'));
   const page = options.page ?? manifest.pages?.[0];
   if (typeof page !== 'string' || !page || page.split('/').some(part => part === '..' || part === '') || isAbsolute(page)) {
@@ -98,8 +103,29 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const title = options.title ?? manifest.name ?? options.name;
   if (typeof title !== 'string' || !title) throw new Error('Agent title must be a nonempty string.');
   const description = options.description ?? `Open ${title}, an interactive AIUI Agent.`;
-  const waitForToolInput = tools.length > 0;
+  let waitForToolInput = tools.length > 0;
   if (!tools.length) tools.push({ name: tool, title, description, page, inputSchema: { type: 'object', properties: {} }, resourceUri: `ui://${options.name}/app.html` });
+  const business = options.businessTools;
+  let handlersPath: string | undefined;
+  if (business) {
+    if (!Array.isArray(business.tools) || !business.tools.length) throw new Error('businessTools.tools must be a nonempty array.');
+    if (typeof business.handlers !== 'string' || !business.handlers) throw new Error('businessTools.handlers must be a module path.');
+    handlersPath = resolve(business.handlers);
+    if (nested(source, handlersPath) || nested(realSource, await realpath(handlersPath)) || nested(out, handlersPath)) throw new Error('Business handlers must be outside Agent source and output directories.');
+    for (const definition of business.tools) {
+      if (!definition || typeof definition.name !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(definition.name)) throw new Error('Business tool name must contain 1–128 letters, numbers, underscores, or hyphens.');
+      if (tools.some(tool => tool.name === definition.name)) throw new Error(`Duplicate tool name: ${definition.name}`);
+      if (!pages.includes(definition.page)) throw new Error(`Business tool page is not registered: ${definition.page}`);
+      if (typeof definition.title !== 'string' || !definition.title.trim() || typeof definition.description !== 'string' || !definition.description.trim()) throw new Error('Business tools require a nonempty title and description.');
+      // Use the same JSON Schema dialect and validation rules for both contracts.
+      inputValidator(definition.inputSchema, 'inputSchema');
+      inputValidator(definition.outputSchema, 'outputSchema');
+      tools.push({ name: definition.name, title: definition.title, description: definition.description,
+        page: definition.page, inputSchema: definition.inputSchema, outputSchema: definition.outputSchema,
+        resourceUri: `ui://${options.name}/business/${definition.name}.html` });
+    }
+    waitForToolInput = true;
+  }
   const config = { requestPolicy, retrySafeTools, name: options.name, title, description, tool: tools[0].name, tools, page, waitForToolInput, version: options.version ?? '0.1.0' };
   const runtime = new URL('./runtime/', import.meta.url);
   const require = createRequire(import.meta.url);
@@ -109,7 +135,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     bundle: true, write: false, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
     define: {
       __WASM_GZIP_BASE64__: JSON.stringify(gzipSync(wasm, { level: 9 }).toString('base64')),
-      __INK_FILES__: JSON.stringify(files), __APP_CONFIG__: JSON.stringify(config),
+      __INK_FILES__: JSON.stringify(files), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools }),
     },
   });
   const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -119,9 +145,22 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
 </style></head><body data-page="${escapeHtml(page)}"><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><script type="module">${script}</script></body></html>`;
   const server = await build({
     entryPoints: [fileURLToPath(new URL('server.ts', runtime))],
-    bundle: true, write: false, platform: 'node', format: 'esm', target: 'node22',
+    bundle: true, write: false, metafile: true, platform: 'node', format: 'esm', target: 'node22',
+    banner: { js: `import { createRequire as __mcpkitCreateRequire } from 'node:module'; const require = __mcpkitCreateRequire(import.meta.url);` },
+    plugins: [{ name: 'business-handlers', setup(plugin) {
+      plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit$/ }, () => ({ path: fileURLToPath(new URL('server-api.ts', runtime)) }));
+      plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit\/tools$/ }, () => ({ path: fileURLToPath(new URL('business-tools.ts', runtime)) }));
+      plugin.onResolve({ filter: /^mcpkit:business-handlers$/ }, () => handlersPath
+        ? { path: handlersPath } : { path: 'empty-handlers', namespace: 'mcpkit' });
+      plugin.onLoad({ filter: /^empty-handlers$/, namespace: 'mcpkit' }, () => ({ contents: 'export const handlers = {};', loader: 'js' }));
+    } }],
     define: { __APP_CONFIG__: JSON.stringify(config) },
   });
+  // Do not allow transitive server imports to be embedded by the Agent file walker.
+  if (handlersPath) for (const input of Object.keys(server.metafile!.inputs)) {
+    if (input.startsWith('<define:')) continue;
+    if (nested(realSource, await realpath(resolve(input)))) throw new Error(`Server-only dependency is inside Agent source: ${input}`);
+  }
   await mkdir(join(out, 'dist'), { recursive: true });
   await writeFile(join(out, 'view.html'), html);
   await writeFile(join(out, 'dist/server.mjs'), server.outputFiles[0].contents);

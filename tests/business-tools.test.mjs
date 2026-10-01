@@ -1,0 +1,176 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, readFile, rm, access, cp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { buildPlugin, defineBusinessTool } from '@yodaos-pkg/aiui-mcpkit';
+
+const schema = { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'], additionalProperties: false };
+const definitions = ['double', 'app', 'expected_error', 'crash', 'bad_output', 'slow', 'progress', 'bad_content', 'cyclic', 'wire_output', 'bad_details'].map(name => ({
+  name, title: name, description: `Run ${name}`, page: 'home', inputSchema: schema, outputSchema: schema,
+}));
+const handlerSource = `
+import { BusinessToolError } from '@yodaos-pkg/aiui-mcpkit/tools';
+import { writeFileSync } from 'node:fs';
+import { secret } from './secret-config.js';
+const privateMarker = 'HANDLER_SOURCE_MUST_STAY_SERVER_ONLY';
+export const handlers = {
+  app: input => ({ content: [], structuredContent: input }),
+  double: input => ({ content: [{ type: 'text', text: 'Doubled value' }], structuredContent: { value: input.value * 2 }, uiOnly: { privateMarker } }),
+  expected_error: () => { throw new BusinessToolError('NOT_AVAILABLE', 'Try another item.', { reason: 'UI_ONLY_REASON' }); },
+  crash: () => { throw new Error(secret); },
+  bad_output: () => ({ content: [], structuredContent: { value: 'bad' } }),
+  bad_content: () => ({ content: [{ type: 'invalid' }], structuredContent: { value: 1 } }),
+  bad_details: () => { const details = {}; details.self = details; throw new BusinessToolError('BAD_DETAILS', 'Safe error message.', details); },
+  wire_output: () => { const data = { value: 1 }; Object.defineProperty(data, 'toJSON', { value: () => ({ value: 'bad' }) }); return { content: [], structuredContent: data }; },
+  cyclic: () => { const uiOnly = {}; uiOnly.self = uiOnly; return { content: [], structuredContent: { value: 1 }, uiOnly }; },
+  slow: async (input, { signal }) => { writeFileSync(process.env.STARTED_FILE, 'started'); return new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => { writeFileSync(process.env.ABORT_FILE, 'aborted'); reject(signal.reason); }, { once: true });
+  }); },
+  progress: async (input, context) => {
+    for (let i = 0; i < 3; i++) { await new Promise(resolve => setTimeout(resolve, 100)); context.progress({ progress: i, total: 3 }); }
+    return { content: [], structuredContent: input };
+  },
+};`;
+
+async function fixture() {
+  const project = await mkdtemp(join(tmpdir(), 'mcpkit-business-'));
+  const source = join(project, 'agent'); await mkdir(source);
+  await writeFile(join(source, 'app.json'), JSON.stringify({ pages: ['home'] }));
+  await writeFile(join(source, 'home.ink'), '<page><text>Business</text></page>');
+  const handlers = join(project, 'handlers.ts'); await writeFile(handlers, handlerSource);
+  await writeFile(join(project, 'secret-config.js'), "export const secret = 'SECRET_CONFIGURATION_MUST_STAY_SERVER_ONLY';");
+  const options = { source, name: 'business-test', outputDir: join(project, 'plugin'), businessTools: { tools: definitions, handlers } };
+  return { project, source, handlers, options };
+}
+
+function transport(result, project) {
+  return new StdioClientTransport({ command: process.execPath, args: [result.files.server], cwd: tmpdir(),
+    env: { ...process.env, STARTED_FILE: join(project, 'started'), ABORT_FILE: join(project, 'aborted') } });
+}
+async function waitFile(path) {
+  for (let i = 0; i < 100; i++) { try { return await readFile(path, 'utf8'); } catch { await new Promise(resolve => setTimeout(resolve, 20)); } }
+  throw new Error(`Missing file: ${path}`);
+}
+
+test('custom business tools advertise schemas, isolate server source, and return stable MCP results/errors', async () => {
+  const f = await fixture(); const client = new Client({ name: 'business-test', version: '1' });
+  try {
+    // Explicitly typed helper is also usable from JavaScript at runtime.
+    assert.equal(defineBusinessTool()(definitions[0]).name, 'double');
+    const result = await buildPlugin(f.options);
+    await client.connect(transport(result, f.project));
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map(tool => tool.name), ['open_app', ...definitions.map(tool => tool.name)]);
+    assert.deepEqual(tools[1].inputSchema, schema); assert.deepEqual(tools[1].outputSchema, schema);
+    assert.equal(tools[1].title, 'double'); assert.equal(result.tools[1].page, 'home');
+    const html = await readFile(result.files.view, 'utf8'); const server = await readFile(result.files.server, 'utf8');
+    for (const marker of ['HANDLER_SOURCE_MUST_STAY_SERVER_ONLY', 'SECRET_CONFIGURATION_MUST_STAY_SERVER_ONLY', 'STARTED_FILE', 'ABORT_FILE']) {
+      assert.ok(!html.includes(marker), marker); assert.ok(server.includes(marker), marker);
+    }
+    assert.equal(new Set(tools.map(tool => tool._meta.ui.resourceUri)).size, tools.length);
+    assert.deepEqual((await client.callTool({ name: 'app', arguments: { value: 1 } })).structuredContent, { value: 1 });
+    const success = await client.callTool({ name: 'double', arguments: { value: 3 } });
+    assert.equal(success.isError, undefined); assert.deepEqual(success.structuredContent, { value: 6 });
+    assert.deepEqual(success.content, [{ type: 'text', text: 'Doubled value' }]);
+    assert.equal(success._meta.uiOnly.privateMarker, 'HANDLER_SOURCE_MUST_STAY_SERVER_ONLY');
+    assert.ok(!JSON.stringify({ content: success.content, structuredContent: success.structuredContent }).includes('HANDLER_SOURCE'));
+    assert.equal(success._meta.request.state, 'ready');
+    const resource = await client.readResource({ uri: tools[1]._meta.ui.resourceUri }); assert.match(resource.contents[0].text, /<body data-page="home">/);
+    for (const [name, args, code, message] of [
+      ['double', { value: 'bad' }, 'INVALID_INPUT', 'Tool arguments do not match the input schema.'],
+      ['slow', {}, 'INVALID_INPUT', 'Tool arguments do not match the input schema.'],
+      ['expected_error', { value: 1 }, 'NOT_AVAILABLE', 'Try another item.'],
+      ['crash', { value: 1 }, 'INTERNAL_ERROR', 'Tool execution failed.'],
+      ['bad_output', { value: 1 }, 'INVALID_OUTPUT', 'Tool result does not match the output schema.'],
+      ['bad_content', { value: 1 }, 'INVALID_OUTPUT', 'Tool result is not a valid MCP response.'],
+      ['cyclic', { value: 1 }, 'INVALID_OUTPUT', 'Tool result must be JSON serializable.'],
+      ['wire_output', { value: 1 }, 'INVALID_OUTPUT', 'Serialized tool result does not match its contract.'],
+      ['bad_details', { value: 1 }, 'BAD_DETAILS', 'Safe error message.'],
+    ]) {
+      const response = await client.callTool({ name, arguments: args });
+      assert.equal(response.isError, true); assert.equal(response.structuredContent, undefined);
+      assert.deepEqual(response._meta.businessError, { code, message });
+      assert.deepEqual(response.content, [{ type: 'text', text: `${code}: ${message}` }]);
+      assert.equal(response._meta.request.state, 'error');
+      assert.ok(!JSON.stringify(response).includes('SECRET_CONFIGURATION'), 'unexpected errors must not reveal configuration');
+      if (name === 'expected_error') assert.deepEqual(response._meta.uiOnly, { reason: 'UI_ONLY_REASON' });
+    }
+    await assert.rejects(access(join(f.project, 'started')), 'invalid input must not run the handler');
+    const concurrent = await Promise.all([1, 2, 3].map(value => client.callTool({ name: 'double', arguments: { value } })));
+    assert.deepEqual(concurrent.map(result => result.structuredContent.value), [2, 4, 6]);
+    assert.equal(new Set(concurrent.map(result => result._meta.request.requestId)).size, 3);
+  } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+});
+
+test('business handler timeout and client cancellation abort unfinished server work', async () => {
+  for (const cancel of [false, true]) {
+    const f = await fixture(); const client = new Client({ name: 'cancel-test', version: '1' });
+    try {
+      const result = await buildPlugin({ ...f.options, requestPolicy: { requestTimeoutMs: 1000, totalTimeoutMs: 5000 } });
+      await client.connect(transport(result, f.project)); await client.listTools();
+      const controller = new AbortController();
+      const response = client.callTool({ name: 'slow', arguments: { value: 1 } }, CallToolResultSchema, { signal: controller.signal }).catch(error => error);
+      assert.equal(await waitFile(join(f.project, 'started')), 'started'); if (cancel) controller.abort();
+      const outcome = await response;
+      if (cancel) assert.ok(outcome instanceof Error);
+      else { assert.equal(outcome.isError, true); assert.equal(outcome._meta.businessError.code, 'REQUEST_TIMEOUT'); }
+      assert.equal(await waitFile(join(f.project, 'aborted')), 'aborted');
+    } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+  }
+});
+
+test('handler progress is forwarded to MCP clients and resets only the configured request timer', async () => {
+  const f = await fixture(); const client = new Client({ name: 'progress-test', version: '1' });
+  try {
+    const result = await buildPlugin({ ...f.options, requestPolicy: { requestTimeoutMs: 250, totalTimeoutMs: 2000, resetTimeoutOnProgress: true } });
+    await client.connect(transport(result, f.project)); await client.listTools();
+    const progress = [];
+    const response = await client.callTool({ name: 'progress', arguments: { value: 7 } }, CallToolResultSchema, { onprogress: value => progress.push(value) });
+    assert.deepEqual(response.structuredContent, { value: 7 }); assert.deepEqual(progress.map(item => item.progress), [0, 1, 2]);
+  } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+});
+
+test('invalid business contracts and server files inside Agent source fail before artifacts are written', async () => {
+  const f = await fixture();
+  try {
+    const invalid = join(f.project, 'invalid');
+    for (const [tools, pattern] of [
+      [[{ ...definitions[0], name: 'bad name' }], /Business tool name/],
+      [[{ ...definitions[0], name: 123 }], /Business tool name/],
+      [[{ ...definitions[0], name: undefined }], /Business tool name/],
+      [[definitions[0], definitions[0]], /Duplicate tool name/],
+      [[{ ...definitions[0], name: 'open_app' }], /Duplicate tool name/],
+      [[{ ...definitions[0], page: 'missing' }], /not registered/],
+      [[{ ...definitions[0], outputSchema: { type: 'string' } }], /outputSchema/],
+      [[{ ...definitions[0], inputSchema: { type: 'object', $ref: 'missing.json' } }], /resolve reference/],
+      [[{ ...definitions[0], description: '' }], /nonempty title and description/],
+    ]) {
+      await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid, businessTools: { handlers: f.handlers, tools } }), pattern);
+      await assert.rejects(access(invalid));
+    }
+    await cp(f.handlers, join(f.source, 'server.ts'));
+    await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid, businessTools: { tools: definitions, handlers: join(f.source, 'server.ts') } }), /outside Agent source/);
+    await rm(join(f.source, 'server.ts'));
+    // A transitive import of server-only config from Agent source is also forbidden.
+    await writeFile(join(f.source, 'secret.js'), "export const secret = 'AGENT_DIRECTORY_SECRET';");
+    await writeFile(f.handlers, handlerSource.replace("'./secret-config.js'", "'./agent/secret.js'"));
+    await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid }), /Server-only dependency is inside Agent source/);
+    await assert.rejects(access(invalid));
+  } finally { await rm(f.project, { recursive: true, force: true }); }
+});
+
+
+test('root-package handler imports share the server error type without bundling the builder', async () => {
+  const f = await fixture(); const client = new Client({ name: 'root-import', version: '1' });
+  try {
+    await writeFile(f.handlers, handlerSource.replace('@yodaos-pkg/aiui-mcpkit/tools', '@yodaos-pkg/aiui-mcpkit'));
+    const result = await buildPlugin(f.options); await client.connect(transport(result, f.project)); await client.listTools();
+    const response = await client.callTool({ name: 'expected_error', arguments: { value: 1 } });
+    assert.equal(response._meta.businessError.code, 'NOT_AVAILABLE');
+    assert.ok(!(await readFile(result.files.server, 'utf8')).includes('esbuild/lib/main'));
+  } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+});

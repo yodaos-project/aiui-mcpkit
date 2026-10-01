@@ -34,19 +34,20 @@ Already using Claude Desktop or VS Code? Complete step 2, then follow [your clie
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
 cd aiui-mcpkit
 npm ci
-npm run build:example
+npm run build:examples
 ```
 
-The Counter plugin is now in `dist/examples/counter`. Keep the terminal in this repository for the next step.
+The Counter and business plugins are now in `dist/examples/counter` and `dist/examples/business`. Their shared marketplace is in `dist/examples/.agents/plugins/marketplace.json`. Keep the terminal in this repository for the next step.
 
 ### 3. Install in Codex
 
 ```sh
-codex plugin marketplace add ./dist/examples/counter
-codex plugin add ink-counter@ink-counter-local
+codex plugin marketplace add ./dist/examples
+codex plugin add ink-counter@aiui-mcpkit-examples
+codex plugin add business-demo@aiui-mcpkit-examples
 ```
 
-The first command registers the local plugin catalog; the second installs the Counter. Copy the identifiers as shown: they must match the generated metadata.
+The first command registers the shared local catalog; the next two install Counter and the business demo. Copy the identifiers as shown: they must match the generated metadata.
 
 Restart Codex Desktop after the initial installation, then open **AIUI MCPKit Counter** from the plugin's UI entrypoint. In a Codex chat with the local tool available, you can also ask it to call `open_counter`.
 
@@ -63,7 +64,7 @@ open_countdown({ "start": 8, "step": 2 })
 
 `open_counter` opens the Counter page at 5 with the label “Demo”; clicking **+ ADD ONE** changes it to 6. Both parameters are optional, and omitting `initialCount` restores the saved count. `open_countdown` opens a separate Countdown page at 8; each click subtracts 2 until zero. `start` is required and `step` defaults to 1 in Page logic. Missing `start`, negative initial counts, and nonpositive steps are rejected by the MCP server.
 
-Both tools are declared in their pages' `<script def>` blocks, with parameters received by `onLoad(query)`. The browser tests verify page selection, initial state, and interaction using real Ink WASM. If you installed an older single-tool Counter, rebuild and reinstall/reload the plugin to refresh its server; the view-only `update:example` shortcut cannot add the new tool.
+Both tools are declared in their pages' `<script def>` blocks, with parameters received by `onLoad(query)`. The browser tests verify page selection, initial state, and interaction using real Ink WASM. If you installed Counter from the older `ink-counter-local` catalog, register the shared catalog above and reinstall it there. For subsequent changes, `update:examples` updates both installed plugins, including their servers; reload the host to refresh its tool list.
 
 The [Counter source](examples/counter/ink/pages/counter/index.ink) shows state and adaptive layout; the [Countdown source](examples/counter/ink/pages/countdown/index.ink) shows a second tool with required input. The inline Counter has been observed in Codex Desktop; fullscreen and the page-tool example are tested in the browser harness.
 
@@ -158,6 +159,82 @@ Give another page its own `description`, `schema.data`, and optional `tool` to e
 Arguments are validated before the server returns success. The view receives complete tool arguments from the MCP Apps host and passes them as Ink's launch query to `onLoad(query)`. Ink exposes scalar values as strings and objects/arrays as JSON strings: use `Number(query.days)` or `JSON.parse(query.options)` when appropriate. Page views wait for complete input before opening, so required arguments are available on the first load. Unsupported schema dialects, unresolved references, and invalid page definitions fail the build before output is written.
 
 `buildPlugin()` returns mappings in `result.tools`, each with `name`, `title`, `description`, `page`, `inputSchema`, and `resourceUri`. The existing `result.tool` is the first registered tool name.
+
+### Typed business tools
+
+For business work beyond opening a page, declare contracts with `defineBusinessTool<Input, Output>()` and pass them to `buildPlugin({ businessTools: { tools, handlers } })`. `handlers` is the path to a separate JavaScript or TypeScript module exporting a `handlers` map. It is bundled for Node.js and never executed by the builder.
+
+```ts
+// contracts.ts — public contracts, outside the Ink source directory
+import { defineBusinessTool } from '@yodaos-pkg/aiui-mcpkit/tools';
+type Input = { quantity: number };
+type Output = { total: number };
+export const quote = defineBusinessTool<Input, Output>()({
+  name: 'quote_order', title: 'Order quote', description: 'Calculate an order quote.',
+  page: 'pages/order/index',
+  inputSchema: {
+    type: 'object', properties: { quantity: { type: 'integer', minimum: 1 } },
+    required: ['quantity'], additionalProperties: false,
+  },
+  outputSchema: {
+    type: 'object', properties: { total: { type: 'number' } },
+    required: ['total'], additionalProperties: false,
+  },
+});
+export const tools = [quote] as const;
+```
+
+```ts
+// handlers.ts — server only, outside the Ink source directory
+import { BusinessToolError, type BusinessToolHandlers } from '@yodaos-pkg/aiui-mcpkit/tools';
+import type { tools } from './contracts.js';
+export const handlers: BusinessToolHandlers<typeof tools> = {
+  async quote_order(input, { signal, progress }) {
+    if (input.quantity > 100) throw new BusinessToolError('OUT_OF_STOCK', 'Choose at most 100 items.');
+    // Pass signal to fetch or other unfinished work. Credentials belong here,
+    // e.g. process.env.SUPPLIER_TOKEN, and must not be returned to the client.
+    signal.throwIfAborted();
+    progress({ progress: 1, total: 1, message: 'Quote calculated' });
+    return {
+      content: [{ type: 'text', text: `Quote: ${input.quantity * 20}` }],
+      structuredContent: { total: input.quantity * 20 },
+      uiOnly: { stockRemaining: 100 - input.quantity },
+    };
+  },
+};
+```
+
+Pass the imported `tools` to your ESM build script:
+
+```js
+await buildPlugin({
+  source: './ink', name: 'order-agent',
+  businessTools: { tools, handlers: './handlers.ts' },
+});
+```
+
+`BusinessToolHandlers<typeof tools>` checks tool names, input parameters and structured output types. The generics describe your TypeScript types; JSON Schema remains the runtime authority and must match those types. Names must be unique across business and page tools, and `page` must be registered in `app.json.pages`. Each business tool requires object input and output schemas. Both schemas are checked at build time and advertised unchanged through MCP tools/list; inputs and successful outputs are validated on every call. JavaScript handlers use the same runtime validation. Missing handler exports fail the server startup before connection. Existing page tools and the fallback opener are preserved; business contracts appear in `result.tools` with `outputSchema`.
+
+| Handler field | MCP response | Visibility |
+| --- | --- | --- |
+| `content` | `content` | Model-visible summary/content blocks |
+| `structuredContent` | `structuredContent` | Model-visible data validated against `outputSchema`, also available for rendering |
+| `uiOnly` | `_meta.uiOnly` | UI-only data; excluded from model context |
+
+Ink pages receive the initial model-invoked result in `onMessage(event)` as `{ type: 'mcpkit:tool-result', structuredContent, uiOnly, isError, error, request }`, including when the result arrives before WASM startup. Agent-initiated calls use the [request lifecycle](#tool-request-lifecycle) protocol; successful `mcpkit:tool-state` messages contain the complete result in `result`. For initial-result rendering, read `event.data.structuredContent` and `event.data.uiOnly`. UI-only data is accessible to the client and must never contain credentials.
+
+Business failures return `isError: true`, text content `CODE: message`, and `_meta.businessError: { code, message }`. They omit `structuredContent` so clients do not validate an error against a successful output schema. `BusinessToolError(code, message, details?)` exposes its explicit code/message; optional details go to `_meta.uiOnly`. Built-in codes are `INVALID_INPUT`, `INVALID_OUTPUT`, `INTERNAL_ERROR`, `CANCELLED`, `REQUEST_TIMEOUT` and `TOTAL_TIMEOUT`. Invalid inputs do not run a handler; invalid outputs never produce success. Unexpected exceptions return the generic `INTERNAL_ERROR` message, including in lifecycle metadata, without leaking exception text or stacks. Business errors end the request in `error` and never retry by default.
+
+Keep the handler module and its configuration/dependencies outside `source` and the output directory. Every file in the Ink source tree is public UI content. The builder rejects handler entrypoints or transitive server imports inside the Agent source directory, including symlink-resolved paths. Only public launch configuration goes into `view.html`; handler code is bundled into `dist/server.mjs`. Runtime environment variables are read by the server, not captured during packaging. Handler modules can import runtime helpers from the root package or `/tools`; packaging APIs such as `buildPlugin` belong in the build script.
+
+Try the complete [business example](examples/business):
+
+```sh
+npm run build:examples
+npm run start:examples -- business
+```
+
+Register that server with an MCP Apps client. Call `quote_order` with `{ "quantity": 2 }` (optionally `"coupon": "DEMO10"`), or `check_stock` with `{ "sku": "DEMO" }`. The quote page shows structured totals and UI-only stock data; **CALCULATE** calls the real handler and **CANCEL** interrupts it. `open_app` remains available to open the page. The fixture uses deterministic demo data and places no orders. `npm run typecheck` checks the typed example and rejects intentionally incorrect input/output assignments; MCP and real Ink WASM browser tests verify discovery, contracts, errors, server-code isolation, rendering, invocation and cancellation.
 
 ### Tool request lifecycle
 
@@ -311,21 +388,23 @@ OpenAI sidebar entrypoints are client-specific. A different host may render the 
 
 ## Edit, rebuild, repeat
 
-To change the Counter, edit its [page](examples/counter/ink/pages/counter/index.ink), then run:
+Edit the [Counter page](examples/counter/ink/pages/counter/index.ink), the [business page](examples/business/ink/pages/order/index.ink), or its [handlers](examples/business/handlers.ts), then run:
 
 ```sh
-npm run update:example
+npm run update:examples
 ```
 
-This rebuilds the example and replaces `view.html` in the installed Codex Counter plugin. Open a **new Counter card** to request the new interface. Existing cards keep their current view; if the host caches the resource, a restart may still be needed.
+This rebuilds both examples in the shared marketplace and updates `view.html`, `dist/server.mjs`, `plugin.json` and `mcp.json` for each installed plugin. Reload the MCP server or desktop host and open a **new card** to use the new interface and handlers. Existing cards retain their current view.
 
-The script uses `$CODEX_HOME` (default: `~/.codex`) and checks the matching version and `local` cache directories. To specify the installation directory yourself:
+The script uses `$CODEX_HOME` (default: `~/.codex`) and checks the matching version and `local` directories under `plugins/cache/aiui-mcpkit-examples`. Uninstalled examples are skipped; it fails if none are installed. To update one example at a custom installation path:
 
 ```sh
-npm run update:example -- --plugin-dir /absolute/path/to/installed/plugin
+npm run update:examples -- --example business --plugin-dir /absolute/path/to/installed/business-demo
 ```
 
-This shortcut updates the Counter view only. Server or manifest changes require reinstalling and reloading the plugin. For Claude Desktop or another directly configured client, rebuild the plugin at its registered path and reload the server through that client.
+Without `--example`, `--plugin-dir` points to the marketplace cache directory containing `ink-counter/<version-or-local>` and `business-demo/<version-or-local>`. For directly configured MCP clients, rebuilding updates the registered generated server paths; reload those servers through the client.
+
+To start one stdio server from the terminal, use `npm run start:examples` (Counter by default) or `npm run start:examples -- business`. Each marketplace plugin keeps its own server.
 
 ## Build reference
 
@@ -356,6 +435,7 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | ESM only | Shared lifecycle defaults above |
 | `retrySafeTools` | ESM only | `[]` |
+| `businessTools` | ESM only | Omitted; preserves page/opening tools |
 
 Plugin names start with a lowercase letter and contain lowercase letters, numbers, or hyphens. Tool names contain 1–128 letters, numbers, underscores, or hyphens. Use `node scripts/build-plugin.mjs --help` for helper usage. If you omit `[source]`, set `--out` outside the current directory to keep source and output separate.
 
@@ -372,16 +452,16 @@ Try the example, connect a new host, or improve the build API. [Open an issue](h
 | Command | Purpose |
 | --- | --- |
 | `npm run build` | Build the ESM library, types, and runtime templates |
-| `npm run build:example` | Package the Counter example |
-| `npm run update:example` | Replace the installed Codex Counter view |
-| `npm run start:example` | Start the generated stdio MCP server |
+| `npm run build:examples` | Build both examples and their shared marketplace |
+| `npm run update:examples` | Update installed example UIs, servers, and manifests |
+| `npm run start:examples` | Start Counter, or select `-- business` |
 | `npm run typecheck` | Check TypeScript types |
 | `npm test` | Run packaging, MCP, and browser tests |
 
 Before submitting a code change:
 
 ```sh
-npm run build:example
+npm run build:examples
 npx playwright install chromium
 npm run typecheck
 npm test

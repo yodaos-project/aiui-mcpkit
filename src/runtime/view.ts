@@ -31,29 +31,39 @@ let lastWidth = 0;
 let lastHeight = 0;
 let query: Record<string, unknown> | undefined = config.waitForToolInput ? undefined : {};
 let openedQuery: string | undefined;
+let pendingResult: Parameters<NonNullable<typeof app.ontoolresult>>[0] | undefined;
+function deliverToolResult() {
+  if (!view || !pendingResult) return;
+  const result = pendingResult; pendingResult = undefined;
+  view.dispatchMessageEvent({ type: 'mcpkit:tool-result', structuredContent: result.structuredContent,
+    uiOnly: result._meta?.uiOnly, error: result._meta?.businessError, isError: result.isError === true, request: result._meta?.request });
+}
 const initialPage = document.body.dataset.page || config.page;
 
 function openPage() {
   if (!view || query === undefined || document.body.dataset.requestState === 'cancelled') return;
   document.body.dataset.requestState = 'ready';
   const serialized = JSON.stringify(query);
-  if (serialized === openedQuery) return;
+  if (serialized === openedQuery) { deliverToolResult(); return; }
   toolBridge.cancelAll('Page replaced');
   view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage, query,
     hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   openedQuery = serialized;
   resize();
   document.body.dataset.ready = 'true';
+  deliverToolResult();
 }
 
-app.ontoolinput = (input) => { document.body.dataset.requestState = 'pending'; query = input.arguments ?? {}; openPage(); };
+app.ontoolinput = (input) => { pendingResult = undefined; document.body.dataset.requestState = 'pending'; query = input.arguments ?? {}; openPage(); };
 app.ontoolresult = (result) => {
   if (document.body.dataset.requestState === 'cancelled') return;
   const invocation = result._meta?.aiui as { page?: string; query?: Record<string, unknown> } | undefined;
   // Host notifications have no correlation ID: accept only the current launch query.
   if (invocation?.query && query !== undefined && JSON.stringify(invocation.query) !== JSON.stringify(query)) return;
   document.body.dataset.requestState = result.isError ? 'error' : 'ready';
+  if (result.structuredContent !== undefined || result._meta?.uiOnly !== undefined || result._meta?.businessError !== undefined) pendingResult = result;
   if (!result.isError && invocation?.page === initialPage && invocation.query) { query = invocation.query; openPage(); }
+  else if (view && openedQuery !== undefined) deliverToolResult();
 };
 
 function applyMode(actual: string) {

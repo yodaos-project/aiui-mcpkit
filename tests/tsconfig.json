@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["../examples/business/**/*.ts", "contracts.types.ts"]
+}

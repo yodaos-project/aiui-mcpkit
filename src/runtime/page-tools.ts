@@ -12,10 +12,12 @@ export interface PageTool {
   page: string;
   inputSchema: Record<string, unknown>;
   resourceUri: string;
+  /** Present only for custom business tools. */
+  outputSchema?: Record<string, unknown>;
 }
 
-export function inputValidator(schema: Record<string, unknown>) {
-  if (schema.type !== 'object') throw new Error('schema.data must have type "object".');
+export function inputValidator(schema: Record<string, unknown>, label = 'schema.data') {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema) || schema.type !== 'object') throw new Error(`${label} must have type "object".`);
   if (schema.$async) throw new Error('Async input schemas are not supported.');
   const options = { strict: false, allErrors: true };
   const dialect = schema.$schema;

@@ -34,19 +34,20 @@ AI 对话除了返回文字，还可以展示带按钮、实时状态的页面�
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
 cd aiui-mcpkit
 npm ci
-npm run build:example
+npm run build:examples
 ```
 
-完成后，Counter 插件位于 `dist/examples/counter`。下一步继续在当前仓库目录中执行。
+完成后，Counter 和业务插件分别位于 `dist/examples/counter` 与 `dist/examples/business`，共享的 marketplace 位于 `dist/examples/.agents/plugins/marketplace.json`。下一步继续在当前仓库目录中执行。
 
 ### 3. 安装到 Codex
 
 ```sh
-codex plugin marketplace add ./dist/examples/counter
-codex plugin add ink-counter@ink-counter-local
+codex plugin marketplace add ./dist/examples
+codex plugin add ink-counter@aiui-mcpkit-examples
+codex plugin add business-demo@aiui-mcpkit-examples
 ```
 
-第一条命令注册本地插件目录，第二条安装 Counter。请按示例复制插件标识，它们需要与生成的元数据一致。
+第一条命令注册共享的本地插件目录，后两条分别安装 Counter 和业务示例。请按示例复制插件标识，它们需要与生成的元数据一致。
 
 首次安装后重启 Codex 桌面版，从插件的界面入口打开 **AIUI MCPKit Counter**。在已提供本地工具的 Codex 对话中，也可以让它调用 `open_counter`。
 
@@ -63,7 +64,7 @@ open_countdown({ "start": 8, "step": 2 })
 
 `open_counter` 打开 Counter 页面，初始值为 5，标题为 “Demo”；点击 **+ ADD ONE** 后变成 6。两个参数均可选，省略 `initialCount` 时恢复已保存的计数。`open_countdown` 打开独立的 Countdown 页面，初始值为 8，每次点击减 2，最低为 0。`start` 必填，`step` 在页面逻辑中默认为 1。缺失 `start`、负数初始计数或非正数步长会被 MCP 服务端拒绝。
 
-两个工具均在各自页面的 `<script def>` 中声明，通过 `onLoad(query)` 接收参数。浏览器测试使用真实 Ink WASM 验证页面选择、初始状态和按钮交互。如果之前安装了只有一个工具的 Counter，需要重新构建、重新安装并重载插件以更新服务端；仅替换视图的 `update:example` 无法增加新工具。
+两个工具均在各自页面的 `<script def>` 中声明，通过 `onLoad(query)` 接收参数。浏览器测试使用真实 Ink WASM 验证页面选择、初始状态和按钮交互。如果之前从 `ink-counter-local` 安装 Counter，请按上面的命令注册共享 marketplace 并重新安装。后续使用 `update:examples` 同步已安装的两个插件及其服务端，再重载宿主刷新工具列表。
 
 [Counter 源码](examples/counter/ink/pages/counter/index.ink) 展示状态管理和自适应布局；[Countdown 源码](examples/counter/ink/pages/countdown/index.ink) 展示带必填参数的第二个工具。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为和页面工具示例通过浏览器测试环境验证。
 
@@ -158,6 +159,82 @@ export default {
 服务端先校验参数，再返回成功结果。视图接收 MCP Apps 宿主发送的完整工具参数，通过 Ink 的启动 query 传入 `onLoad(query)`。Ink 将标量暴露为字符串，将对象和数组暴露为 JSON 字符串；按需使用 `Number(query.days)` 或 `JSON.parse(query.options)`。页面工具的视图等待完整输入后再打开，确保首次加载就能收到必填参数。不支持的 schema 版本、无法解析的引用和无效的页面定义会在写入输出前令构建失败。
 
 `buildPlugin()` 通过 `result.tools` 返回工具映射，其中包含 `name`、`title`、`description`、`page`、`inputSchema` 和 `resourceUri`。原有的 `result.tool` 返回第一个已注册工具的名称。
+
+### 带类型的业务工具
+
+需要执行页面打开之外的业务逻辑时，用 `defineBusinessTool<Input, Output>()` 声明契约，并传给 `buildPlugin({ businessTools: { tools, handlers } })`。`handlers` 指向独立的 JavaScript 或 TypeScript 模块，模块导出 `handlers` 映射。构建器只将它打包到 Node.js 服务端，不会执行处理器模块。
+
+```ts
+// contracts.ts — 公开契约，放在 Ink 源码目录之外
+import { defineBusinessTool } from '@yodaos-pkg/aiui-mcpkit/tools';
+type Input = { quantity: number };
+type Output = { total: number };
+export const quote = defineBusinessTool<Input, Output>()({
+  name: 'quote_order', title: 'Order quote', description: 'Calculate an order quote.',
+  page: 'pages/order/index',
+  inputSchema: {
+    type: 'object', properties: { quantity: { type: 'integer', minimum: 1 } },
+    required: ['quantity'], additionalProperties: false,
+  },
+  outputSchema: {
+    type: 'object', properties: { total: { type: 'number' } },
+    required: ['total'], additionalProperties: false,
+  },
+});
+export const tools = [quote] as const;
+```
+
+```ts
+// handlers.ts — 仅服务端使用，放在 Ink 源码目录之外
+import { BusinessToolError, type BusinessToolHandlers } from '@yodaos-pkg/aiui-mcpkit/tools';
+import type { tools } from './contracts.js';
+export const handlers: BusinessToolHandlers<typeof tools> = {
+  async quote_order(input, { signal, progress }) {
+    if (input.quantity > 100) throw new BusinessToolError('OUT_OF_STOCK', 'Choose at most 100 items.');
+    // 将 signal 传给 fetch 等未完成工作。凭证应在服务端读取，
+    // 例如 process.env.SUPPLIER_TOKEN，不得返回给客户端。
+    signal.throwIfAborted();
+    progress({ progress: 1, total: 1, message: 'Quote calculated' });
+    return {
+      content: [{ type: 'text', text: `Quote: ${input.quantity * 20}` }],
+      structuredContent: { total: input.quantity * 20 },
+      uiOnly: { stockRemaining: 100 - input.quantity },
+    };
+  },
+};
+```
+
+在 ESM 构建脚本中导入 `tools` 后传给构建器：
+
+```js
+await buildPlugin({
+  source: './ink', name: 'order-agent',
+  businessTools: { tools, handlers: './handlers.ts' },
+});
+```
+
+`BusinessToolHandlers<typeof tools>` 检查工具名、输入参数和结构化输出类型。泛型声明 TypeScript 类型，JSON Schema 决定运行时校验，两者应保持一致。业务工具与页面工具的名字必须唯一，`page` 必须在 `app.json.pages` 中注册。每个业务工具都要求对象类型的输入和输出 schema；构建时检查两个 schema，并通过 MCP tools/list 原样公布，每次调用都校验输入与成功输出。JavaScript 处理器使用相同的运行时校验。缺失的处理器导出会在服务端连接前令启动失败。原有页面工具与回退入口保留；`result.tools` 中的业务契约包含 `outputSchema`。
+
+| 处理器字段 | MCP 响应 | 可见范围 |
+| --- | --- | --- |
+| `content` | `content` | 模型可见的摘要或内容块 |
+| `structuredContent` | `structuredContent` | 按 `outputSchema` 校验的模型可见数据，也可用于渲染 |
+| `uiOnly` | `_meta.uiOnly` | 仅 UI 可见，不进入模型上下文 |
+
+Ink 页面通过 `onMessage(event)` 接收模型初次调用的结果，消息形状为 `{ type: 'mcpkit:tool-result', structuredContent, uiOnly, isError, error, request }`；结果先于 WASM 启动到达时也会保留并投递。Agent 主动调用使用[请求生命周期](#工具请求生命周期)协议，成功的 `mcpkit:tool-state` 消息在 `result` 中携带完整结果。初始结果渲染读取 `event.data.structuredContent` 和 `event.data.uiOnly`。UI 专用数据仍可被客户端访问，不能放入凭证。
+
+业务失败返回 `isError: true`、文本内容 `CODE: message` 和 `_meta.businessError: { code, message }`，省略 `structuredContent`，避免客户端按成功输出 schema 校验错误结果。`BusinessToolError(code, message, details?)` 暴露显式代码与消息，可选详情放入 `_meta.uiOnly`。内置代码包括 `INVALID_INPUT`、`INVALID_OUTPUT`、`INTERNAL_ERROR`、`CANCELLED`、`REQUEST_TIMEOUT` 和 `TOTAL_TIMEOUT`。无效输入不执行处理器，无效输出不会返回成功。意外异常使用通用 `INTERNAL_ERROR` 消息，生命周期元数据也不暴露原异常文本或堆栈。业务错误令请求进入 `error`，默认不会重试。
+
+处理器模块及其配置、依赖应放在 `source` 和输出目录之外。Ink 源码目录内的所有文件都是公开 UI 内容。构建器会拒绝位于 Agent 源码目录内的处理器入口及其传递导入，包括解析符号链接后的路径。`view.html` 只包含公开启动配置，处理器代码打包进 `dist/server.mjs`。环境变量在服务端运行时读取，不会在打包阶段捕获。处理器可以从根包或 `/tools` 导入运行时辅助 API；`buildPlugin` 等打包 API 应在构建脚本中使用。
+
+运行完整的[业务示例](examples/business)：
+
+```sh
+npm run build:examples
+npm run start:examples -- business
+```
+
+将该服务端注册到 MCP Apps 客户端。调用 `quote_order`，参数为 `{ "quantity": 2 }`，可选 `"coupon": "DEMO10"`；或调用 `check_stock`，参数为 `{ "sku": "DEMO" }`。报价页面显示结构化总价和 UI 专用库存数据，**CALCULATE** 调用真实处理器，**CANCEL** 中止请求。`open_app` 仍可打开页面。示例使用确定性的演示数据，不会下单。`npm run typecheck` 检查带类型的示例，并验证错误输入/输出赋值确实被拒绝；MCP 和真实 Ink WASM 浏览器测试覆盖工具发现、契约、错误、服务端代码隔离、渲染、调用和取消。
 
 ### 工具请求生命周期
 
@@ -309,23 +386,25 @@ Codex marketplace 命令不会安装 Claude 扩展。MCPKit 目前不生成 `.mc
 
 OpenAI 的侧栏入口属于客户端专用能力。其他宿主可以展示标准应用视图，但展开控件可能不同。
 
-## 修改、构建、再体验
+## 修改、重建、迭代
 
-修改 Counter 的[页面](examples/counter/ink/pages/counter/index.ink)后，运行：
-
-```sh
-npm run update:example
-```
-
-它会重新构建示例，并替换 Codex 已安装 Counter 插件中的 `view.html`。打开一个**新的 Counter 卡片**来请求更新后的界面。已经打开的卡片保留当前内容；宿主如果缓存了资源，仍可能需要重启。
-
-脚本使用 `$CODEX_HOME`（默认 `~/.codex`），检查对应版本和 `local` 缓存目录。也可以自己指定安装目录：
+修改 [Counter 页面](examples/counter/ink/pages/counter/index.ink)、[业务页面](examples/business/ink/pages/order/index.ink) 或其[处理器](examples/business/handlers.ts)，然后运行：
 
 ```sh
-npm run update:example -- --plugin-dir /absolute/path/to/installed/plugin
+npm run update:examples
 ```
 
-这个快捷操作只更新 Counter 界面。修改服务或 manifest 后，需要重新安装并加载插件。对于 Claude Desktop 等直接配置服务的客户端，在已注册的路径重新构建插件，再通过客户端重新加载服务。
+该命令在共享 marketplace 中重建两个示例，并为每个已安装插件更新 `view.html`、`dist/server.mjs`、`plugin.json` 和 `mcp.json`。重载 MCP 服务端或桌面宿主，并打开**新卡片**以使用更新后的界面和处理器。已有卡片保留当前视图。
+
+脚本使用 `$CODEX_HOME`，默认为 `~/.codex`，检查 `plugins/cache/aiui-mcpkit-examples` 下对应版本及 `local` 目录。未安装的示例会跳过；一个都未安装时会报错。更新自定义安装路径中的单个示例：
+
+```sh
+npm run update:examples -- --example business --plugin-dir /absolute/path/to/installed/business-demo
+```
+
+未指定 `--example` 时，`--plugin-dir` 指向 marketplace 缓存目录，其中包含 `ink-counter/<version-or-local>` 和 `business-demo/<version-or-local>`。直接配置 MCP 的客户端在重建后会获得注册路径中的新服务端文件，需要通过客户端重载服务端。
+
+在终端启动单个 stdio 服务端时，使用 `npm run start:examples`，默认选择 Counter，或使用 `npm run start:examples -- business`。同一 marketplace 中的两个插件各自保留独立服务端。
 
 ## 构建参考
 
@@ -356,6 +435,7 @@ plugin/
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | 仅 ESM | 上述共享生命周期默认值 |
 | `retrySafeTools` | 仅 ESM | `[]` |
+| `businessTools` | 仅 ESM | 不提供时保留页面与入口工具 |
 
 插件名称以小写字母开头，仅包含小写字母、数字或连字符。工具名称由 1–128 个字母、数字、下划线或连字符组成。运行 `node scripts/build-plugin.mjs --help` 查看脚本用法。如果省略 `[source]`，请把 `--out` 设在当前目录之外，确保源码与输出目录分开。
 
@@ -372,16 +452,16 @@ UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需�
 | 命令 | 用途 |
 | --- | --- |
 | `npm run build` | 构建 ESM 库、类型声明和运行时模板 |
-| `npm run build:example` | 打包 Counter 示例 |
-| `npm run update:example` | 替换 Codex 已安装的 Counter 界面 |
-| `npm run start:example` | 启动生成的 stdio MCP 服务 |
+| `npm run build:examples` | 构建两个示例及共享 marketplace |
+| `npm run update:examples` | 更新已安装示例的界面、服务端及 manifest |
+| `npm run start:examples` | 启动 Counter，或用 `-- business` 选择业务示例 |
 | `npm run typecheck` | 检查 TypeScript 类型 |
 | `npm test` | 运行打包、MCP 和浏览器测试 |
 
 提交代码改动前运行：
 
 ```sh
-npm run build:example
+npm run build:examples
 npx playwright install chromium
 npm run typecheck
 npm test
