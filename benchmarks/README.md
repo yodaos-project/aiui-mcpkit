@@ -73,6 +73,8 @@ Size categories remain separate:
 
 The output directory contains `report.json`, `report.md`, `status.json`, `screenshots/` and the generated `plugin/`. JSON records settings, scenarios, source fixture and host hashes, Node/Chromium/Ink/SDK versions, machine/OS, Git revision/dirty state, build settings, raw samples and measurement limitations. Markdown displays the median across independent samples of each per-sample metric. No timing threshold is used in CI on shared runners.
 
+The separate [Benchmark workflow](../.github/workflows/benchmark.yml) runs the smoke check on pushes and pull requests to `main`, and can also be started manually. Its run Summary displays the report and links to the `benchmark-smoke` artifact containing raw samples and screenshots, retained for seven days. Failed runs still publish their status and available diagnostic evidence. The [CI workflow](../.github/workflows/ci.yml) independently builds, checks types and runs tests, with a check-results table in its Summary.
+
 Run two measurements under identical settings:
 
 ```sh

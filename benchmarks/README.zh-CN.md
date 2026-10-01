@@ -73,6 +73,8 @@ npm run bench -- --samples 1 --operations 3 --idle-ms 250 \
 
 输出目录包含 `report.json`、`report.md`、`status.json`、`screenshots/` 和生成的 `plugin/`。JSON 记录参数、场景、fixture/host hash、Node/Chromium/Ink/SDK 版本、机器与 OS、Git revision/dirty 状态、构建配置、原始样本和测量边界。Markdown 展示多个独立样本中各指标的中位数。共享 CI runner 不使用性能数值阈值。
 
+独立的 [Benchmark workflow](../.github/workflows/benchmark.yml) 在向 `main` 推送及提交 pull request 时运行 smoke 检查，也支持手动触发。运行的 Summary 展示报告，并链接到包含原始样本与截图的 `benchmark-smoke` artifact，保留七天。失败时也会展示状态并保存已有诊断证据。[CI workflow](../.github/workflows/ci.yml) 独立执行构建、类型检查和测试，在 Summary 中展示检查结果表格。
+
 使用一致的配置运行两次：
 
 ```sh

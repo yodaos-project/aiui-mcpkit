@@ -39,22 +39,30 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build library and examples
+        id: build
         run: npm run build:examples
 
       - name: Check types
+        id: types
         run: npm run typecheck
 
       - name: Run tests
+        id: tests
         run: npm test
 
-      - name: Verify benchmark scenarios
-        run: npm run bench -- --samples 1 --operations 3 --idle-ms 250 --server-calls 8 --out benchmark-results/ci
-
-      - name: Save benchmark evidence
+      - name: Publish CI summary
         if: always()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: benchmark-smoke
-          path: benchmark-results/ci
-          retention-days: 7
-          if-no-files-found: ignore
+        env:
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          TYPES_RESULT: ${{ steps.types.outcome }}
+          TESTS_RESULT: ${{ steps.tests.outcome }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          # CI results
+
+          | Check | Result |
+          | --- | --- |
+          | Build library and examples | $BUILD_RESULT |
+          | Type checks | $TYPES_RESULT |
+          | Tests | $TESTS_RESULT |
+          EOF

@@ -1,0 +1,74 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Rendering and packaging benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: true
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Build library
+        run: npm run build
+
+      - name: Verify benchmark scenarios
+        id: benchmark
+        run: npm run bench -- --samples 1 --operations 3 --idle-ms 250 --server-calls 8 --out benchmark-results/ci
+
+      - name: Save benchmark evidence
+        id: evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: benchmark-smoke
+          path: benchmark-results/ci
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Publish benchmark summary
+        if: always()
+        env:
+          BENCHMARK_RESULT: ${{ steps.benchmark.outcome }}
+          ARTIFACT_URL: ${{ steps.evidence.outputs.artifact-url }}
+        run: |
+          printf '# Benchmark results\n\nStatus: %s\n\n' "$BENCHMARK_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Correctness smoke run on a shared runner; no performance thresholds.\n\n' >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$ARTIFACT_URL" ]; then
+            printf '[Download reports, raw samples and screenshots](%s)\n\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f benchmark-results/ci/report.md ]; then
+            sed 's/\[report.json\](report.json)/report.json (in the artifact)/g' benchmark-results/ci/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'No complete report was generated. Check the logs and any uploaded diagnostic evidence.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
