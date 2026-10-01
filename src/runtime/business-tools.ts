@@ -1,4 +1,5 @@
-import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema } from '@modelcontextprotocol/core';
+import type { CallToolResult } from '@modelcontextprotocol/server';
 import { inputValidator } from './page-tools.js';
 import { RequestLifecycleError, type RequestContext } from './lifecycle.js';
 

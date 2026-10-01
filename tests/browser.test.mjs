@@ -8,7 +8,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const harnessJs = (await build({ entryPoints: ['tests/harness.ts'], bundle: true, write: false, platform: 'browser', format: 'iife' })).outputFiles[0].text;
-const client = new Client({ name: 'counter-browser-host', version: '1' });
+const client = new Client({ name: 'counter-browser-host', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
 const views = [];
 try {
   await client.connect(new StdioClientTransport({ command: process.execPath, args: ['dist/server.mjs'], cwd: `${process.cwd()}/dist/examples/counter` }));

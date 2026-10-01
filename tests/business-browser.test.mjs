@@ -9,7 +9,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 test('business example renders structured/UI data and calls/cancels its real server from Ink', async () => {
   // The unified build:examples command produces both plugins before npm test.
-  const client = new Client({ name: 'business-browser', version: '1' }); let browser, http;
+  const client = new Client({ name: 'business-browser', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } }); let browser, http;
   try {
     await client.connect(new StdioClientTransport({ command: process.execPath, args: ['dist/examples/business/dist/server.mjs'] }));
     await client.listTools();

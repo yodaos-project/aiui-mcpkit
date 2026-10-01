@@ -29,7 +29,7 @@ test('page schemas expose separate MCP tools and launch the corresponding real I
   const project = await mkdtemp(join(tmpdir(), 'mcpkit-pages-'));
   const source = join(project, 'agent');
   const output = join(project, 'plugin');
-  const client = new Client({ name: 'pages-test', version: '1' });
+  const client = new Client({ name: 'pages-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
   let browser, http;
   try {
     await mkdir(join(source, 'pages'), { recursive: true });

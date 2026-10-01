@@ -20,7 +20,7 @@ test('unified example build creates one marketplace with both independently call
     assert.deepEqual(marketplace.plugins.map(plugin => [plugin.name, plugin.source.path]), [['ink-counter', './counter'], ['business-demo', './business']]);
     for (const [index, expected] of [['open_counter', 'open_countdown'], ['quote_order', 'check_stock']].entries()) {
       const directory = resolve(project, marketplace.plugins[index].source.path);
-      const client = new Client({ name: 'examples-test', version: '1' });
+      const client = new Client({ name: 'examples-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
       try {
         await assert.rejects(access(join(directory, '.agents/plugins/marketplace.json')));
         await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(directory, 'dist/server.mjs')], cwd: tmpdir() }));
@@ -32,7 +32,7 @@ test('unified example build creates one marketplace with both independently call
 
 test('start:examples selects a stdio server and preserves the default Counter', async () => {
   for (const [selector, names] of [[undefined, ['open_counter', 'open_countdown']], ['business', ['quote_order', 'check_stock']]]) {
-    const client = new Client({ name: 'start-examples', version: '1' });
+    const client = new Client({ name: 'start-examples', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
     try {
       await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(root, 'scripts/start-examples.mjs'), ...(selector ? [selector] : [])], cwd: tmpdir() }));
       assert.deepEqual((await client.listTools()).tools.map(tool => tool.name), names);

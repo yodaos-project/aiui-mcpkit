@@ -18,7 +18,7 @@ test('ESM API packages an agent outside the package checkout', async () => {
   const project = await mkdtemp(join(tmpdir(), 'mcpkit-developer-'));
   const ink = join(project, 'ink');
   const output = join(project, 'dist', 'my-dashboard');
-  const client = new Client({ name: 'builder-test', version: '1' });
+  const client = new Client({ name: 'builder-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
   try {
     await mkdir(join(ink, 'pages'), { recursive: true });
     await writeFile(join(ink, 'app.json'), JSON.stringify({ name: 'My Dashboard', pages: ['pages/home'] }));

@@ -64,7 +64,7 @@ async function waitFile(path) {
 }
 
 test('custom business tools advertise schemas, isolate server source, and return stable MCP results/errors', async () => {
-  const f = await fixture(); const client = new Client({ name: 'business-test', version: '1' });
+  const f = await fixture(); const client = new Client({ name: 'business-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
   try {
     const result = await buildPlugin(f.options);
     await client.connect(transport(result, f.project));
@@ -117,7 +117,7 @@ test('custom business tools advertise schemas, isolate server source, and return
 
 test('business handler timeout and client cancellation abort unfinished server work', async () => {
   for (const cancel of [false, true]) {
-    const f = await fixture(); const client = new Client({ name: 'cancel-test', version: '1' });
+    const f = await fixture(); const client = new Client({ name: 'cancel-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
     try {
       const result = await buildPlugin({ ...f.options, requestPolicy: { requestTimeoutMs: 1000, totalTimeoutMs: 5000 } });
       await client.connect(transport(result, f.project)); await client.listTools();
@@ -133,7 +133,7 @@ test('business handler timeout and client cancellation abort unfinished server w
 });
 
 test('handler progress is forwarded to MCP clients and resets only the configured request timer', async () => {
-  const f = await fixture(); const client = new Client({ name: 'progress-test', version: '1' });
+  const f = await fixture(); const client = new Client({ name: 'progress-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
   try {
     const result = await buildPlugin({ ...f.options, requestPolicy: { requestTimeoutMs: 250, totalTimeoutMs: 2000, resetTimeoutOnProgress: true } });
     await client.connect(transport(result, f.project)); await client.listTools();
@@ -182,7 +182,7 @@ test('page-owned business contracts are validated before output, and private dep
 });
 
 test('root-package handler imports share the server error type without bundling the builder', async () => {
-  const f = await fixture(); const client = new Client({ name: 'root-import', version: '1' });
+  const f = await fixture(); const client = new Client({ name: 'root-import', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
   try {
     await writeFile(f.handlers, handlerSource.replace('@yodaos-pkg/aiui-mcpkit/tools', '@yodaos-pkg/aiui-mcpkit'));
     const result = await buildPlugin(f.options); await client.connect(transport(result, f.project)); await client.listTools();
@@ -190,4 +190,29 @@ test('root-package handler imports share the server error type without bundling 
     assert.equal(response._meta.businessError.code, 'NOT_AVAILABLE');
     assert.ok(!(await readFile(result.files.server, 'utf8')).includes('esbuild/lib/main'));
   } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+});
+
+test('2026-07-28 cancellation and timeout reach the business handler AbortSignal', async () => {
+  const { Client: ModernClient } = await import('@modelcontextprotocol/client');
+  const { StdioClientTransport: ModernTransport } = await import('@modelcontextprotocol/client/stdio');
+  for (const cancel of [false, true]) {
+    const f = await fixture();
+    const client = new ModernClient({ name: 'modern-abort-test', version: '1' }, {
+      versionNegotiation: { mode: { pin: '2026-07-28' } },
+    });
+    try {
+      const built = await buildPlugin({ ...f.options, requestPolicy: { requestTimeoutMs: 1000, totalTimeoutMs: 5000 } });
+      await client.connect(new ModernTransport({ command: process.execPath, args: [built.files.server], cwd: tmpdir(),
+        env: { ...process.env, STARTED_FILE: join(f.project, 'started'), ABORT_FILE: join(f.project, 'aborted') } }));
+      await client.listTools();
+      const controller = new AbortController();
+      const response = client.callTool({ name: 'slow', arguments: { value: 1 } }, { signal: controller.signal }).catch(error => error);
+      assert.equal(await waitFile(join(f.project, 'started')), 'started');
+      if (cancel) controller.abort();
+      const outcome = await response;
+      if (cancel) assert.ok(outcome instanceof Error);
+      else { assert.equal(outcome.isError, true); assert.equal(outcome._meta.businessError.code, 'REQUEST_TIMEOUT'); }
+      assert.equal(await waitFile(join(f.project, 'aborted')), 'aborted');
+    } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+  }
 });
