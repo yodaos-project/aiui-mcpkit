@@ -15,3 +15,23 @@ const invalidOutput: BusinessHandlers = {
   check_stock: handlers.check_stock,
 };
 void invalidOutput;
+
+import type { BuildPluginOptions, PublicMetadata, ProtocolInspection } from '@yodaos-pkg/aiui-mcpkit';
+const metadataOptions: BuildPluginOptions = {
+  source: './agent', name: 'metadata-demo',
+  toolMetadata: { open_app: { ui: { resourceUri: 'ui://demo/custom' }, 'example/public': { count: 1 } } },
+  resourceMetadata: { ui: { prefersBorder: false } },
+  uiResources: [{ uri: 'ui://demo/custom', name: 'Custom', html: '<html></html>' }],
+};
+void metadataOptions;
+// @ts-expect-error metadata must be public JSON, not executable code
+const executableMetadata: PublicMetadata = { callback: () => {} };
+void executableMetadata;
+function checkInspection(result: ProtocolInspection) {
+  void result.tools[0].inputSchema;
+  void result.resources[0]._meta;
+  void result.connection.mcpServers;
+  // @ts-expect-error inspection excludes custom HTML bodies
+  void result.resources[0].html;
+}
+void checkInspection;

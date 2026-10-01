@@ -236,6 +236,48 @@ npm run start:examples -- business
 
 Register that server with an MCP Apps client. Call `quote_order` with `{ "quantity": 2 }` (optionally `"coupon": "DEMO10"`), or `check_stock` with `{ "sku": "DEMO" }`. The quote page shows structured totals and UI-only stock data; **CALCULATE** calls the real handler and **CANCEL** interrupts it. The tools open their respective quote and stock pages registered in `app.json.pages`. The fixture uses deterministic demo data and places no orders. `npm run typecheck` checks the typed example and rejects intentionally incorrect input/output assignments; MCP and real Ink WASM browser tests verify discovery, contracts, errors, server-code isolation, rendering, invocation and cancellation.
 
+### Configure and inspect public metadata
+
+Use `toolMetadata` (keyed by discovered tool name), `resourceMetadata` (defaults for every resource), and `uiResources` to customize protocol metadata without editing runtime templates. These options are part of the ESM `buildPlugin()` API:
+
+```js
+const result = await buildPlugin({
+  source: './my-agent', name: 'my-agent',
+  toolMetadata: {
+    open_app: {
+      ui: { resourceUri: 'ui://my-agent/custom.html' },
+      'openai/ui': { entrypoints: [{ type: 'thread' }] },
+      'example/display': { theme: 'green' },
+    },
+  },
+  resourceMetadata: { ui: { prefersBorder: false } },
+  uiResources: [{
+    uri: 'ui://my-agent/custom.html', name: 'Custom dashboard',
+    html: '<!doctype html><html><body>My custom View</body></html>',
+    _meta: { ui: { csp: { connectDomains: ['https://api.example.com'] } } },
+  }],
+});
+const clientCapabilities = {
+  extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } },
+};
+console.log(JSON.stringify(result.inspectProtocol(clientCapabilities), null, 2));
+```
+
+For page-defined tools, use the names declared in `<script def>` instead of `open_app`. The example HTML is a static placeholder; custom interactive Views implement the MCP Apps host channel themselves. Generated AIUI Views remain registered at their original URIs. `result.tools` reflects the final tool-to-resource references.
+
+| Rule | Behavior |
+| --- | --- |
+| Object merge | Defaults merge recursively with author objects. For resources, order is framework defaults → `resourceMetadata` → the custom resource's `_meta`. |
+| Replacement | Author scalars, arrays and `null` replace defaults; arrays are never concatenated. Known Apps fields must have valid types and placement (CSP/permissions belong on resources; resource references/visibility belong on tools), so `ui: null` is rejected. Host extension objects are opaque public JSON. |
+| Framework/protocol ownership | Author `_meta` cannot set `requestPolicy`, `mcpkit`, `aiui`, `request`, `uiOnly`, `businessError`, or `io.modelcontextprotocol/*`. An attempted override is rejected, not silently discarded. |
+| Resource linkage | `ui.resourceUri` or the legacy `ui/resourceUri` can select any registered generated/custom resource. Both normalize to the same URI; conflicting references, unregistered URIs, noncanonical URIs, URI credentials/query/fragment, and duplicate resource URIs are rejected. Custom resources require a nonempty name and HTML and use `text/html;profile=mcp-app`. |
+| Client capabilities | `inspectProtocol()` defaults to a client without Apps. UI-capable clients receive UI metadata and host entrypoints; other clients omit `ui`, `ui/resourceUri`, and `openai/ui`, while retaining other public extensions and the normal text fallback. |
+| JSON acceptance | Only finite, acyclic plain JSON survives. Functions, undefined, BigInt, nonfinite numbers, sparse arrays, accessors, symbols, custom prototypes, `toJSON`, and prototype-pollution keys are rejected before output is written. Diagnostics identify fields without echoing rejected values. |
+
+`inspectProtocol(capabilities)` returns fresh JSON snapshots of the exact `tools/list` items, `resources/list` items (including final `_meta`), and the `mcp.json` connection descriptor. Resource reads use the same metadata. Inspection and live discovery share one serializer, verified against real clients in both protocol eras. JSON-RPC envelopes and SDK-added response-level metadata are outside these item snapshots; Apps capabilities must match the client being debugged. Modifying an inspection snapshot or `result.tools` does not alter the generated server.
+
+Metadata, HTML and schemas are public author-provided content. Keep credentials in server handlers/environment variables. Inspection does not load handler code, `.env`, process environment, resource HTML, or private source paths. Common credential/configuration field names (`password`, `secret`, `token`, `apiKey`, `authorization`, `credentials`, `env`, `headers`, and access/refresh/client-secret variants) are rejected recursively in metadata. This guard does not detect credentials hidden in arbitrary strings: only provide public values. Invalid metadata fails before output creation or replacement, preserving an existing build.
+
 ### Tool request lifecycle
 
 Agent pages can call tools exposed by their MCP Apps host through Ink messages. This requires the host's `serverTools` capability and tool access; MCPKit does not register external business tools itself. Each call must use a unique `requestId` for the lifetime of the view:

@@ -1,20 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { McpServer, type ServerContext, type CallToolResult, type Tool } from '@modelcontextprotocol/server';
+import { McpServer, type ServerContext, type CallToolResult, type ClientCapabilities } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
-import { registerAppResource, registerAppTool, getUiCapability, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
+import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 import { handlers } from 'mcpkit:business-handlers';
 import { businessToolExecutor, businessToolFailure } from './business-tools.js';
 import { RequestLifecycle, type RequestPolicy } from './lifecycle.js';
 import { inputValidator, type PageTool } from './page-tools.js';
+import { inspectProtocol, supportsView, type ProtocolModel, type PublicMetadata } from './metadata.js';
 
-declare const __APP_CONFIG__: { name: string; version: string; title: string; tools: PageTool[]; requestPolicy: RequestPolicy };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; tools: PageTool[]; protocol: ProtocolModel; requestPolicy: RequestPolicy };
 const config = __APP_CONFIG__;
-const viewMeta = {
-  ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true },
-  'openai/ui': { availableDisplayModes: ['inline', 'fullscreen'], preferredDisplayMode: 'inline' },
-};
 // Validate handler coverage before accepting a connection (including discovery).
 for (const tool of config.tools) {
   if (tool.outputSchema && (!handlers || !Object.hasOwn(handlers, tool.name) || typeof handlers[tool.name] !== 'function')) {
@@ -25,20 +22,11 @@ for (const tool of config.tools) {
 function createServer() {
   const lifecycle = new RequestLifecycle(config.requestPolicy);
   const server = new McpServer({ name: config.name, version: config.version });
-  // Modern capabilities are request-scoped; never cache a tools/list decision.
-  function supportsView(ctx: ServerContext) {
-    const capabilities = ctx.mcpReq.envelope
-      ? (ctx.mcpReq.envelope as Record<string, unknown>)['io.modelcontextprotocol/clientCapabilities']
+  // Modern capabilities are request-scoped; legacy capabilities come from initialize.
+  function capabilities(ctx: ServerContext): ClientCapabilities | undefined {
+    return ctx.mcpReq.envelope
+      ? (ctx.mcpReq.envelope as Record<string, unknown>)['io.modelcontextprotocol/clientCapabilities'] as ClientCapabilities
       : server.server.getClientCapabilities();
-    const mimeTypes = getUiCapability(capabilities as Parameters<typeof getUiCapability>[0])?.mimeTypes;
-    return Array.isArray(mimeTypes) && mimeTypes.includes(RESOURCE_MIME_TYPE);
-  }
-  function toolMeta(tool: PageTool, ctx: ServerContext) {
-    return { requestPolicy: lifecycle.policy,
-      ...(supportsView(ctx) ? { ui: { resourceUri: tool.resourceUri }, 'ui/resourceUri': tool.resourceUri,
-        'openai/ui': { entrypoints: [{ type: 'thread' }, { type: 'global' }] } } : {}),
-      mcpkit: { ui: supportsView(ctx) ? 'available' : 'unavailable' },
-    };
   }
   const htmlPath = fileURLToPath(new URL('../view.html', import.meta.url));
 
@@ -51,11 +39,11 @@ function createServer() {
       description: tool.description,
       inputSchema: business ? z.custom<Record<string, unknown>>() : inputValidator(tool.inputSchema),
       _meta: {
-        ui: { resourceUri: uri },
-        'openai/ui': { entrypoints: [{ type: 'thread' }, { type: 'global' }] },
+        ...config.protocol.toolMetadata[tool.name],
+        ui: { ...config.protocol.toolMetadata[tool.name].ui as PublicMetadata, resourceUri: uri },
       },
     }, async (query: Record<string, unknown>, extra: ServerContext) => {
-      const ui = supportsView(extra);
+      const ui = supportsView(capabilities(extra));
       const uiMeta = { mcpkit: { ui: ui ? 'available' : 'unavailable' } };
       const request = lifecycle.start<CallToolResult>(async context => execute ? execute(query, context) : ({
         content: [{ type: 'text' as const, text: ui ? `${tool.title} opened.` : `${tool.title}: interactive view unavailable because this client does not advertise MCP Apps support (${RESOURCE_MIME_TYPE}). Arguments: ${JSON.stringify(query)}.` }],
@@ -89,23 +77,21 @@ function createServer() {
         return { isError: true, content: [{ type: 'text' as const, text: request.snapshot().error!.message }], _meta: { ...uiMeta, request: request.snapshot() } };
       }
     });
+  }
 
-    registerAppResource(server, tool.name, uri, {
-      _meta: viewMeta,
-    }, async () => ({ contents: [{
-      uri,
-      mimeType: RESOURCE_MIME_TYPE,
-      text: (await readFile(htmlPath, 'utf8')).replace(/<body data-page="[^"]*">/, `<body data-page="${tool.page.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}">`),
-      _meta: viewMeta,
+  for (const resource of config.protocol.resources) {
+    const { page, html, name, uri, ...metadata } = resource;
+    registerAppResource(server, name, uri, metadata, async () => ({ contents: [{
+      uri, mimeType: RESOURCE_MIME_TYPE,
+      text: html ?? (await readFile(htmlPath, 'utf8')).replace(/<body data-page="[^"]*">/,
+        `<body data-page="${page!.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}">`),
+      _meta: metadata._meta,
     }] }));
   }
 
-  // Advertise the original JSON Schema, without conversion-added constraints.
-  server.server.setRequestHandler('tools/list', async (_request, ctx) => ({ tools: config.tools.map(tool => ({
-    name: tool.name, title: tool.outputSchema ? tool.title : `Open ${tool.title}`, description: tool.description,
-    inputSchema: tool.inputSchema as Tool['inputSchema'], ...(tool.outputSchema ? { outputSchema: tool.outputSchema as Tool['outputSchema'] } : {}),
-    _meta: toolMeta(tool, ctx),
-  })) }));
+  // Build inspection and live discovery use the same capability-aware serializer.
+  server.server.setRequestHandler('tools/list', async (_request, ctx) => ({ tools: inspectProtocol(config.protocol, capabilities(ctx)).tools }));
+  server.server.setRequestHandler('resources/list', async (_request, ctx) => ({ resources: inspectProtocol(config.protocol, capabilities(ctx)).resources }));
 
   return server;
 }

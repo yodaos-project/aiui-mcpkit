@@ -7,13 +7,16 @@ import { gzipSync } from 'node:zlib';
 import { pageTools, type PageTool } from './runtime/page-tools.js';
 import { resolveRequestPolicy, type RequestPolicy } from './runtime/lifecycle.js';
 import { toolTypes } from './tool-types.js';
+import { prepareProtocol, inspectProtocol, connectionConfig, type MetadataOptions, type ProtocolInspection } from './runtime/metadata.js';
+import type { ClientCapabilities } from '@modelcontextprotocol/server';
+export type { MetadataOptions, PublicMetadata, JsonValue, UiResource, ProtocolInspection } from './runtime/metadata.js';
 export * from './runtime/business-tools.js';
 export * from './runtime/lifecycle.js';
 export * from './runtime/tool-bridge.js';
 export type { PageTool } from './runtime/page-tools.js';
 
 /** Options for packaging an AIUI Agent as an MCP Apps plugin. */
-export interface BuildPluginOptions {
+export interface BuildPluginOptions extends MetadataOptions {
   /** Agent source directory containing app.json and its pages. */
   source: string;
   /** Plugin identifier, starting with a lowercase letter. */
@@ -50,6 +53,8 @@ export interface BuildPluginResult {
   outputDir: string;
   marketplaceName: string;
   requestPolicy: RequestPolicy;
+  /** Final tools/list, resources/list and connection configuration for these client capabilities. Defaults to no Apps support. */
+  inspectProtocol(clientCapabilities?: ClientCapabilities): ProtocolInspection;
   files: {
     view: string;
     server: string;
@@ -99,18 +104,20 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   if (!Array.isArray(pages) || pages.some(item => typeof item !== 'string' || !item || isAbsolute(item) || item.includes('\\') || item.endsWith('.ink') || item.split('/').some(part => part === '..' || part === '.' || part === ''))) {
     throw new Error('app.json pages must list relative page paths without the .ink extension.');
   }
-  const tools = pageTools(files, [...new Set([...pages, page])], options.name);
+  let tools = pageTools(files, [...new Set([...pages, page])], options.name);
   const title = options.title ?? manifest.name ?? options.name;
   if (typeof title !== 'string' || !title) throw new Error('Agent title must be a nonempty string.');
   const description = options.description ?? `Open ${title}, an interactive AIUI Agent.`;
   let waitForToolInput = tools.length > 0;
   if (!tools.length) tools.push({ name: tool, title, description, page, inputSchema: { type: 'object', properties: {} }, resourceUri: `ui://${options.name}/app.html` });
+  const protocol = prepareProtocol(options.name, tools, requestPolicy, options);
+  tools = protocol.tools;
   const hasBusinessTools = tools.some(tool => tool.outputSchema !== undefined);
   const handlersPath = hasBusinessTools ? resolve(options.handlers ?? join(source, 'mcp-server/handlers.ts')) : undefined;
   if (handlersPath && nested(out, handlersPath)) throw new Error('Business handlers must be outside the output directory.');
   const typesFile = resolve(options.typesFile ?? join(out, 'tools.d.ts'));
   if (!typesFile.endsWith('.d.ts')) throw new Error('typesFile must end with .d.ts.');
-  const config = { requestPolicy, retrySafeTools, name: options.name, title, description, tool: tools[0].name, tools, page, waitForToolInput, version: options.version ?? '0.1.0' };
+  const config = { requestPolicy, retrySafeTools, name: options.name, title, description, tool: tools[0].name, tools, protocol, page, waitForToolInput, version: options.version ?? '0.1.0' };
   const runtime = new URL('./runtime/', import.meta.url);
   const require = createRequire(import.meta.url);
   const server = await build({
@@ -175,10 +182,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
       category: 'Developer Tools', capabilities: ['Interactive'], defaultPrompt: `Open ${title}.`,
     } } },
   }));
-  await writeFile(join(out, 'mcp.json'), json({
-    $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
-    mcpServers: { [config.name]: { type: 'stdio', command: 'node', args: ['${PLUGIN_ROOT}/dist/server.mjs'], cwd: '${PLUGIN_ROOT}' } },
-  }));
+  await writeFile(join(out, 'mcp.json'), json(connectionConfig(config.name)));
   await mkdir(join(out, '.agents/plugins'), { recursive: true });
   await writeFile(join(out, '.agents/plugins/marketplace.json'), json({
     name: `${config.name}-local`,
@@ -191,8 +195,9 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     }],
   }));
   return {
-    name: config.name, title, version: config.version, tool: config.tool, tools, page, outputDir: out,
+    name: config.name, title, version: config.version, tool: config.tool, tools: structuredClone(tools), page, outputDir: out,
     marketplaceName: `${config.name}-local`, requestPolicy,
+    inspectProtocol: capabilities => inspectProtocol(protocol, capabilities),
     files: {
       view: join(out, 'view.html'),
       server: join(out, 'dist/server.mjs'),
