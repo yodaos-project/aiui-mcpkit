@@ -59,7 +59,7 @@ export function markdownReport(report) {
     `Host: ${report.environment.host}; Chromium ${report.versions.chromium}; Ink ${report.versions.ink}.\n\n` +
     `Machine: ${report.environment.machine.platform}/${report.environment.machine.arch}, ${report.environment.machine.cpuModel}, ${report.environment.machine.logicalCpus} CPUs, ${(report.environment.machine.totalMemoryBytes / 1073741824).toFixed(1)} GiB RAM.\n\n` +
     `Each row is the median of ${report.settings.samples} independent browser-process samples. Input p95 is calculated per sample.\n\n` +
-    `| Scenario | First verified frame ms | Exercised TTI ms | Input → Canvas p95 ms | rAF interval p95 ms | Missed slots estimate % | Idle main-thread CPU % | Sampled peak browser RSS MiB |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n${rows.join('\n')}\n\n` +
+    `| Scenario | First verified frame ms | Exercised TTI ms | Input → Canvas p95 ms | rAF interval p95 ms | Missed slots estimate % | Idle main-thread CPU % | Sampled peak browser RSS MiB |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n${rows.join('\n')}\n\n` +
     `## Sampled memory\n\nMedian of each sample's peak; these categories must not be added together.\n\n| Scenario | Browser RSS MiB | JS heap MiB | WASM linear MiB |\n| --- | ---: | ---: | ---: |\n` +
     report.scenarios.map(scene => `| ${scene.id} | ${['peakBrowserRssBytes', 'peakJsHeapBytes', 'peakWasmLinearBytes'].map(key => number(distribution(scene.samples.map(s => s.memory[key] / 1048576)).median)).join(' | ')} |`).join('\n') + '\n\n' +
     `## Server, measured separately\n\n| Workload | Calls | Concurrency | Calls/s | Latency p95 ms |\n| --- | ---: | ---: | ---: | ---: |\n` +
