@@ -8,6 +8,9 @@ import { pageTools, type PageTool } from './runtime/page-tools.js';
 import { resolveRequestPolicy, type RequestPolicy } from './runtime/lifecycle.js';
 import { toolTypes } from './tool-types.js';
 import { prepareProtocol, inspectProtocol, connectionConfig, type MetadataOptions, type ProtocolInspection } from './runtime/metadata.js';
+import { packageAsset, validateAssetLimits, type AssetLimits, type AssetReport } from './assets.js';
+import type { BundleEntry } from './runtime/bundle.js';
+export type { AssetLimits, AssetInfo, AssetReport, BuildDiagnostic } from './assets.js';
 import type { ClientCapabilities } from '@modelcontextprotocol/server';
 export type { MetadataOptions, PublicMetadata, JsonValue, UiResource, ProtocolInspection } from './runtime/metadata.js';
 export * from './runtime/business-tools.js';
@@ -17,6 +20,8 @@ export type { PageTool } from './runtime/page-tools.js';
 
 /** Options for packaging an AIUI Agent as an MCP Apps plugin. */
 export interface BuildPluginOptions extends MetadataOptions {
+  /** Optional host byte budgets; violations reject before writing artifacts. */
+  assetLimits?: AssetLimits;
   /** Agent source directory containing app.json and its pages. */
   source: string;
   /** Plugin identifier, starting with a lowercase letter. */
@@ -43,6 +48,8 @@ export interface BuildPluginOptions extends MetadataOptions {
 
 /** Paths and identity of the completed plugin build. */
 export interface BuildPluginResult {
+  /** Public asset sizes, encodings, final HTML size, and advisory host diagnostics. */
+  assets: AssetReport;
   name: string;
   title: string;
   version: string;
@@ -75,6 +82,8 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   if (!options.source || !options.name) throw new Error('source and name are required.');
   if (!/^[a-z][a-z0-9-]*$/.test(options.name)) throw new Error('name must use lowercase letters, numbers, and hyphens, starting with a letter.');
   const requestPolicy = resolveRequestPolicy(options.requestPolicy);
+  const assetLimits = validateAssetLimits(options.assetLimits);
+  const assets: AssetReport = { files: [], totalBytes: 0, viewBytes: 0, diagnostics: [] };
   const retrySafeTools = options.retrySafeTools ?? [];
   if (!Array.isArray(retrySafeTools) || retrySafeTools.some(name => typeof name !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(name))) throw new Error('retrySafeTools must contain valid tool names.');
   const tool = options.tool ?? 'open_app';
@@ -111,6 +120,15 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   let waitForToolInput = tools.length > 0;
   if (!tools.length) tools.push({ name: tool, title, description, page, inputSchema: { type: 'object', properties: {} }, resourceUri: `ui://${options.name}/app.html` });
   const protocol = prepareProtocol(options.name, tools, requestPolicy, options);
+  // Ink registers bundled fonts using object URLs. Custom HTML keeps its own CSP.
+  if (Array.isArray(manifest.fonts) && manifest.fonts.length) {
+    for (const resource of protocol.resources.filter(resource => resource.page !== undefined)) {
+      const ui = resource._meta!.ui as import('./runtime/metadata.js').PublicMetadata;
+      const csp = ui.csp as import('./runtime/metadata.js').PublicMetadata;
+      csp.resourceDomains = [...new Set([...(csp.resourceDomains as string[]), 'blob:'])];
+    }
+    assets.diagnostics.push({ code: 'HOST_REQUIREMENT', message: 'Bundled app.json fonts require host font-src blob: support. Generated UI CSP includes resourceDomains: blob:; font formats still depend on the browser.' });
+  }
   tools = protocol.tools;
   const hasBusinessTools = tools.some(tool => tool.outputSchema !== undefined);
   const handlersPath = hasBusinessTools ? resolve(options.handlers ?? join(source, 'mcp-server/handlers.ts')) : undefined;
@@ -138,6 +156,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     if (input.startsWith('<define:') || input.startsWith('mcpkit:')) continue;
     serverFiles.add(await realpath(resolve(input)));
   }
+  const packagedFiles: Record<string, BundleEntry> = Object.create(null);
   async function walk(dir: string) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const next = join(dir, entry.name);
@@ -149,7 +168,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
           if (files[path] !== undefined) throw new Error(`Server code cannot import a registered UI page: ${path}`);
           continue;
         }
-        files[path] = await readFile(next, 'utf8');
+        packagedFiles[path] = packageAsset(path, await readFile(next), assetLimits, assets);
       } else throw new Error(`Unsupported Agent source entry: ${next}`);
     }
   }
@@ -160,7 +179,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     bundle: true, write: false, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
     define: {
       __WASM_GZIP_BASE64__: JSON.stringify(gzipSync(wasm, { level: 9 }).toString('base64')),
-      __INK_FILES__: JSON.stringify(files), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools }),
+      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools }),
     },
   });
   const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -168,6 +187,11 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
 *{box-sizing:border-box}html,body{margin:0;padding:0;background:#000}#shell{width:100%;height:220px}body[data-mode=fullscreen] #shell{height:100vh}canvas{display:block;width:100%;height:100%;outline:none}
 </style></head><body data-page="${escapeHtml(page)}"><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><script type="module">${script}</script></body></html>`;
+  assets.viewBytes = Buffer.byteLength(html);
+  if (assetLimits.maxViewBytes !== undefined && assets.viewBytes > assetLimits.maxViewBytes) {
+    throw new Error(`View HTML: ${assets.viewBytes} bytes exceeds maxViewBytes (${assetLimits.maxViewBytes}).`);
+  }
+  assets.diagnostics.push({ code: 'HOST_REQUIREMENT', message: `View HTML is ${assets.viewBytes} bytes. The host must support this resource size, inline scripts/styles, WASM compilation and data: images (SVG). CSP declarations do not override host restrictions or CORS.` });
   await mkdir(join(out, 'dist'), { recursive: true });
   await writeFile(join(out, 'view.html'), html);
   await writeFile(join(out, 'dist/server.mjs'), server.outputFiles[0].contents);
@@ -195,7 +219,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     }],
   }));
   return {
-    name: config.name, title, version: config.version, tool: config.tool, tools: structuredClone(tools), page, outputDir: out,
+    assets, name: config.name, title, version: config.version, tool: config.tool, tools: structuredClone(tools), page, outputDir: out,
     marketplaceName: `${config.name}-local`, requestPolicy,
     inspectProtocol: capabilities => inspectProtocol(protocol, capabilities),
     files: {

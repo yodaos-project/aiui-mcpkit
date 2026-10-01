@@ -4,6 +4,14 @@ English | [简体中文](metadata.zh-CN.md) · [Documentation index](../README.m
 
 **Prerequisites:** an Agent you can already build and the [ESM API](esm-build.md). These advanced options customize discovery metadata; you do not need them for the first tutorial. Use [the build reference](../reference/build-api.md) for option/result types.
 
+## Network and resource CSP
+
+Use `uiCsp: { connectDomains: [...], resourceDomains: [...] }` for typed build defaults. Connection domains map to fetch/XHR/WebSocket permissions; resource domains map to images, fonts, scripts, styles and media. The existing `resourceMetadata.ui.csp` option remains available. If both options declare a list, their sets must agree; conflicting declarations fail before writing output. Custom resource `_meta.ui.csp` lists intentionally replace those defaults.
+
+Domain lists accept canonical HTTP(S) origins, optional wildcard subdomains such as `https://*.example.com`, and explicit ports. Connection lists also accept WS(S) origins. No global `*`, scheme-wide origins, paths, credentials, queries, fragments, CSP keywords or injected directives are accepted. Resource lists may declare local `blob:`/`data:` schemes. Validation also applies to CSP in default/custom metadata, including frame/base-URI origin lists. Empty lists require no external domains.
+
+Generated Views with `app.json` fonts add `blob:` to their final resource domain lists for Ink's local font object URLs. Inspect final metadata with `inspectProtocol()` or `resources/read`. Hosts enforce the declarations and may impose stricter constraints; CORS and loader support still apply. See [binary assets and CSP](../reference/build-api.md#binary-assets-and-csp) for size reports and local references. The distinction between connection and resource domains follows the [MCP Apps CSP guide](https://github.com/modelcontextprotocol/ext-apps/blob/main/docs/csp-cors.md).
+
 ## A small first change
 
 Start with `resourceMetadata: { ui: { prefersBorder: false } }`, rebuild, and inspect with Apps capabilities. Look for that value in each resource's `_meta.ui`. Hosts decide whether to honor a presentation preference. Then add a public vendor namespace or a custom resource using the complete example below.

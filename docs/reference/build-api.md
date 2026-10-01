@@ -41,12 +41,14 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `toolMetadata` | ESM only | `{}` |
 | `resourceMetadata` | ESM only | `{}` |
 | `uiResources` | ESM only | `[]` |
+| `uiCsp` | ESM only | Empty connection/resource domains |
+| `assetLimits` | ESM only | No byte limits |
 
 Plugin names start with a lowercase letter and contain lowercase letters, numbers, or hyphens. Tool names contain 1–128 letters, numbers, underscores, or hyphens. Use `node scripts/build-plugin.mjs --help` for helper usage. If you omit `[source]`, the current project root is used; output is excluded from UI assets.
 
 ## Current scope
 
-The UI host must allow WebAssembly compilation. The embedded HTML is roughly 10 MB, so resource size limits also matter. Source files are read as UTF-8; packaging binary assets is not supported yet.
+The UI host must allow WebAssembly compilation and support the final HTML resource size. Binary assets are embedded as base64 and restored as `Uint8Array` in Ink's bundle; text sources use strict UTF-8. See [binary assets and CSP](#binary-assets-and-csp) for paths, fonts and host constraints.
 
 Automated tests cover packaging, MCP tool/resource responses, and the browser runtime. They do not establish full compatibility with every desktop host, account-connected tool access, or resource-cache behavior.
 
@@ -72,6 +74,7 @@ Automated tests cover packaging, MCP tool/resource responses, and the browser ru
 | `marketplaceName` | Standalone catalog name `${name}-local`; bundled examples use their separate shared catalog. |
 | `requestPolicy` | Fully resolved lifecycle defaults/options. |
 | `inspectProtocol(capabilities?)` | Fresh JSON snapshots of final tool/resource list items and the connection descriptor. Defaults to no Apps capabilities. |
+| `assets` | `AssetReport`: per-file public paths, byte sizes, encoding/MIME hints, total source bytes, final HTML bytes and advisory diagnostics. |
 | `files.view` | Absolute path to `view.html`. |
 | `files.server` | Absolute path to `dist/server.mjs`. |
 | `files.plugin`, `files.mcp` | Absolute manifest and client configuration paths. |
@@ -79,6 +82,35 @@ Automated tests cover packaging, MCP tool/resource responses, and the browser ru
 | `files.types` | Absolute generated declarations path, including custom `typesFile`. |
 
 A successful promise means the build completed. It does not mean the server has been registered, the host has discovered tools, or the View has been rendered. Errors reject the promise; the API does not log, exit the process or change its working directory. Inspecting or mutating returned snapshots does not mutate the generated server.
+
+## Binary assets and CSP
+
+Reference local images with their original page-relative paths, for example `<image src="../assets/sample.png" />` in `pages/home.ink`. No URLs are rewritten and no asset server is required. Register fonts in `app.json` with paths relative to the Agent root:
+
+```json
+{ "pages": ["pages/home"], "fonts": [{ "family": "MyFont", "src": "assets/my-font.ttf" }] }
+```
+
+Use `font-family: MyFont` in page styles. Ink registers these fonts with local object URLs, so generated Views with manifest fonts automatically add `blob:` to `resourceDomains`. Custom HTML resources retain their own declarations. The host must permit `font-src blob:`; local raster images decode from bundle bytes, and SVG rendering requires `img-src data:`.
+
+```js
+const result = await buildPlugin({
+  source: './agent', name: 'my-agent',
+  uiCsp: {
+    connectDomains: ['https://api.example.com', 'wss://realtime.example.com'],
+    resourceDomains: ['https://cdn.example.com'],
+  },
+  assetLimits: { maxAssetBytes: 2 * 1024 * 1024, maxViewBytes: 20 * 1024 * 1024 },
+});
+console.log(result.assets);
+console.log(result.inspectProtocol().resources[0]._meta.ui.csp);
+```
+
+Both byte limits are optional positive safe integers. File limits apply to every public source file; the View limit includes embedded WASM, runtime and assets. Violations reject before output creation/replacement. Binary base64 adds roughly one third to the raw byte size. The local helper prints size summaries, binary file sizes and diagnostics; the ESM API returns them without logging.
+
+PNG/JPEG/GIF/WebP and TTF/OTF/WOFF/WOFF2 have recognized MIME hints; actual decoding depends on Ink and the browser. SVG and known source extensions (`.ink`, JSON, JS/TS, CSS, HTML, XML, TXT, Markdown) use strict UTF-8, preserving BOMs. Other extensions are preserved as binary and produce `UNSUPPORTED_FORMAT` diagnostics rather than corrupting bytes. Invalid UTF-8 text is rejected. Recognition is not format-content validation.
+
+`EXTERNAL_REFERENCE` diagnostics report origins found in text, without query strings or credentials. This is an advisory scan, not an exhaustive dependency analysis: dynamic URLs require verification. `LARGE_ASSET` flags files above 1 MiB; `HOST_REQUIREMENT` reports resource size, WASM and local font constraints. Network declarations grant no network service and do not override host restrictions, CORS or Ink's loader capabilities. The bundled self-contained Counter continues to use empty domain lists.
 
 ## Public runtime exports
 
@@ -97,7 +129,7 @@ For the complete handler/context and lifecycle interfaces, see [`business-tools.
 
 ## Packaging boundaries
 
-`mcp-server/`, `dist/`, `.mcpkit/`, `.git/`, `node_modules/`, `.env`/`.env.*`, the actual output directory and transitive handler imports are excluded from UI assets. Other UTF-8 source assets are public. Server code remains in the server bundle; this is not a credential scanner for arbitrary public strings.
+`mcp-server/`, `dist/`, `.mcpkit/`, `.git/`, `node_modules/`, `.env`/`.env.*`, the actual output directory and transitive handler imports are excluded from UI assets. All other packaged text and binary assets are public. Server code remains in the server bundle; this is not a credential scanner for arbitrary public strings.
 
 Generated plugin files are self-contained for execution with Node 22+. `view.html` includes compressed WASM; the client must permit compilation and support its resource size. Do not hand-edit generated server/HTML files to implement features; configure the build or edit source.
 

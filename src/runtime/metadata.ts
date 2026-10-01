@@ -15,6 +15,8 @@ export interface UiResource {
   _meta?: PublicMetadata;
 }
 export interface MetadataOptions {
+  /** Narrow CSP defaults. Conflicting declarations in resourceMetadata are rejected. */
+  uiCsp?: { connectDomains?: string[]; resourceDomains?: string[] };
   /** Per-tool _meta, keyed by a discovered tool name. */
   toolMetadata?: Record<string, PublicMetadata>;
   /** Defaults merged into every generated and custom resource's _meta. */
@@ -49,6 +51,22 @@ const resourceDefaults: PublicMetadata = {
 const toolDefaults: PublicMetadata = { 'openai/ui': { entrypoints: [{ type: 'thread' }, { type: 'global' }] } };
 const reserved = new Set(['requestPolicy', 'mcpkit', 'aiui', 'request', 'uiOnly', 'businessError']);
 const privateKey = /^(authorization|proxy-authorization|password|secret|token|api[-_]?key|access[-_]?token|refresh[-_]?token|client[-_]?secret|credentials|env|headers)$/i;
+
+function validateDomains(domains: JsonValue, label: string, key: string): void {
+  if (!Array.isArray(domains) || domains.some(v => typeof v !== 'string')) throw new Error(`${label}: expected a supported domain list.`);
+  for (const domain of domains as string[]) {
+    if (key === 'resourceDomains' && ['blob:', 'data:'].includes(domain)) continue;
+    const protocols = key === 'connectDomains' ? ['https:', 'http:', 'wss:', 'ws:'] : ['https:', 'http:'];
+    // Origins only; no global wildcard, credentials, paths, CSP keywords or directives.
+    if (!/^(?:https?|wss?):\/\/(?:\*\.)?[^\s/?#@*]+\/?$/.test(domain)) throw new Error(`${label}: expected an HTTP(S) origin${key === 'connectDomains' ? ' or WS(S) origin' : ''}; optional wildcard subdomain, no credentials, paths, query or fragment.`);
+    let url: URL;
+    try { url = new URL(domain.replace('://*.', '://')); }
+    catch { throw new Error(`${label}: invalid domain origin.`); }
+    if (!protocols.includes(url.protocol) || !url.hostname || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error(`${label}: invalid domain origin.`);
+    if (url.origin !== domain.replace('://*.', '://').replace(/\/$/, '')) throw new Error(`${label}: use a canonical origin without a trailing slash or default port.`);
+    if (domain.endsWith('/')) throw new Error(`${label}: use an origin without a trailing slash.`);
+  }
+}
 
 // Reject lossy serialization, accessors and prototype pollution before any output
 // is written. Diagnostics use field paths only, never rejected values.
@@ -98,7 +116,8 @@ function metadata(value: unknown, label: string, kind: 'tool' | 'resource'): Pub
     if ('csp' in ui) {
       if (!ui.csp || typeof ui.csp !== 'object' || Array.isArray(ui.csp)) throw new Error(`${label}.ui.csp: expected an object.`);
       for (const [key, domains] of Object.entries(ui.csp)) {
-        if (!['connectDomains', 'resourceDomains', 'frameDomains', 'baseUriDomains'].includes(key) || !Array.isArray(domains) || domains.some(v => typeof v !== 'string')) throw new Error(`${label}.ui.csp.${key}: expected a supported domain list.`);
+        if (!['connectDomains', 'resourceDomains', 'frameDomains', 'baseUriDomains'].includes(key)) throw new Error(`${label}.ui.csp.${key}: expected a supported domain list.`);
+        validateDomains(domains, `${label}.ui.csp.${key}`, key);
       }
     }
   }
@@ -123,6 +142,20 @@ function merge(base: PublicMetadata, author: PublicMetadata): PublicMetadata {
 
 export function prepareProtocol(name: string, tools: PageTool[], requestPolicy: RequestPolicy, options: MetadataOptions): ProtocolModel {
   const resourceMeta = metadata(options.resourceMetadata === undefined ? {} : options.resourceMetadata, 'resourceMetadata', 'resource');
+  if (options.uiCsp !== undefined) {
+    const value = publicJson(options.uiCsp, 'uiCsp');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('uiCsp: expected an object.');
+    for (const [key, domains] of Object.entries(value)) {
+      if (!['connectDomains', 'resourceDomains'].includes(key)) throw new Error(`uiCsp.${key}: unsupported CSP field.`);
+      validateDomains(domains, `uiCsp.${key}`, key);
+    }
+    const ui = (resourceMeta.ui ?? {}) as PublicMetadata;
+    const csp = (ui.csp ?? {}) as PublicMetadata;
+    for (const [key, domains] of Object.entries(value)) {
+      if (key in csp && JSON.stringify([...new Set(csp[key] as string[])].sort()) !== JSON.stringify([...new Set(domains as string[])].sort())) throw new Error(`uiCsp.${key}: conflicts with resourceMetadata.ui.csp.${key}.`);
+    }
+    resourceMeta.ui = { ...ui, csp: { ...csp, ...value } };
+  }
   const resources: ProtocolResource[] = tools.map(tool => ({ name: tool.name, uri: tool.resourceUri, mimeType: RESOURCE_MIME_TYPE,
     page: tool.page, _meta: merge(resourceDefaults, resourceMeta) }));
   const custom = options.uiResources === undefined ? [] : options.uiResources;

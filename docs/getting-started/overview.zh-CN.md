@@ -57,7 +57,7 @@ flowchart LR
 
 生成的服务需要 Node.js 22+，打包后的目录无需再次执行 npm 安装。显示界面需要客户端支持 MCP Apps 并允许编译 WebAssembly。仅支持 MCP 的客户端仍可发现和调用工具，得到文字或业务数据。
 
-MCPKit 当前生成本地 stdio 服务，不生成 HTTP 服务、认证层、云部署、`.mcpb` 扩展或 `aix pack --target mcp-apps`。资源以文本方式打包，尚不支持二进制资源。选择宿主前请查看[兼容性](../reference/compatibility.zh-CN.md)。
+MCPKit 当前生成本地 stdio 服务，不生成 HTTP 服务、认证层、云部署、`.mcpb` 扩展或 `aix pack --target mcp-apps`。支持打包文本和二进制资源，参见[资源路径和 CSP](../reference/build-api.zh-CN.md#二进制资源和-csp)。选择宿主前请查看[兼容性](../reference/compatibility.zh-CN.md)。
 
 ## 适配内联和全屏界面
 

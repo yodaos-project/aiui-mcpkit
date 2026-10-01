@@ -1,0 +1,5 @@
+{
+  "name": "Binary assets",
+  "pages": ["pages/home"],
+  "fonts": [{ "family": "MCPKitFixture", "src": "assets/fixture.ttf" }]
+}

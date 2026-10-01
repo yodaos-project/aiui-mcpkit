@@ -57,7 +57,7 @@ flowchart LR
 
 The generated server needs Node.js 22+. Its bundled output needs no separate npm install. The client must support MCP Apps to display UI and permit WebAssembly compilation. A client supporting only MCP can still discover/call tools and receive text or business data.
 
-MCPKit currently generates local stdio servers. It does not generate an HTTP service, authentication layer, cloud deployment, `.mcpb` extension or `aix pack --target mcp-apps`. Text assets are packaged; binary assets are not supported. See [compatibility](../reference/compatibility.md) before selecting a host.
+MCPKit currently generates local stdio servers. It does not generate an HTTP service, authentication layer, cloud deployment, `.mcpb` extension or `aix pack --target mcp-apps`. Text and binary assets are packaged; see [asset paths and CSP](../reference/build-api.md#binary-assets-and-csp). See [compatibility](../reference/compatibility.md) before selecting a host.
 
 ## Adapt to inline and fullscreen Views
 

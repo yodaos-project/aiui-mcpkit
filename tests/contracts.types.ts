@@ -21,6 +21,8 @@ const metadataOptions: BuildPluginOptions = {
   source: './agent', name: 'metadata-demo',
   toolMetadata: { open_app: { ui: { resourceUri: 'ui://demo/custom' }, 'example/public': { count: 1 } } },
   resourceMetadata: { ui: { prefersBorder: false } },
+  uiCsp: { connectDomains: ['https://api.example.com'], resourceDomains: [] },
+  assetLimits: { maxAssetBytes: 1024, maxViewBytes: 20000000 },
   uiResources: [{ uri: 'ui://demo/custom', name: 'Custom', html: '<html></html>' }],
 };
 void metadataOptions;
@@ -35,3 +37,7 @@ function checkInspection(result: ProtocolInspection) {
   void result.resources[0].html;
 }
 void checkInspection;
+
+// @ts-expect-error typed CSP only exposes connection and resource lists
+const invalidCsp: BuildPluginOptions["uiCsp"] = { frameDomains: [] };
+void invalidCsp;

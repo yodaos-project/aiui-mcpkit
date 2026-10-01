@@ -41,12 +41,14 @@ plugin/
 | `toolMetadata` | 仅 ESM | `{}` |
 | `resourceMetadata` | 仅 ESM | `{}` |
 | `uiResources` | 仅 ESM | `[]` |
+| `uiCsp` | 仅 ESM | 空连接/资源域列表 |
+| `assetLimits` | 仅 ESM | 不限制字节数 |
 
 插件名称以小写字母开头，仅包含小写字母、数字或连字符。工具名称由 1–128 个字母、数字、下划线或连字符组成。运行 `node scripts/build-plugin.mjs --help` 查看脚本用法。如果省略 `[source]`，默认使用当前项目根目录；输出目录会从 UI 内容中排除。
 
 ## 当前支持范围
 
-UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需要留意宿主的资源大小限制。源码按 UTF-8 读取，目前不支持打包二进制资源。
+UI 宿主需要允许编译 WebAssembly，并支持最终 HTML 资源大小。二进制资源以 base64 嵌入，在 Ink bundle 中还原为 `Uint8Array`；文本源码使用严格 UTF-8。路径、字体和宿主限制见[二进制资源和 CSP](#二进制资源和-csp)。
 
 自动测试覆盖打包、MCP 工具与资源响应，以及浏览器运行时。它们不能证明所有桌面宿主都完整兼容，也不能保证账号连接后的工具访问权限或资源缓存行为。
 
@@ -72,6 +74,7 @@ UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需�
 | `marketplaceName` | 独立目录索引名 `${name}-local`；仓库示例使用另外的共享目录索引。 |
 | `requestPolicy` | 解析后的完整请求策略。 |
 | `inspectProtocol(capabilities?)` | 最终工具列表项、资源列表项和连接配置的全新 JSON 快照，默认不带 Apps 能力。 |
+| `assets` | `AssetReport`：各文件的公开路径、字节大小、编码/MIME 提示、源码总字节数、最终 HTML 字节数和诊断。 |
 | `files.view` | `view.html` 的绝对路径。 |
 | `files.server` | `dist/server.mjs` 的绝对路径。 |
 | `files.plugin`、`files.mcp` | 插件清单与客户端配置的绝对路径。 |
@@ -79,6 +82,35 @@ UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需�
 | `files.types` | 生成类型声明的绝对路径，也适用于自定义 `typesFile`。 |
 
 Promise 成功表示构建完成，不代表服务已注册、宿主已发现工具或界面已渲染。错误通过 Promise rejection 返回，API 不记录日志、不退出进程、不改变工作目录。检查或修改返回快照不会改变生成的服务。
+
+## 二进制资源和 CSP
+
+本地图片保留原始页面相对路径，例如 `pages/home.ink` 中的 `<image src="../assets/sample.png" />`。无需重写 URL 或部署资源服务器。在 `app.json` 中以 Agent 根目录相对路径注册字体：
+
+```json
+{ "pages": ["pages/home"], "fonts": [{ "family": "MyFont", "src": "assets/my-font.ttf" }] }
+```
+
+页面样式使用 `font-family: MyFont`。Ink 通过本地 object URL 注册字体，因此声明了字体的生成 View 会自动将 `blob:` 加入 `resourceDomains`。自定义 HTML 资源保留自己的声明。宿主必须允许 `font-src blob:`；本地位图从 bundle 字节解码，SVG 渲染需要 `img-src data:`。
+
+```js
+const result = await buildPlugin({
+  source: './agent', name: 'my-agent',
+  uiCsp: {
+    connectDomains: ['https://api.example.com', 'wss://realtime.example.com'],
+    resourceDomains: ['https://cdn.example.com'],
+  },
+  assetLimits: { maxAssetBytes: 2 * 1024 * 1024, maxViewBytes: 20 * 1024 * 1024 },
+});
+console.log(result.assets);
+console.log(result.inspectProtocol().resources[0]._meta.ui.csp);
+```
+
+两项大小限制均为可选的正安全整数。文件限制适用于每个公开源码文件；View 限制包含嵌入的 WASM、运行时和资源。超限会在创建或替换输出前失败。二进制 base64 体积约增加三分之一。本地辅助脚本打印大小汇总、二进制文件大小和诊断；ESM API 仅返回结果，不打印日志。
+
+PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取决于 Ink 与浏览器。SVG 和已知源码扩展名（`.ink`、JSON、JS/TS、CSS、HTML、XML、TXT、Markdown）使用严格 UTF-8，并保留 BOM。其他扩展名按二进制保留，同时返回 `UNSUPPORTED_FORMAT` 诊断，避免破坏字节。无效 UTF-8 文本会被拒绝。识别扩展名不等于校验格式内容。
+
+`EXTERNAL_REFERENCE` 报告文本中发现的 origin，不包含查询参数或凭据。这是提示性扫描，并非完整依赖分析；动态 URL 需要额外验证。`LARGE_ASSET` 提示超过 1 MiB 的文件；`HOST_REQUIREMENT` 报告资源大小、WASM 和本地字体限制。网络声明不会提供网络服务，也不会绕过宿主限制、CORS 或 Ink 加载器限制。自包含 Counter 示例仍使用空域列表。
 
 ## 公开运行时导出
 
@@ -97,7 +129,7 @@ Promise 成功表示构建完成，不代表服务已注册、宿主已发现工
 
 ## 打包边界
 
-`mcp-server/`、`dist/`、`.mcpkit/`、`.git/`、`node_modules/`、`.env`/`.env.*`、实际输出目录以及 handler 的传递依赖都不作为界面资源打包。其他 UTF-8 源码资源属于公开内容。服务端代码保留在服务端 bundle 中，这不代表会自动扫描任意公开字符串中的凭据。
+`mcp-server/`、`dist/`、`.mcpkit/`、`.git/`、`node_modules/`、`.env`/`.env.*`、实际输出目录以及 handler 的传递依赖都不作为界面资源打包。其余打包的文本和二进制资源都属于公开内容。服务端代码保留在服务端 bundle 中，这不代表会自动扫描任意公开字符串中的凭据。
 
 生成插件可在 Node 22+ 下直接执行。`view.html` 内含压缩 WASM，客户端需要允许编译并接受资源大小。添加功能时修改源码或构建配置，不要手工修改生成的服务和 HTML。
 

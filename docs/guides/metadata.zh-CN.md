@@ -4,6 +4,14 @@
 
 **前置条件：** 已能构建的 Agent 和 [ESM API](esm-build.zh-CN.md)。这些进阶选项用于定制工具发现元数据，第一篇教程不需要使用。选项与结果类型见[构建参考](../reference/build-api.zh-CN.md)。
 
+## 网络和资源 CSP
+
+使用 `uiCsp: { connectDomains: [...], resourceDomains: [...] }` 配置带类型的构建默认值。连接域对应 fetch/XHR/WebSocket 权限；资源域对应图片、字体、脚本、样式与媒体。仍可使用 `resourceMetadata.ui.csp`。两处同时声明同一列表时，域集合必须一致，否则在写入输出前失败。自定义资源的 `_meta.ui.csp` 列表可以有意替换默认值。
+
+域列表接受规范 HTTP(S) origin、`https://*.example.com` 这样的子域通配符，以及显式端口。连接列表也接受 WS(S) origin。不允许全局 `*`、仅协议范围、路径、凭据、查询参数、片段、CSP 关键字或注入指令。资源列表可声明本地 `blob:`/`data:` 协议。默认和自定义 metadata 中的 CSP 都会校验，包括 frame/base-URI 域列表。空列表无需外部域。
+
+声明 `app.json` 字体的生成 View 会在最终资源域列表加入 `blob:`，用于 Ink 本地字体 object URL。通过 `inspectProtocol()` 或 `resources/read` 检查最终 metadata。宿主执行声明，也可能施加更严格限制；CORS 和加载器支持仍然生效。资源路径和大小报告见[二进制资源和 CSP](../reference/build-api.zh-CN.md#二进制资源和-csp)。连接域与资源域的区分遵循 [MCP Apps CSP 指南](https://github.com/modelcontextprotocol/ext-apps/blob/main/docs/csp-cors.md)。
+
 ## 先做一个小改动
 
 从 `resourceMetadata: { ui: { prefersBorder: false } }` 开始，重新构建，传入 Apps 能力进行检查，在各资源的 `_meta.ui` 中确认该值。宿主决定是否采纳展示偏好。再按下面完整示例添加公开的扩展命名空间或自定义资源。

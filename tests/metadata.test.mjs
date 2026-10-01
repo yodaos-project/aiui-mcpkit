@@ -134,3 +134,32 @@ test('invalid metadata and resources fail before output, without leaking rejecte
     assert.equal(await readFile(built.files.server, 'utf8'), original);
   } finally { await rm(f.root, { recursive: true, force: true }); }
 });
+
+test('narrow CSP rejects invalid origins and conflicting configuration before output', async () => {
+  const f = await fixture();
+  try {
+    for (const domain of ['*', 'https:', 'https://example.com/path', 'https://example.com/', 'https://user:password@example.com',
+      'https://example.com?query=1', 'https://example.com#hash', "https://example.com; script-src *", 'javascript:', 'https://*', 'https://foo.*.com']) {
+      for (const option of [{ uiCsp: { connectDomains: [domain] } }, { resourceMetadata: { ui: { csp: { resourceDomains: [domain] } } } }]) {
+        await assert.rejects(buildPlugin({ ...f, ...option }), /origin|domain/);
+        await assert.rejects(access(f.outputDir));
+      }
+    }
+    for (const uiCsp of [null, [], { frameDomains: [] }, { connectDomains: 'https://example.com' }, { resourceDomains: ['wss://example.com'] }]) {
+      await assert.rejects(buildPlugin({ ...f, uiCsp }), /uiCsp/);
+    }
+    await assert.rejects(buildPlugin({ ...f, uiCsp: { connectDomains: [] },
+      resourceMetadata: { ui: { csp: { connectDomains: ['https://api.example.com'] } } } }), /conflicts/);
+    const result = await buildPlugin({ ...f, uiCsp: { connectDomains: ['wss://realtime.example.com', 'http://localhost:8080'], resourceDomains: ['https://*.example.com'] },
+      resourceMetadata: { ui: { csp: { resourceDomains: ['https://*.example.com'] } } },
+    });
+    const expected = result.inspectProtocol(capabilities).resources[0]._meta;
+    assert.deepEqual(expected.ui.csp, { connectDomains: ['wss://realtime.example.com', 'http://localhost:8080'], resourceDomains: ['https://*.example.com'] });
+    const client = new Client({ name: 'csp-client', version: '1' }, { capabilities });
+    try {
+      await client.connect(new StdioClientTransport({ command: process.execPath, args: [result.files.server] }));
+      assert.deepEqual((await client.listResources()).resources[0]._meta, expected);
+      assert.deepEqual((await client.readResource({ uri: 'ui://metadata-test/app.html' })).contents[0]._meta, expected);
+    } finally { await client.close(); }
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});

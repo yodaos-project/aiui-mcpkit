@@ -2,11 +2,13 @@ import { App, PostMessageTransport } from '@modelcontextprotocol/ext-apps';
 import { AgentToolBridge } from './tool-bridge.js';
 import type { RequestPolicy } from './lifecycle.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
+import { decodeBundle, type BundleEntry } from './bundle.js';
 
 declare const __WASM_GZIP_BASE64__: string;
-declare const __INK_FILES__: Record<string, string>;
+declare const __INK_FILES__: Record<string, BundleEntry>;
 declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[] };
 const config = __APP_CONFIG__;
+const files = decodeBundle(__INK_FILES__);
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
@@ -46,7 +48,7 @@ function openPage() {
   const serialized = JSON.stringify(query);
   if (serialized === openedQuery) { deliverToolResult(); return; }
   toolBridge.cancelAll('Page replaced');
-  view.openBundle({ appId: config.name, files: __INK_FILES__, initialPage, query,
+  view.openBundle({ appId: config.name, files, initialPage, query,
     hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   openedQuery = serialized;
   resize();
