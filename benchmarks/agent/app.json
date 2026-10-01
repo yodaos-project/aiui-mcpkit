@@ -1,0 +1,4 @@
+{
+  "name": "MCPKit performance fixtures",
+  "pages": ["small-card", "virtual-list", "live-dashboard", "dense-canvas"]
+}

@@ -46,3 +46,15 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Verify benchmark scenarios
+        run: npm run bench -- --samples 1 --operations 3 --idle-ms 250 --server-calls 8 --out benchmark-results/ci
+
+      - name: Save benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: benchmark-smoke
+          path: benchmark-results/ci
+          retention-days: 7
+          if-no-files-found: ignore

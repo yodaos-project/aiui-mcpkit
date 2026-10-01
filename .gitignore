@@ -4,5 +4,6 @@ dist/
 .npm/
 test-results/
 playwright-report/
+benchmark-results/
 
 .mcpkit/

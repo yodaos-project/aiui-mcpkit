@@ -1,0 +1,4 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["host.ts", "agent/mcp-server/handlers.ts"]
+}

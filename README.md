@@ -447,6 +447,10 @@ The UI host must allow WebAssembly compilation. The embedded HTML is roughly 10 
 
 Automated tests cover packaging, MCP tool/resource responses, and the browser runtime. They do not establish full compatibility with every desktop host, account-connected tool access, or resource-cache behavior.
 
+## Performance benchmarks
+
+Run `npm run build` followed by `npm run bench` to measure four fixed real Ink WASM scenarios, separate stdio server workloads, and package/resource sizes. The suite saves raw samples, screenshots, machine/runtime versions and A/B comparisons. See the [benchmark guide](benchmarks/README.md) for setup and measurement boundaries; CI runs a correctness smoke check without performance thresholds.
+
 ## Contribute
 
 Try the example, connect a new host, or improve the build API. [Open an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) with the client version, build command, and reproduction steps; reports from Claude Desktop and other MCP Apps hosts are especially useful.
@@ -459,6 +463,7 @@ Try the example, connect a new host, or improve the build API. [Open an issue](h
 | `npm run start:examples` | Start Counter, or select `-- business` |
 | `npm run typecheck` | Check TypeScript types |
 | `npm test` | Run packaging, MCP, and browser tests |
+| `npm run bench` | Measure rendering, server and packaging baselines |
 
 Before submitting a code change:
 

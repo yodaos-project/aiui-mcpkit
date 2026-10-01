@@ -447,6 +447,10 @@ UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需�
 
 自动测试覆盖打包、MCP 工具与资源响应，以及浏览器运行时。它们不能证明所有桌面宿主都完整兼容，也不能保证账号连接后的工具访问权限或资源缓存行为。
 
+## 性能基准
+
+先运行 `npm run build`，再运行 `npm run bench`，测量四个固定的真实 Ink WASM 场景、独立的 stdio 服务端工作负载，以及包和资源体积。套件保存原始样本、截图、机器/runtime 版本和 A/B 比较结果。安装步骤与测量边界见[基准指南](benchmarks/README.zh-CN.md)；CI 仅运行正确性 smoke 检查，不设性能阈值。
+
 ## 参与贡献
 
 欢迎体验示例、接入新的宿主，或改进构建 API。[提交问题](https://github.com/yodaos-project/aiui-mcpkit/issues)时，请附上客户端版本、构建命令和复现步骤；Claude Desktop 和其他 MCP Apps 宿主的实测反馈尤其有帮助。
@@ -459,6 +463,7 @@ UI 宿主需要允许编译 WebAssembly。嵌入的 HTML 约为 10 MB，也需�
 | `npm run start:examples` | 启动 Counter，或用 `-- business` 选择业务示例 |
 | `npm run typecheck` | 检查 TypeScript 类型 |
 | `npm test` | 运行打包、MCP 和浏览器测试 |
+| `npm run bench` | 测量渲染、服务端和打包基线 |
 
 提交代码改动前运行：
 
