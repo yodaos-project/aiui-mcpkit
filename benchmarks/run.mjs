@@ -83,6 +83,9 @@ RSS measurement currently supports macOS/Linux. No automatic browser installatio
     http = createServer((req, res) => {
       const url = new URL(req.url, 'http://localhost');
       res.setHeader('Cache-Control', 'no-store');
+      // Full Chromium requests a favicon even when the host has no icon.
+      // Keep that automatic request from introducing a console 404 error.
+      if (url.pathname === '/favicon.ico') { res.writeHead(204); res.end(); return; }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       if (url.pathname === '/view') {
         const html = views.get(url.searchParams.get('scenario'));
