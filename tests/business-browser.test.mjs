@@ -14,7 +14,7 @@ test('business example renders structured/UI data and calls/cancels its real ser
     await client.connect(new StdioClientTransport({ command: process.execPath, args: ['dist/examples/business/dist/server.mjs'] }));
     await client.listTools();
     const initial = await client.callTool({ name: 'quote_order', arguments: { quantity: 2 } });
-    const html = (await client.readResource({ uri: 'ui://business-demo/business/quote_order.html' })).contents[0].text;
+    const html = (await client.readResource({ uri: 'ui://business-demo/quote_order.html' })).contents[0].text;
     const harness = (await build({ stdin: { resolveDir: process.cwd(), contents: `
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
 const frame = document.querySelector('iframe');

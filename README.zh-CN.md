@@ -66,7 +66,7 @@ open_countdown({ "start": 8, "step": 2 })
 
 两个工具均在各自页面的 `<script def>` 中声明，通过 `onLoad(query)` 接收参数。浏览器测试使用真实 Ink WASM 验证页面选择、初始状态和按钮交互。如果之前从 `ink-counter-local` 安装 Counter，请按上面的命令注册共享 marketplace 并重新安装。后续使用 `update:examples` 同步已安装的两个插件及其服务端，再重载宿主刷新工具列表。
 
-[Counter 源码](examples/counter/ink/pages/counter/index.ink) 展示状态管理和自适应布局；[Countdown 源码](examples/counter/ink/pages/countdown/index.ink) 展示带必填参数的第二个工具。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为和页面工具示例通过浏览器测试环境验证。
+[Counter 源码](examples/counter/pages/counter/index.ink) 展示状态管理和自适应布局；[Countdown 源码](examples/counter/pages/countdown/index.ink) 展示带必填参数的第二个工具。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为和页面工具示例通过浏览器测试环境验证。
 
 ## 创建自己的 Agent
 
@@ -74,10 +74,9 @@ open_countdown({ "start": 8, "step": 2 })
 
 ```text
 my-agent/
-└── agent/
-    ├── app.json
-    └── pages/
-        └── home.ink
+├── app.json
+└── pages/
+    └── home.ink
 ```
 
 `app.json` 定义应用名称和页面列表：
@@ -99,18 +98,18 @@ my-agent/
 </page>
 ```
 
-`app.json` 中的页面路径不带 `.ink` 后缀。需要按钮和状态管理时，可以参考完整的 [Counter 页面](examples/counter/ink/pages/counter/index.ink)。
+`app.json` 中的页面路径不带 `.ink` 后缀。需要按钮和状态管理时，可以参考完整的 [Counter 页面](examples/counter/pages/counter/index.ink)。
 
 在 MCPKit 仓库中运行本地构建脚本。把 `/path/to/my-agent` 换成自己项目的实际路径：
 
 ```sh
 npm run build
-node scripts/build-plugin.mjs /path/to/my-agent/agent \
+node scripts/build-plugin.mjs /path/to/my-agent \
   --name my-agent \
   --out /path/to/my-agent/dist/plugin
 ```
 
-源码和输出目录需要分开，两者不能互相包含。这个脚本用于在仓库内调试；包对外提供的集成入口是 [ESM 库](#接入-esm-库)。
+项目根目录直接包含 `app.json` 和 `pages/`；输出可以放在项目的 `dist/` 下，构建器会排除输出目录。输出目录不能等于或包含源码目录。这个脚本用于在仓库内调试；包对外提供的集成入口是 [ESM 库](#接入-esm-库)。
 
 将自己的插件安装到 Codex：
 
@@ -162,37 +161,37 @@ export default {
 
 ### 带类型的业务工具
 
-需要执行页面打开之外的业务逻辑时，用 `defineBusinessTool<Input, Output>()` 声明契约，并传给 `buildPlugin({ businessTools: { tools, handlers } })`。`handlers` 指向独立的 JavaScript 或 TypeScript 模块，模块导出 `handlers` 映射。构建器只将它打包到 Node.js 服务端，不会执行处理器模块。
+业务工具直接在 `app.json.pages` 注册的 `.ink` 页面中声明。`script def` 的 `schema.data` 定义输入，`schema.output` 定义业务输出；构建器据此生成 MCP 工具注册信息和 TypeScript 类型，无需另写 `contracts.ts` 或重复维护 schema。没有 `schema.output` 的工具继续使用页面打开行为。
 
-```ts
-// contracts.ts — 公开契约，放在 Ink 源码目录之外
-import { defineBusinessTool } from '@yodaos-pkg/aiui-mcpkit/tools';
-type Input = { quantity: number };
-type Output = { total: number };
-export const quote = defineBusinessTool<Input, Output>()({
-  name: 'quote_order', title: 'Order quote', description: 'Calculate an order quote.',
-  page: 'pages/order/index',
-  inputSchema: {
-    type: 'object', properties: { quantity: { type: 'integer', minimum: 1 } },
-    required: ['quantity'], additionalProperties: false,
-  },
-  outputSchema: {
-    type: 'object', properties: { total: { type: 'number' } },
-    required: ['total'], additionalProperties: false,
-  },
-});
-export const tools = [quote] as const;
+```html
+<!-- pages/order/index.ink -->
+<script type="application/json" def>
+{
+  "tool": "quote_order",
+  "navigationBarTitleText": "Order quote",
+  "description": "Calculate an order quote.",
+  "schema": {
+    "data": {
+      "type": "object", "properties": { "quantity": { "type": "integer", "minimum": 1 } },
+      "required": ["quantity"], "additionalProperties": false
+    },
+    "output": {
+      "type": "object", "properties": { "total": { "type": "number" } },
+      "required": ["total"], "additionalProperties": false
+    }
+  }
+}
+</script>
 ```
 
 ```ts
-// handlers.ts — 仅服务端使用，放在 Ink 源码目录之外
-import { BusinessToolError, type BusinessToolHandlers } from '@yodaos-pkg/aiui-mcpkit/tools';
-import type { tools } from './contracts.js';
-export const handlers: BusinessToolHandlers<typeof tools> = {
+// mcp-server/handlers.ts
+import { BusinessToolError } from '@yodaos-pkg/aiui-mcpkit/tools';
+import type { BusinessHandlers } from '../.mcpkit/tools.js';
+
+export const handlers: BusinessHandlers = {
   async quote_order(input, { signal, progress }) {
     if (input.quantity > 100) throw new BusinessToolError('OUT_OF_STOCK', 'Choose at most 100 items.');
-    // 将 signal 传给 fetch 等未完成工作。凭证应在服务端读取，
-    // 例如 process.env.SUPPLIER_TOKEN，不得返回给客户端。
     signal.throwIfAborted();
     progress({ progress: 1, total: 1, message: 'Quote calculated' });
     return {
@@ -204,16 +203,17 @@ export const handlers: BusinessToolHandlers<typeof tools> = {
 };
 ```
 
-在 ESM 构建脚本中导入 `tools` 后传给构建器：
+构建器默认读取项目根目录的 `mcp-server/handlers.ts`，也可以通过 `handlers` 指定其他模块。只打包处理器，不在构建阶段执行。通过 `typesFile` 将生成声明放到项目的 `.mcpkit/` 中：
 
 ```js
 await buildPlugin({
-  source: './ink', name: 'order-agent',
-  businessTools: { tools, handlers: './handlers.ts' },
+  source: './order-agent', name: 'order-agent',
+  outputDir: './order-agent/dist/plugin',
+  typesFile: './order-agent/.mcpkit/tools.d.ts',
 });
 ```
 
-`BusinessToolHandlers<typeof tools>` 检查工具名、输入参数和结构化输出类型。泛型声明 TypeScript 类型，JSON Schema 决定运行时校验，两者应保持一致。业务工具与页面工具的名字必须唯一，`page` 必须在 `app.json.pages` 中注册。每个业务工具都要求对象类型的输入和输出 schema；构建时检查两个 schema，并通过 MCP tools/list 原样公布，每次调用都校验输入与成功输出。JavaScript 处理器使用相同的运行时校验。缺失的处理器导出会在服务端连接前令启动失败。原有页面工具与回退入口保留；`result.tools` 中的业务契约包含 `outputSchema`。
+先构建，再运行 TypeScript 检查。生成的 `ToolInputs`、`ToolOutputs` 和 `BusinessHandlers` 检查工具名、参数和结构化输出；页面 schema 修改后重新构建即可同步类型。生成器支持嵌套对象、数组、枚举、联合类型及本地 `$ref`；无法表达的 schema 部分使用 `unknown`，运行时 JSON Schema 校验仍然生效。工具名必须唯一，业务工具要求对象类型的输入和输出 schema。构建时检查 schema，MCP tools/list 原样公布，每次调用都校验输入与成功输出。缺失处理器会在服务端连接前令启动失败。`result.tools` 中的业务工具包含 `outputSchema`，`result.files.types` 指向生成声明。
 
 | 处理器字段 | MCP 响应 | 可见范围 |
 | --- | --- | --- |
@@ -225,7 +225,7 @@ Ink 页面通过 `onMessage(event)` 接收模型初次调用的结果，消息�
 
 业务失败返回 `isError: true`、文本内容 `CODE: message` 和 `_meta.businessError: { code, message }`，省略 `structuredContent`，避免客户端按成功输出 schema 校验错误结果。`BusinessToolError(code, message, details?)` 暴露显式代码与消息，可选详情放入 `_meta.uiOnly`。内置代码包括 `INVALID_INPUT`、`INVALID_OUTPUT`、`INTERNAL_ERROR`、`CANCELLED`、`REQUEST_TIMEOUT` 和 `TOTAL_TIMEOUT`。无效输入不执行处理器，无效输出不会返回成功。意外异常使用通用 `INTERNAL_ERROR` 消息，生命周期元数据也不暴露原异常文本或堆栈。业务错误令请求进入 `error`，默认不会重试。
 
-处理器模块及其配置、依赖应放在 `source` 和输出目录之外。Ink 源码目录内的所有文件都是公开 UI 内容。构建器会拒绝位于 Agent 源码目录内的处理器入口及其传递导入，包括解析符号链接后的路径。`view.html` 只包含公开启动配置，处理器代码打包进 `dist/server.mjs`。环境变量在服务端运行时读取，不会在打包阶段捕获。处理器可以从根包或 `/tools` 导入运行时辅助 API；`buildPlugin` 等打包 API 应在构建脚本中使用。
+处理器及配置可以放在项目根目录的 `mcp-server/` 下。构建器从 UI 内容中排除 `mcp-server/`、`dist/`、`.mcpkit/`、`.git/`、`node_modules/`、`.env` 文件和服务端的传递导入；其余资源属于公开 UI 内容。处理器代码只打包到 `dist/server.mjs`，环境变量在服务端运行时读取。处理器可以从根包或 `/tools` 导入运行时辅助 API；`buildPlugin` 等打包 API 应在构建脚本中使用。
 
 运行完整的[业务示例](examples/business)：
 
@@ -234,7 +234,7 @@ npm run build:examples
 npm run start:examples -- business
 ```
 
-将该服务端注册到 MCP Apps 客户端。调用 `quote_order`，参数为 `{ "quantity": 2 }`，可选 `"coupon": "DEMO10"`；或调用 `check_stock`，参数为 `{ "sku": "DEMO" }`。报价页面显示结构化总价和 UI 专用库存数据，**CALCULATE** 调用真实处理器，**CANCEL** 中止请求。`open_app` 仍可打开页面。示例使用确定性的演示数据，不会下单。`npm run typecheck` 检查带类型的示例，并验证错误输入/输出赋值确实被拒绝；MCP 和真实 Ink WASM 浏览器测试覆盖工具发现、契约、错误、服务端代码隔离、渲染、调用和取消。
+将该服务端注册到 MCP Apps 客户端。调用 `quote_order`，参数为 `{ "quantity": 2 }`，可选 `"coupon": "DEMO10"`；或调用 `check_stock`，参数为 `{ "sku": "DEMO" }`。报价页面显示结构化总价和 UI 专用库存数据，**CALCULATE** 调用真实处理器，**CANCEL** 中止请求。两个工具分别打开 `app.json.pages` 中的报价和库存页面。示例使用确定性的演示数据，不会下单。`npm run typecheck` 检查带类型的示例，并验证错误输入/输出赋值确实被拒绝；MCP 和真实 Ink WASM 浏览器测试覆盖工具发现、契约、错误、服务端代码隔离、渲染、调用和取消。
 
 ### 工具请求生命周期
 
@@ -264,7 +264,7 @@ onMessage(event) {
 
 ```js
 await buildPlugin({
-  source: './ink', name: 'weather-agent',
+  source: './weather-agent', name: 'weather-agent',
   requestPolicy: {
     totalTimeoutMs: 60000, requestTimeoutMs: 15000,
     resetTimeoutOnProgress: true, maxRetries: 1, retryDelayMs: 250,
@@ -388,7 +388,7 @@ OpenAI 的侧栏入口属于客户端专用能力。其他宿主可以展示标�
 
 ## 修改、重建、迭代
 
-修改 [Counter 页面](examples/counter/ink/pages/counter/index.ink)、[业务页面](examples/business/ink/pages/order/index.ink) 或其[处理器](examples/business/handlers.ts)，然后运行：
+修改 [Counter 页面](examples/counter/pages/counter/index.ink)、[业务页面](examples/business/pages/order/index.ink) 或其[处理器](examples/business/mcp-server/handlers.ts)，然后运行：
 
 ```sh
 npm run update:examples
@@ -415,6 +415,7 @@ plugin/
 ├── plugin.json                       # Plugin name and display metadata
 ├── mcp.json                          # Plugin-host stdio configuration
 ├── view.html                         # Agent interface and embedded runtime
+├── tools.d.ts                        # Generated tool and handler types
 ├── dist/server.mjs                   # Bundled MCP server
 └── .agents/plugins/marketplace.json  # Local Codex installation catalog
 ```
@@ -435,9 +436,10 @@ plugin/
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | 仅 ESM | 上述共享生命周期默认值 |
 | `retrySafeTools` | 仅 ESM | `[]` |
-| `businessTools` | 仅 ESM | 不提供时保留页面与入口工具 |
+| `handlers` | 仅 ESM | 业务工具默认使用 `<source>/mcp-server/handlers.ts` |
+| `typesFile` | 仅 ESM | `<outputDir>/tools.d.ts` |
 
-插件名称以小写字母开头，仅包含小写字母、数字或连字符。工具名称由 1–128 个字母、数字、下划线或连字符组成。运行 `node scripts/build-plugin.mjs --help` 查看脚本用法。如果省略 `[source]`，请把 `--out` 设在当前目录之外，确保源码与输出目录分开。
+插件名称以小写字母开头，仅包含小写字母、数字或连字符。工具名称由 1–128 个字母、数字、下划线或连字符组成。运行 `node scripts/build-plugin.mjs --help` 查看脚本用法。如果省略 `[source]`，默认使用当前项目根目录；输出目录会从 UI 内容中排除。
 
 ### 当前支持范围
 

@@ -11,14 +11,6 @@ export interface BusinessToolDefinition<Name extends string = string> {
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
 }
-export interface BusinessTool<Input extends object = Record<string, unknown>, Output extends object = Record<string, unknown>, Name extends string = string> extends BusinessToolDefinition<Name> {
-  /** Type witness only; never emitted by defineBusinessTool or included in builds. */
-  readonly _types?: { input: Input; output: Output };
-}
-/** Declare types explicitly, then infer the literal name for the handler map. */
-export function defineBusinessTool<Input extends object, Output extends object>() {
-  return <const Name extends string>(definition: BusinessToolDefinition<Name>): BusinessTool<Input, Output, Name> => definition;
-}
 export interface BusinessToolResult<Output extends object> {
   /** Model-visible summary/content blocks. */
   content: CallToolResult['content'];
@@ -29,9 +21,6 @@ export interface BusinessToolResult<Output extends object> {
 }
 export type BusinessToolHandler<Input extends object, Output extends object> =
   (input: Input, context: RequestContext) => BusinessToolResult<Output> | Promise<BusinessToolResult<Output>>;
-export type BusinessToolHandlers<Tools extends readonly BusinessTool<object, object>[]> = {
-  [Tool in Tools[number] as Tool['name']]: BusinessToolHandler<NonNullable<Tool['_types']>['input'], NonNullable<Tool['_types']>['output']>;
-};
 /** Expected business failures may expose a safe code/message and UI-only details. */
 export class BusinessToolError extends Error {
   constructor(public readonly code: string, message: string, public readonly details?: Record<string, unknown>) {

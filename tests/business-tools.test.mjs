@@ -1,16 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm, access, cp } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
-import { buildPlugin, defineBusinessTool } from '@yodaos-pkg/aiui-mcpkit';
+import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
 
 const schema = { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'], additionalProperties: false };
 const definitions = ['double', 'app', 'expected_error', 'crash', 'bad_output', 'slow', 'progress', 'bad_content', 'cyclic', 'wire_output', 'bad_details'].map(name => ({
-  name, title: name, description: `Run ${name}`, page: 'home', inputSchema: schema, outputSchema: schema,
+  name, title: name, description: `Run ${name}`, page: name, inputSchema: schema, outputSchema: schema,
 }));
 const handlerSource = `
 import { BusinessToolError } from '@yodaos-pkg/aiui-mcpkit/tools';
@@ -36,14 +36,21 @@ export const handlers = {
   },
 };`;
 
+async function writeDeclarations(source, tools) {
+  await writeFile(join(source, 'app.json'), JSON.stringify({ pages: ['home', ...tools.map(tool => tool.page)] }));
+  for (const tool of tools) await writeFile(join(source, `${tool.page}.ink`), `<script def>${JSON.stringify({ tool: tool.name, navigationBarTitleText: tool.title,
+    description: tool.description, schema: { data: tool.inputSchema, output: tool.outputSchema } })}</script><page><text>Business</text></page>`);
+}
 async function fixture() {
   const project = await mkdtemp(join(tmpdir(), 'mcpkit-business-'));
-  const source = join(project, 'agent'); await mkdir(source);
-  await writeFile(join(source, 'app.json'), JSON.stringify({ pages: ['home'] }));
+  const source = join(project, 'agent'); await mkdir(join(source, 'mcp-server'), { recursive: true });
   await writeFile(join(source, 'home.ink'), '<page><text>Business</text></page>');
-  const handlers = join(project, 'handlers.ts'); await writeFile(handlers, handlerSource);
-  await writeFile(join(project, 'secret-config.js'), "export const secret = 'SECRET_CONFIGURATION_MUST_STAY_SERVER_ONLY';");
-  const options = { source, name: 'business-test', outputDir: join(project, 'plugin'), businessTools: { tools: definitions, handlers } };
+  await writeDeclarations(source, definitions);
+  const handlers = join(source, 'mcp-server/handlers.ts'); await writeFile(handlers, handlerSource);
+  await writeFile(join(source, 'mcp-server/secret-config.js'), "export const secret = 'SECRET_CONFIGURATION_MUST_STAY_SERVER_ONLY';");
+  await writeFile(join(source, '.env'), 'UNIMPORTED_ENV_SECRET=private');
+  await writeFile(join(source, 'mcp-server/unused-config.txt'), 'UNIMPORTED_SERVER_SECRET');
+  const options = { source, name: 'business-test', outputDir: join(project, 'plugin'), typesFile: join(source, '.mcpkit/tools.d.ts') };
   return { project, source, handlers, options };
 }
 
@@ -59,14 +66,12 @@ async function waitFile(path) {
 test('custom business tools advertise schemas, isolate server source, and return stable MCP results/errors', async () => {
   const f = await fixture(); const client = new Client({ name: 'business-test', version: '1' });
   try {
-    // Explicitly typed helper is also usable from JavaScript at runtime.
-    assert.equal(defineBusinessTool()(definitions[0]).name, 'double');
     const result = await buildPlugin(f.options);
     await client.connect(transport(result, f.project));
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map(tool => tool.name), ['open_app', ...definitions.map(tool => tool.name)]);
-    assert.deepEqual(tools[1].inputSchema, schema); assert.deepEqual(tools[1].outputSchema, schema);
-    assert.equal(tools[1].title, 'double'); assert.equal(result.tools[1].page, 'home');
+    assert.deepEqual(tools.map(tool => tool.name), definitions.map(tool => tool.name));
+    assert.deepEqual(tools[0].inputSchema, schema); assert.deepEqual(tools[0].outputSchema, schema);
+    assert.equal(tools[0].title, 'double'); assert.equal(result.tools[0].page, 'double');
     const html = await readFile(result.files.view, 'utf8'); const server = await readFile(result.files.server, 'utf8');
     for (const marker of ['HANDLER_SOURCE_MUST_STAY_SERVER_ONLY', 'SECRET_CONFIGURATION_MUST_STAY_SERVER_ONLY', 'STARTED_FILE', 'ABORT_FILE']) {
       assert.ok(!html.includes(marker), marker); assert.ok(server.includes(marker), marker);
@@ -79,7 +84,11 @@ test('custom business tools advertise schemas, isolate server source, and return
     assert.equal(success._meta.uiOnly.privateMarker, 'HANDLER_SOURCE_MUST_STAY_SERVER_ONLY');
     assert.ok(!JSON.stringify({ content: success.content, structuredContent: success.structuredContent }).includes('HANDLER_SOURCE'));
     assert.equal(success._meta.request.state, 'ready');
-    const resource = await client.readResource({ uri: tools[1]._meta.ui.resourceUri }); assert.match(resource.contents[0].text, /<body data-page="home">/);
+    assert.ok(!html.includes('UNIMPORTED_ENV_SECRET'));
+    assert.ok(!html.includes('UNIMPORTED_SERVER_SECRET'));
+    assert.ok(!html.includes('interface ToolInputs'));
+    assert.match(await readFile(result.files.types, 'utf8'), /"double": \{ "value": number \}/);
+    const resource = await client.readResource({ uri: tools[0]._meta.ui.resourceUri }); assert.match(resource.contents[0].text, /<body data-page="double">/);
     for (const [name, args, code, message] of [
       ['double', { value: 'bad' }, 'INVALID_INPUT', 'Tool arguments do not match the input schema.'],
       ['slow', {}, 'INVALID_INPUT', 'Tool arguments do not match the input schema.'],
@@ -134,35 +143,37 @@ test('handler progress is forwarded to MCP clients and resets only the configure
   } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
 });
 
-test('invalid business contracts and server files inside Agent source fail before artifacts are written', async () => {
+test('page-owned business contracts are validated before output, and private dependencies stay out of the UI', async () => {
   const f = await fixture();
   try {
     const invalid = join(f.project, 'invalid');
     for (const [tools, pattern] of [
-      [[{ ...definitions[0], name: 'bad name' }], /Business tool name/],
-      [[{ ...definitions[0], name: 123 }], /Business tool name/],
-      [[{ ...definitions[0], name: undefined }], /Business tool name/],
-      [[definitions[0], definitions[0]], /Duplicate tool name/],
-      [[{ ...definitions[0], name: 'open_app' }], /Duplicate tool name/],
-      [[{ ...definitions[0], page: 'missing' }], /not registered/],
-      [[{ ...definitions[0], outputSchema: { type: 'string' } }], /outputSchema/],
+      [[{ ...definitions[0], name: 'bad name' }], /tool must contain/],
+      [[{ ...definitions[0], name: 123 }], /tool must contain/],
+      [[definitions[0], { ...definitions[0], page: 'second' }], /Duplicate tool name/],
+      [[{ ...definitions[0], outputSchema: { type: 'string' } }], /schema.output/],
       [[{ ...definitions[0], inputSchema: { type: 'object', $ref: 'missing.json' } }], /resolve reference/],
-      [[{ ...definitions[0], description: '' }], /nonempty title and description/],
+      [[{ ...definitions[0], description: '' }], /nonempty description/],
     ]) {
-      await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid, businessTools: { handlers: f.handlers, tools } }), pattern);
+      await writeDeclarations(f.source, tools);
+      await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid }), pattern);
       await assert.rejects(access(invalid));
     }
-    await cp(f.handlers, join(f.source, 'server.ts'));
-    await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid, businessTools: { tools: definitions, handlers: join(f.source, 'server.ts') } }), /outside Agent source/);
-    await rm(join(f.source, 'server.ts'));
-    // A transitive import of server-only config from Agent source is also forbidden.
-    await writeFile(join(f.source, 'secret.js'), "export const secret = 'AGENT_DIRECTORY_SECRET';");
-    await writeFile(f.handlers, handlerSource.replace("'./secret-config.js'", "'./agent/secret.js'"));
-    await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid }), /Server-only dependency is inside Agent source/);
-    await assert.rejects(access(invalid));
+    await writeDeclarations(f.source, definitions);
+    await writeFile(join(f.source, 'app.json'), JSON.stringify({ pages: ['home', 'missing'] }));
+    await assert.rejects(buildPlugin({ ...f.options, outputDir: invalid }), /Page not found/);
+    await writeDeclarations(f.source, definitions);
+    // Discovery follows app.json.pages even when another .ink file declares a tool.
+    await writeFile(join(f.source, 'unregistered.ink'), `<script def>${JSON.stringify({ tool: 'unregistered', description: 'Ignored', schema: { data: schema, output: schema } })}</script><page />`);
+    // A server dependency can live at project root without entering the UI assets.
+    await writeFile(join(f.source, 'private-config.js'), "export const secret = 'ROOT_CONFIGURATION_SECRET';");
+    await writeFile(f.handlers, handlerSource.replace("'./secret-config.js'", "'../private-config.js'"));
+    const result = await buildPlugin(f.options);
+    assert.ok(!result.tools.some(tool => tool.name === 'unregistered'));
+    assert.ok(!(await readFile(result.files.view, 'utf8')).includes('ROOT_CONFIGURATION_SECRET'));
+    await assert.rejects(buildPlugin({ ...f.options, businessTools: { tools: definitions, handlers: f.handlers } }), /script def/);
   } finally { await rm(f.project, { recursive: true, force: true }); }
 });
-
 
 test('root-package handler imports share the server error type without bundling the builder', async () => {
   const f = await fixture(); const client = new Client({ name: 'root-import', version: '1' });

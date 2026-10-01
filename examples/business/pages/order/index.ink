@@ -1,3 +1,54 @@
+<script type="application/json" def>
+{
+  "tool": "quote_order",
+  "navigationBarTitleText": "Order quote",
+  "description": "Calculate a demo order quote without placing an order.",
+  "schema": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "coupon": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "quantity"
+      ],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "quantity": {
+          "type": "integer"
+        },
+        "unitPrice": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "currency": {
+          "const": "CNY"
+        }
+      },
+      "required": [
+        "quantity",
+        "unitPrice",
+        "total",
+        "currency"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
+</script>
+
 <script setup>
 export default {
   data: { quantity: 2, state: 'ready', total: '-', remaining: '-', error: '' },

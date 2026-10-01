@@ -1,0 +1,7 @@
+{
+  "name": "MCPKit Business Demo",
+  "pages": [
+    "pages/order/index",
+    "pages/stock/index"
+  ]
+}

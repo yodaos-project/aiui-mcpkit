@@ -66,7 +66,7 @@ open_countdown({ "start": 8, "step": 2 })
 
 Both tools are declared in their pages' `<script def>` blocks, with parameters received by `onLoad(query)`. The browser tests verify page selection, initial state, and interaction using real Ink WASM. If you installed Counter from the older `ink-counter-local` catalog, register the shared catalog above and reinstall it there. For subsequent changes, `update:examples` updates both installed plugins, including their servers; reload the host to refresh its tool list.
 
-The [Counter source](examples/counter/ink/pages/counter/index.ink) shows state and adaptive layout; the [Countdown source](examples/counter/ink/pages/countdown/index.ink) shows a second tool with required input. The inline Counter has been observed in Codex Desktop; fullscreen and the page-tool example are tested in the browser harness.
+The [Counter source](examples/counter/pages/counter/index.ink) shows state and adaptive layout; the [Countdown source](examples/counter/pages/countdown/index.ink) shows a second tool with required input. The inline Counter has been observed in Codex Desktop; fullscreen and the page-tool example are tested in the browser harness.
 
 ## Create your own agent
 
@@ -74,10 +74,9 @@ Once the example works, replace it with your own page. You can start with this m
 
 ```text
 my-agent/
-└── agent/
-    ├── app.json
-    └── pages/
-        └── home.ink
+├── app.json
+└── pages/
+    └── home.ink
 ```
 
 `app.json` gives the app a name and lists its pages:
@@ -99,18 +98,18 @@ my-agent/
 </page>
 ```
 
-Page paths in `app.json` omit the `.ink` extension. For buttons and state, use the [Counter page](examples/counter/ink/pages/counter/index.ink) as a working reference.
+Page paths in `app.json` omit the `.ink` extension. For buttons and state, use the [Counter page](examples/counter/pages/counter/index.ink) as a working reference.
 
 From the MCPKit repository, run the local build helper. Replace `/path/to/my-agent` with your project's actual path:
 
 ```sh
 npm run build
-node scripts/build-plugin.mjs /path/to/my-agent/agent \
+node scripts/build-plugin.mjs /path/to/my-agent \
   --name my-agent \
   --out /path/to/my-agent/dist/plugin
 ```
 
-Use separate source and output directories; neither may contain the other. The helper is for development in this repository. The package's public integration API is the [ESM library](#use-the-esm-library).
+The project root directly contains `app.json` and `pages/`. Output may live under the project’s `dist/` directory and is excluded from UI assets. The output directory cannot equal or contain the source directory. The helper is for development in this repository. The package's public integration API is the [ESM library](#use-the-esm-library).
 
 To install your new plugin in Codex:
 
@@ -162,37 +161,37 @@ Arguments are validated before the server returns success. The view receives com
 
 ### Typed business tools
 
-For business work beyond opening a page, declare contracts with `defineBusinessTool<Input, Output>()` and pass them to `buildPlugin({ businessTools: { tools, handlers } })`. `handlers` is the path to a separate JavaScript or TypeScript module exporting a `handlers` map. It is bundled for Node.js and never executed by the builder.
+Declare business tools directly in the `.ink` pages registered by `app.json.pages`. Their `script def` supplies `schema.data` for inputs and `schema.output` for business outputs. The builder generates MCP registration metadata and TypeScript types from these definitions, without a separate `contracts.ts` or duplicate schemas. Tools without `schema.output` retain the page-opening behavior.
 
-```ts
-// contracts.ts — public contracts, outside the Ink source directory
-import { defineBusinessTool } from '@yodaos-pkg/aiui-mcpkit/tools';
-type Input = { quantity: number };
-type Output = { total: number };
-export const quote = defineBusinessTool<Input, Output>()({
-  name: 'quote_order', title: 'Order quote', description: 'Calculate an order quote.',
-  page: 'pages/order/index',
-  inputSchema: {
-    type: 'object', properties: { quantity: { type: 'integer', minimum: 1 } },
-    required: ['quantity'], additionalProperties: false,
-  },
-  outputSchema: {
-    type: 'object', properties: { total: { type: 'number' } },
-    required: ['total'], additionalProperties: false,
-  },
-});
-export const tools = [quote] as const;
+```html
+<!-- pages/order/index.ink -->
+<script type="application/json" def>
+{
+  "tool": "quote_order",
+  "navigationBarTitleText": "Order quote",
+  "description": "Calculate an order quote.",
+  "schema": {
+    "data": {
+      "type": "object", "properties": { "quantity": { "type": "integer", "minimum": 1 } },
+      "required": ["quantity"], "additionalProperties": false
+    },
+    "output": {
+      "type": "object", "properties": { "total": { "type": "number" } },
+      "required": ["total"], "additionalProperties": false
+    }
+  }
+}
+</script>
 ```
 
 ```ts
-// handlers.ts — server only, outside the Ink source directory
-import { BusinessToolError, type BusinessToolHandlers } from '@yodaos-pkg/aiui-mcpkit/tools';
-import type { tools } from './contracts.js';
-export const handlers: BusinessToolHandlers<typeof tools> = {
+// mcp-server/handlers.ts
+import { BusinessToolError } from '@yodaos-pkg/aiui-mcpkit/tools';
+import type { BusinessHandlers } from '../.mcpkit/tools.js';
+
+export const handlers: BusinessHandlers = {
   async quote_order(input, { signal, progress }) {
     if (input.quantity > 100) throw new BusinessToolError('OUT_OF_STOCK', 'Choose at most 100 items.');
-    // Pass signal to fetch or other unfinished work. Credentials belong here,
-    // e.g. process.env.SUPPLIER_TOKEN, and must not be returned to the client.
     signal.throwIfAborted();
     progress({ progress: 1, total: 1, message: 'Quote calculated' });
     return {
@@ -204,16 +203,17 @@ export const handlers: BusinessToolHandlers<typeof tools> = {
 };
 ```
 
-Pass the imported `tools` to your ESM build script:
+The builder reads `mcp-server/handlers.ts` in the project root by default; `handlers` can select another module. It bundles handlers without executing them at build time. Set `typesFile` to keep generated declarations in the project’s `.mcpkit/` directory:
 
 ```js
 await buildPlugin({
-  source: './ink', name: 'order-agent',
-  businessTools: { tools, handlers: './handlers.ts' },
+  source: './order-agent', name: 'order-agent',
+  outputDir: './order-agent/dist/plugin',
+  typesFile: './order-agent/.mcpkit/tools.d.ts',
 });
 ```
 
-`BusinessToolHandlers<typeof tools>` checks tool names, input parameters and structured output types. The generics describe your TypeScript types; JSON Schema remains the runtime authority and must match those types. Names must be unique across business and page tools, and `page` must be registered in `app.json.pages`. Each business tool requires object input and output schemas. Both schemas are checked at build time and advertised unchanged through MCP tools/list; inputs and successful outputs are validated on every call. JavaScript handlers use the same runtime validation. Missing handler exports fail the server startup before connection. Existing page tools and the fallback opener are preserved; business contracts appear in `result.tools` with `outputSchema`.
+Build before running TypeScript checks. Generated `ToolInputs`, `ToolOutputs` and `BusinessHandlers` check tool names, arguments and structured outputs; rebuild after changing a page schema. The generator handles nested objects, arrays, enums, unions and local `$ref`; schema features it cannot express use `unknown`, while runtime JSON Schema validation remains authoritative. Tool names must be unique, and business tools require object input and output schemas. Schemas are checked at build time, advertised unchanged through MCP tools/list, and validated on every call. Missing handlers fail server startup before connection. Business tools in `result.tools` include `outputSchema`, and `result.files.types` points to the generated declarations.
 
 | Handler field | MCP response | Visibility |
 | --- | --- | --- |
@@ -225,7 +225,7 @@ Ink pages receive the initial model-invoked result in `onMessage(event)` as `{ t
 
 Business failures return `isError: true`, text content `CODE: message`, and `_meta.businessError: { code, message }`. They omit `structuredContent` so clients do not validate an error against a successful output schema. `BusinessToolError(code, message, details?)` exposes its explicit code/message; optional details go to `_meta.uiOnly`. Built-in codes are `INVALID_INPUT`, `INVALID_OUTPUT`, `INTERNAL_ERROR`, `CANCELLED`, `REQUEST_TIMEOUT` and `TOTAL_TIMEOUT`. Invalid inputs do not run a handler; invalid outputs never produce success. Unexpected exceptions return the generic `INTERNAL_ERROR` message, including in lifecycle metadata, without leaking exception text or stacks. Business errors end the request in `error` and never retry by default.
 
-Keep the handler module and its configuration/dependencies outside `source` and the output directory. Every file in the Ink source tree is public UI content. The builder rejects handler entrypoints or transitive server imports inside the Agent source directory, including symlink-resolved paths. Only public launch configuration goes into `view.html`; handler code is bundled into `dist/server.mjs`. Runtime environment variables are read by the server, not captured during packaging. Handler modules can import runtime helpers from the root package or `/tools`; packaging APIs such as `buildPlugin` belong in the build script.
+Keep handlers and configuration in the project’s `mcp-server/` directory. The builder excludes `mcp-server/`, `dist/`, `.mcpkit/`, `.git/`, `node_modules/`, `.env` files and transitive server imports from UI assets; remaining assets are public UI content. Handler code is bundled only into `dist/server.mjs`, and environment variables are read at server runtime. Handler modules can import runtime helpers from the root package or `/tools`; packaging APIs such as `buildPlugin` belong in the build script.
 
 Try the complete [business example](examples/business):
 
@@ -234,7 +234,7 @@ npm run build:examples
 npm run start:examples -- business
 ```
 
-Register that server with an MCP Apps client. Call `quote_order` with `{ "quantity": 2 }` (optionally `"coupon": "DEMO10"`), or `check_stock` with `{ "sku": "DEMO" }`. The quote page shows structured totals and UI-only stock data; **CALCULATE** calls the real handler and **CANCEL** interrupts it. `open_app` remains available to open the page. The fixture uses deterministic demo data and places no orders. `npm run typecheck` checks the typed example and rejects intentionally incorrect input/output assignments; MCP and real Ink WASM browser tests verify discovery, contracts, errors, server-code isolation, rendering, invocation and cancellation.
+Register that server with an MCP Apps client. Call `quote_order` with `{ "quantity": 2 }` (optionally `"coupon": "DEMO10"`), or `check_stock` with `{ "sku": "DEMO" }`. The quote page shows structured totals and UI-only stock data; **CALCULATE** calls the real handler and **CANCEL** interrupts it. The tools open their respective quote and stock pages registered in `app.json.pages`. The fixture uses deterministic demo data and places no orders. `npm run typecheck` checks the typed example and rejects intentionally incorrect input/output assignments; MCP and real Ink WASM browser tests verify discovery, contracts, errors, server-code isolation, rendering, invocation and cancellation.
 
 ### Tool request lifecycle
 
@@ -264,7 +264,7 @@ Configure generated server and view budgets through the ESM API:
 
 ```js
 await buildPlugin({
-  source: './ink', name: 'weather-agent',
+  source: './weather-agent', name: 'weather-agent',
   requestPolicy: {
     totalTimeoutMs: 60000, requestTimeoutMs: 15000,
     resetTimeoutOnProgress: true, maxRetries: 1, retryDelayMs: 250,
@@ -388,7 +388,7 @@ OpenAI sidebar entrypoints are client-specific. A different host may render the 
 
 ## Edit, rebuild, repeat
 
-Edit the [Counter page](examples/counter/ink/pages/counter/index.ink), the [business page](examples/business/ink/pages/order/index.ink), or its [handlers](examples/business/handlers.ts), then run:
+Edit the [Counter page](examples/counter/pages/counter/index.ink), the [business page](examples/business/pages/order/index.ink), or its [handlers](examples/business/mcp-server/handlers.ts), then run:
 
 ```sh
 npm run update:examples
@@ -415,6 +415,7 @@ plugin/
 ├── plugin.json                       # Plugin name and display metadata
 ├── mcp.json                          # Plugin-host stdio configuration
 ├── view.html                         # Agent interface and embedded runtime
+├── tools.d.ts                        # Generated tool and handler types
 ├── dist/server.mjs                   # Bundled MCP server
 └── .agents/plugins/marketplace.json  # Local Codex installation catalog
 ```
@@ -435,9 +436,10 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | ESM only | Shared lifecycle defaults above |
 | `retrySafeTools` | ESM only | `[]` |
-| `businessTools` | ESM only | Omitted; preserves page/opening tools |
+| `handlers` | ESM only | `<source>/mcp-server/handlers.ts` for business tools |
+| `typesFile` | ESM only | `<outputDir>/tools.d.ts` |
 
-Plugin names start with a lowercase letter and contain lowercase letters, numbers, or hyphens. Tool names contain 1–128 letters, numbers, underscores, or hyphens. Use `node scripts/build-plugin.mjs --help` for helper usage. If you omit `[source]`, set `--out` outside the current directory to keep source and output separate.
+Plugin names start with a lowercase letter and contain lowercase letters, numbers, or hyphens. Tool names contain 1–128 letters, numbers, underscores, or hyphens. Use `node scripts/build-plugin.mjs --help` for helper usage. If you omit `[source]`, the current project root is used; output is excluded from UI assets.
 
 ### Current scope
 

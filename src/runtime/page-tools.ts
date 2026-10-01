@@ -12,7 +12,7 @@ export interface PageTool {
   page: string;
   inputSchema: Record<string, unknown>;
   resourceUri: string;
-  /** Present only for custom business tools. */
+  /** schema.output in the page definition marks a server business tool. */
   outputSchema?: Record<string, unknown>;
 }
 
@@ -48,13 +48,15 @@ export function pageTools(files: Record<string, string>, pages: string[], name: 
       const schema = definition.schema?.data;
       if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('schema.data must be a JSON object.');
       inputValidator(schema);
+      const output = definition.schema.output;
+      if (output !== undefined) inputValidator(output, 'schema.output');
       const tool = definition.tool ?? `open_${page.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
       if (typeof tool !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(tool)) throw new Error('tool must contain 1–128 letters, numbers, underscores, or hyphens.');
       if (tools.some(item => item.name === tool)) throw new Error(`Duplicate tool name: ${tool}`);
       if (typeof definition.description !== 'string' || !definition.description.trim()) throw new Error('A page tool requires a nonempty description.');
       const title = definition.navigationBarTitleText ?? page;
       if (typeof title !== 'string' || !title.trim()) throw new Error('navigationBarTitleText must be a nonempty string.');
-      tools.push({ name: tool, title, description: definition.description, page, inputSchema: schema, resourceUri: `ui://${name}/${tool}.html` });
+      tools.push({ name: tool, title, description: definition.description, page, inputSchema: schema, ...(output === undefined ? {} : { outputSchema: output }), resourceUri: `ui://${name}/${tool}.html` });
     } catch (error) {
       throw new Error(`${page}.ink: ${error instanceof Error ? error.message : error}`);
     }

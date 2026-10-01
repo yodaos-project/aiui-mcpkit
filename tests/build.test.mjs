@@ -59,7 +59,7 @@ test('ESM API packages an agent outside the package checkout', async () => {
     assert.equal(resource.contents[0].text, html);
 
     // Invalid inputs must fail before creating output or overwriting agent source.
-    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: ink }), /must not contain each other/);
+    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: ink }), /must not contain the Agent source/);
     const invalidOutput = join(project, 'invalid');
     await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: invalidOutput, requestPolicy: { totalTimeoutMs: 0 } }), /totalTimeoutMs/);
     await assert.rejects(access(invalidOutput));
@@ -91,4 +91,25 @@ test('local CLI accepts positional source and delegates to the ESM API', async (
     await assert.rejects(exec(process.execPath, [cli, source, source, '--name', 'cli-agent']), /at most one source/);
     await assert.rejects(exec(process.execPath, [cli, source]), /--name is required/);
   } finally { await rm(project, { recursive: true, force: true }); }
+});
+
+test('a project root can build into its own dist directory without packing server code or old artifacts', async () => {
+  const source = await mkdtemp(join(tmpdir(), 'mcpkit-project-root-'));
+  try {
+    await mkdir(join(source, 'pages'), { recursive: true });
+    await mkdir(join(source, 'mcp-server'));
+    await writeFile(join(source, 'app.json'), JSON.stringify({ pages: ['pages/home'] }));
+    await writeFile(join(source, 'pages/home.ink'), '<page><text>Root project</text></page>');
+    await writeFile(join(source, 'mcp-server/unused.ts'), 'SERVER_FILE_NOT_PUBLIC');
+    await writeFile(join(source, '.env'), 'PROJECT_ROOT_SECRET');
+    const options = { source, name: 'root-project', outputDir: join(source, 'dist/plugin'), typesFile: join(source, '.mcpkit/tools.d.ts') };
+    const first = await buildPlugin(options);
+    await writeFile(join(source, 'dist/old-server.mjs'), 'OLD_OUTPUT_NOT_PUBLIC');
+    const second = await buildPlugin(options);
+    const html = await readFile(second.files.view, 'utf8');
+    for (const marker of ['SERVER_FILE_NOT_PUBLIC', 'PROJECT_ROOT_SECRET', 'OLD_OUTPUT_NOT_PUBLIC', 'interface ToolInputs']) assert.ok(!html.includes(marker), marker);
+    assert.equal(first.files.types, join(source, '.mcpkit/tools.d.ts'));
+    assert.match(await readFile(second.files.types, 'utf8'), /"open_app"/);
+    assert.equal(await readFile(join(source, 'app.json'), 'utf8'), JSON.stringify({ pages: ['pages/home'] }));
+  } finally { await rm(source, { recursive: true, force: true }); }
 });
