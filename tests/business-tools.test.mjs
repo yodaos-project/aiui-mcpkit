@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema, ProgressNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
 
 const schema = { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'], additionalProperties: false };
@@ -138,8 +138,14 @@ test('handler progress is forwarded to MCP clients and resets only the configure
     const result = await buildPlugin({ ...f.options, requestPolicy: { requestTimeoutMs: 250, totalTimeoutMs: 2000, resetTimeoutOnProgress: true } });
     await client.connect(transport(result, f.project)); await client.listTools();
     const progress = [];
-    const response = await client.callTool({ name: 'progress', arguments: { value: 7 } }, CallToolResultSchema, { onprogress: value => progress.push(value) });
-    assert.deepEqual(response.structuredContent, { value: 7 }); assert.deepEqual(progress.map(item => item.progress), [0, 1, 2]);
+    // Observe protocol notifications directly: the SDK's onprogress callback can
+    // lose the last update when stdio reads it and the result in the same chunk.
+    // Notification dispatch is deferred, but result handling removes the callback.
+    const progressToken = 'business-progress-test';
+    client.setNotificationHandler(ProgressNotificationSchema, notification => progress.push(notification.params));
+    const response = await client.callTool({ name: 'progress', arguments: { value: 7 }, _meta: { progressToken } });
+    assert.deepEqual(response.structuredContent, { value: 7 });
+    assert.deepEqual(progress, [0, 1, 2].map(value => ({ progressToken, progress: value, total: 3 })));
   } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
 });
 
