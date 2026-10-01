@@ -5,7 +5,9 @@ import { distribution } from './metrics.mjs';
 import { rssBytes } from './footprint.mjs';
 
 export async function serverBenchmark(serverFile, settings) {
-  const client = new Client({ name: 'mcpkit-benchmark', version: '1' });
+  const client = new Client({ name: 'mcpkit-benchmark', version: '1' }, {
+    capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } },
+  });
   const transport = new StdioClientTransport({ command: process.execPath, args: [serverFile] });
   try {
     const start = performance.now();
@@ -13,8 +15,10 @@ export async function serverBenchmark(serverFile, settings) {
     const initializedMs = performance.now() - start;
     const tools = await client.listTools();
     assert.equal(tools.tools.length, 4);
+    const resourceUri = tools.tools.find(t => t.name === 'benchmark_card')?._meta?.ui?.resourceUri;
+    assert.equal(typeof resourceUri, 'string', 'benchmark_card must expose an MCP Apps UI resource to the benchmark host');
     const resourceStart = performance.now();
-    const resource = await client.readResource({ uri: tools.tools.find(t => t.name === 'benchmark_card')._meta.ui.resourceUri });
+    const resource = await client.readResource({ uri: resourceUri });
     const resourceReadMs = performance.now() - resourceStart;
     async function call(value) {
       const start = performance.now();
