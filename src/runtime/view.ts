@@ -1,5 +1,6 @@
 import { App, PostMessageTransport } from '@modelcontextprotocol/ext-apps';
 import { AgentToolBridge } from './tool-bridge.js';
+import { createMcpHostProvider } from './host-provider.js';
 import type { RequestPolicy } from './lifecycle.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
@@ -13,6 +14,7 @@ const files = decodeBundle(__INK_FILES__);
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
 let view: InkView | undefined;
+const hostProvider = createMcpHostProvider(app);
 const toolBridge = new AgentToolBridge({
   policy: config.requestPolicy, retrySafeTools: config.retrySafeTools,
   callTool: (params, context) => app.callServerTool(params, {
@@ -22,9 +24,10 @@ const toolBridge = new AgentToolBridge({
   }),
   send: state => view?.dispatchMessageEvent(state),
 });
-window.addEventListener('pagehide', () => toolBridge.cancelAll('View closed'));
-app.onteardown = () => { toolBridge.cancelAll('View closed'); return {}; };
+window.addEventListener('pagehide', () => { toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.destroy(); });
+app.onteardown = () => { toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.render(); view?.destroy(); return {}; };
 app.ontoolcancelled = params => {
+  hostProvider.cancelled(params.reason);
   toolBridge.cancelAll(params.reason || 'Host cancelled');
   document.body.dataset.requestState = 'cancelled';
 };
@@ -56,12 +59,14 @@ function openPage() {
   deliverToolResult();
 }
 
-app.ontoolinput = (input) => { pendingResult = undefined; document.body.dataset.requestState = 'pending'; query = input.arguments ?? {}; openPage(); };
+app.ontoolinputpartial = input => hostProvider.input(input.arguments || {}, true);
+app.ontoolinput = (input) => { hostProvider.input(input.arguments || {}); pendingResult = undefined; document.body.dataset.requestState = 'pending'; query = input.arguments ?? {}; openPage(); };
 app.ontoolresult = (result) => {
   if (document.body.dataset.requestState === 'cancelled') return;
   const invocation = result._meta?.aiui as { page?: string; query?: Record<string, unknown> } | undefined;
   // Host notifications have no correlation ID: accept only the current launch query.
   if (invocation?.query && query !== undefined && JSON.stringify(invocation.query) !== JSON.stringify(query)) return;
+  try { hostProvider.result(result); } catch { console.debug('Ink host result content modality is unavailable'); }
   document.body.dataset.requestState = result.isError ? 'error' : 'ready';
   if (result.structuredContent !== undefined || result._meta?.uiOnly !== undefined || result._meta?.businessError !== undefined) pendingResult = result;
   if (!result.isError && invocation?.page === initialPage && invocation.query) { query = invocation.query; openPage(); }
@@ -92,6 +97,7 @@ function resize() {
 new ResizeObserver(resize).observe(canvas);
 window.addEventListener('resize', resize);
 app.onhostcontextchanged = (context) => {
+  hostProvider.contextChanged(context);
   if (context.displayMode) applyMode(context.displayMode);
 };
 
@@ -119,6 +125,8 @@ async function main() {
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });
+  const hostView = view as InkView & { setHostProvider?: (provider: unknown) => Promise<unknown> };
+  if (hostView.setHostProvider) await hostView.setHostProvider(hostProvider);
   view.bindDomEvents({ canvas });
   openPage();
 }
