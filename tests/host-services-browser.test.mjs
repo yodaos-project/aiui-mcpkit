@@ -29,26 +29,32 @@ test(
         join(source, 'app.json'),
         JSON.stringify({ pages: ['home'] }),
       );
+      await writeFile(join(source, 'app.js'), `export default {
+        selectedSku: 'LIVE',
+        async onLaunch() {
+          await this.modelContext.registerTool({name:'get_selection',description:'Read live selection',inputSchema:{type:'object',properties:{}},execute:async()=>({selectedSku:this.selectedSku})});
+          await this.modelContext.registerTool({name:'hold_selection',description:'Wait for cancellation',execute:async(_,{signal})=>new Promise(resolve=>signal.addEventListener('abort',()=>{this.postMessage({type:'app-tool-aborted'});resolve(null);}))});
+        }
+      };`);
       await writeFile(
         join(source, 'home.ink'),
         `<script setup>
 export default {
  async onLoad() {
-  const host = getApp().host;
+  const host = getApp().getAgent();
   this.partial = event => this.postMessage({type:'incoming-partial',detail:event.detail});
   host.addEventListener('toolinputpartial',this.partial);
   try {
-   await host.whenReady();
-   await host.conversation.updateContext({structuredContent:{selectedSku:'DEMO'}});
-   const tool = await host.tools.call('check_stock',{sku:'DEMO'});
-   const list = await host.resources.list({cursor:'first'});
-   const resource = await host.resources.read('demo:stock');
+   await host.provideContext({key:'selection',description:'Selected SKU',value:{selectedSku:'DEMO'}});
+   const tool = await host.callTool('check_stock',{sku:'DEMO'});
+   const list = await host.listResources({cursor:'first'});
+   const resource = await host.readResource('demo:stock');
    let refusal;
-   try { await host.conversation.sendMessage({role:'user',content:[{type:'text',text:'Use selection'}]}); } catch(error) {refusal=error.name;}
+   try { await host.sendMessage({role:'user',content:[{type:'text',text:'Use selection'}]}); } catch(error) {refusal=error.name;}
    this.postMessage({type:'direct-host-results',tool,list,resource,refusal});
   } catch(error) {this.postMessage({type:'direct-host-error',name:error.name,message:error.message});}
  },
- onUnload(){getApp().host.removeEventListener('toolinputpartial',this.partial);}
+ onUnload(){getApp().getAgent().removeEventListener('toolinputpartial',this.partial);}
 };
 </script><page><text>Direct host services</text></page>`,
       );
@@ -126,7 +132,7 @@ window.bridge=bridge;await bridge.connect(new PostMessageTransport(frame.content
       );
       assert.ok(received, JSON.stringify(observed));
       assert.deepEqual(await page.evaluate(() => window.contexts), [
-        { structuredContent: { selectedSku: 'DEMO' } },
+        { structuredContent: { contexts: { selection: { description: 'Selected SKU', value: { selectedSku: 'DEMO' } } } } },
       ]);
       assert.equal((await page.evaluate(() => window.messages)).length, 1);
       assert.equal(received.refusal, 'NotAllowedError');
@@ -135,6 +141,19 @@ window.bridge=bridge;await bridge.connect(new PostMessageTransport(frame.content
       assert.ok(!JSON.stringify(received).includes('must-not-expose'));
       assert.equal(received.list.nextCursor, 'first');
       assert.equal(received.resource[1].blob, 'AAEC');
+      const exposed = await page.evaluate(() => window.bridge.listTools({}));
+      assert.ok(exposed.tools.some(tool => tool.name === 'get_selection'));
+      const liveResult = await page.evaluate(() => window.bridge.callTool({name:'get_selection',arguments:{}}));
+      assert.deepEqual(liveResult.structuredContent, {selectedSku:'LIVE'});
+      await page.evaluate(async () => {
+        const controller = new AbortController();
+        const pending = window.bridge.callTool({name:'hold_selection',arguments:{}}, {signal:controller.signal}).catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 100));
+        controller.abort();
+        await pending;
+      });
+      await expect.poll(() => observed.some(value => value.type === 'app-tool-aborted'), {timeout:5000}).toBe(true);
+
       await page.evaluate(() =>
         window.bridge.sendToolInputPartial({ arguments: { sku: 'D' } }),
       );

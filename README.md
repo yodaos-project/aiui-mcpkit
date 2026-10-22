@@ -65,7 +65,7 @@ MCPKit currently generates local stdio servers. Rendering needs Apps/WASM suppor
 
 ### Direct Ink host services and Worker execution
 
-With Ink Web SDK 0.20 or later, generated Views bind `getApp().host` to MCP Apps:
+With Ink Web SDK 0.20 or later, generated Views bind `getApp().getAgent()` to MCP Apps:
 conversation context publication, explicit user messages, tool calls and resource
 list/read operations use typed runtime APIs. Legacy message-based pages continue
 to work. Capabilities come from the completed host handshake; unsupported methods
@@ -75,11 +75,17 @@ redacts raw transport metadata, and keeps `isError` tool results as business res
 register local tools with `registerTool`, discover with `getTools`, and execute
 with `executeTool` (JSON text result). App methods use `this.modelContext`.
 Workers receive only this restricted App handle and do not run `app.js`.
-Conversation publication, remote tools and resources remain on `App.host`.
+Agent sessions expose `provideContext`, `sendMessage`, `callTool`, `listResources`
+and `readResource`. Context entries have independent keys and lifecycle handles;
+updates aggregate into `structuredContent.contexts` without publishing App/Page
+state automatically. Provider rebinding closes old sessions. `App.environment`
+is the separate immutable public environment. Live App tools are exposed through
+MCP Apps View tool listing/calling and require a host that routes View-provided
+tools to its LLM. These calls execute in the original App, not a headless worker.
 Context acknowledgement does not confirm a later model turn consumed the selection.
 MCP Apps notifications have no invocation ID; local revisions order them but cannot
-prove correlation between overlapping invocations. Tool-list proxying and list-change
-notifications are not advertised.
+prove correlation between overlapping invocations. Remote server-tool list proxying and list-change
+notifications are not advertised; live App registry changes are notified separately.
 
 A manifest-declared Agent Worker can implement business operations without a
 handwritten `mcp-server/handlers.ts` module:
@@ -116,7 +122,7 @@ Session state is shared between its calls and released at shutdown. It is separa
 from UI `open` worker generations. Cancellation is per request and cooperative.
 
 The Ink repository's `fixtures/agents/host-business` is the quote/stock example.
-Its Page calls `getApp().host.tools.call()` and the generated server reaches the
+Its Page calls `getApp().getAgent().callTool()` and the generated server reaches the
 same worker operation used by model-triggered calls. Selecting a SKU publishes only
 `selectedSku`; sending a conversation message is a separate action.
 

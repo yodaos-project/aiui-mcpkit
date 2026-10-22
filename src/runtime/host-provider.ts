@@ -84,10 +84,8 @@ export function createMcpHostProvider(app: App) {
   const capabilities = () => {
     const host = app.getHostCapabilities();
     const operations: Operation[] = [];
-    if (
-      host?.updateModelContext?.text ||
-      host?.updateModelContext?.structuredContent
-    )
+    // Ink context entries publish structured snapshots; text-only hosts cannot provide them.
+    if (host?.updateModelContext?.structuredContent)
       operations.push('conversation.updateContext');
     if (host?.message?.text) operations.push('conversation.sendMessage');
     if (host?.serverTools) operations.push('tools.call');

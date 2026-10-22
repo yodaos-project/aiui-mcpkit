@@ -62,3 +62,15 @@ npm test
 项目当前生成本地 stdio 服务，显示 UI 需要 Apps/WASM 支持。实际宿主验证范围见[兼容性说明](docs/reference/compatibility.zh-CN.md)，贡献流程与 benchmark 检查见[贡献指南](docs/contributing.zh-CN.md)。
 
 [提交 Issue](https://github.com/yodaos-project/aiui-mcpkit/issues) · [探索 AIUI](https://github.com/yodaos-project/AIUI)
+
+### Ink Agent 会话与当前 App 工具
+
+生成的 View 使用 `getApp().getAgent()` 提供 `provideContext`、`sendMessage`、
+`callTool`、`listResources` 和 `readResource`。上下文按 key 独立维护，汇总到
+`structuredContent.contexts`，不自动上传 App/Page 状态。重绑定关闭旧会话，公开环境
+独立位于 `App.environment`。
+
+`App.modelContext` 保留 WebMCP draft 工具接口。View 工具列表/调用通过 MCP Apps
+映射到原 App 的回调，注册变化发送列表通知；宿主必须支持 View 工具并纳入 LLM 路由。
+该路径与无界面 Worker 独立，Worker 仍只有受限的 `getApp().modelContext`。
+远端 server tools 的列表代理能力不因此获得支持。

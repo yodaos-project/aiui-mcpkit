@@ -12,9 +12,32 @@ const config = __APP_CONFIG__;
 const files = decodeBundle(__INK_FILES__);
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
-const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
+const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'], tools: { listChanged: true } }, { autoResize: false });
 let view: InkView | undefined;
 const hostProvider = createMcpHostProvider(app);
+// View-provided tools execute in the owning live App, independently of headless worker tools.
+app.onlisttools = async () => ({
+  tools: (await view?.modelContext?.getTools() || []).map(tool => ({
+    name: tool.name,
+    description: tool.description,
+    ...(tool.title ? { title: tool.title } : {}),
+    inputSchema: { ...(tool.inputSchema || {}), type: 'object' as const },
+    ...(typeof tool.annotations?.readOnlyHint === 'boolean'
+      ? { annotations: { readOnlyHint: tool.annotations.readOnlyHint } } : {}),
+  })),
+});
+app.oncalltool = async (params, extra) => {
+  const owner = view;
+  if (!owner?.modelContext) throw new Error('Ink App tools are unavailable');
+  const tool = (await owner.modelContext.getTools()).find(tool => tool.name === params.name);
+  if (!tool) throw new Error('Ink App tool is unavailable');
+  const text = await owner.modelContext.executeTool(tool, params.arguments || {}, { signal: extra.mcpReq.signal });
+  const result = JSON.parse(text);
+  return { content: [{ type: 'text', text }],
+    ...(result && typeof result === 'object' && !Array.isArray(result) ? { structuredContent: result } : {}),
+  };
+};
+
 const toolBridge = new AgentToolBridge({
   policy: config.requestPolicy, retrySafeTools: config.retrySafeTools,
   callTool: (params, context) => app.callServerTool(params, {
@@ -127,6 +150,9 @@ async function main() {
   });
   const hostView = view as InkView & { setHostProvider?: (provider: unknown) => Promise<unknown> };
   if (hostView.setHostProvider) await hostView.setHostProvider(hostProvider);
+  view.modelContext?.addEventListener('toolchange', () => {
+    app.sendToolListChanged().catch(() => {});
+  });
   view.bindDomEvents({ canvas });
   openPage();
 }
