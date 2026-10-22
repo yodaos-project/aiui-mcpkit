@@ -38,6 +38,60 @@ async function fixture() {
   return { root, source };
 }
 test(
+  'generated MCP tools execute Worker App.modelContext registrations without app.js',
+  { skip: !enabled },
+  async () => {
+    const f = await fixture();
+    const client = new Client({ name: 'model-context-test', version: '1' });
+    try {
+      await writeFile(
+        join(f.source, 'app.js'),
+        "throw new Error('UI App entry must not execute');",
+      );
+      await writeFile(
+        join(f.source, 'workers/business.js'),
+        `
+      const app = getApp();
+      if ('host' in app || 'postMessage' in app) throw new Error('Unexpected App capabilities');
+      await app.modelContext.registerTool({
+        name: 'check_stock', description: 'Read stock',
+        execute: async (input, {signal}) => {
+          signal.throwIfAborted();
+          return {content:[],structuredContent:{sku:input.sku,available:100}};
+        },
+      });
+      export default {};
+    `,
+      );
+      const built = await buildPlugin({
+        source: f.source,
+        name: 'worker-model-context',
+        outputDir: join(f.root, 'out'),
+        worker: { name: 'business' },
+      });
+      const transport = new StdioClientTransport({
+        command: process.execPath,
+        args: [built.files.server],
+        stderr: 'pipe',
+        env: { ...process.env, INK_WORKER_BIN: process.env.INK_WORKER_BIN },
+      });
+      transport.stderr?.resume();
+      await client.connect(transport);
+      const result = await client.callTool({
+        name: 'check_stock',
+        arguments: { sku: 'DEMO' },
+      });
+      assert.deepEqual(result.structuredContent, {
+        sku: 'DEMO',
+        available: 100,
+      });
+    } finally {
+      await client.close();
+      await rm(f.root, { recursive: true, force: true });
+    }
+  },
+);
+test(
   'generated MCP adapter invokes real Ink worker without handwritten handlers or UI',
   { skip: !enabled },
   async () => {

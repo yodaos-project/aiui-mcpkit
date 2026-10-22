@@ -34,7 +34,7 @@ test(
         `<script setup>
 export default {
  async onLoad() {
-  const host = navigator.host;
+  const host = getApp().host;
   this.partial = event => this.postMessage({type:'incoming-partial',detail:event.detail});
   host.addEventListener('toolinputpartial',this.partial);
   try {
@@ -48,7 +48,7 @@ export default {
    this.postMessage({type:'direct-host-results',tool,list,resource,refusal});
   } catch(error) {this.postMessage({type:'direct-host-error',name:error.name,message:error.message});}
  },
- onUnload(){navigator.host.removeEventListener('toolinputpartial',this.partial);}
+ onUnload(){getApp().host.removeEventListener('toolinputpartial',this.partial);}
 };
 </script><page><text>Direct host services</text></page>`,
       );
