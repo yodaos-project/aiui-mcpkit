@@ -38,7 +38,7 @@ async function fixture() {
   return { root, source };
 }
 test(
-  'generated MCP tools execute Worker App.modelContext registrations without app.js',
+  'generated MCP tools execute declared Worker tools without app.js',
   { skip: !enabled },
   async () => {
     const f = await fixture();
@@ -53,14 +53,18 @@ test(
         `
       const app = getApp();
       if ('host' in app || 'postMessage' in app) throw new Error('Unexpected App capabilities');
-      await app.modelContext.registerTool({
-        name: 'check_stock', description: 'Read stock',
-        execute: async (input, {signal}) => {
-          signal.throwIfAborted();
-          return {content:[],structuredContent:{sku:input.sku,available:100}};
+      export default {
+        available: 100,
+        tools: {
+          check_stock: {
+            description: 'Read stock',
+            execute(input, {signal}) {
+              signal.throwIfAborted();
+              return {content:[],structuredContent:{sku:input.sku,available:this.available}};
+            },
+          },
         },
-      });
-      export default {};
+      };
     `,
       );
       const built = await buildPlugin({
