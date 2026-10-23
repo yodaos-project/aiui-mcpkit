@@ -86,6 +86,8 @@ state automatically. Provider rebinding closes old sessions. `App.environment`
 is the separate immutable public environment. Live App tools are exposed through
 MCP Apps View tool listing/calling and require a host that routes View-provided
 tools to its LLM. These calls execute in the original App, not a headless worker.
+The adapter reuses Ink SDK provider request types, so operation branches narrow
+their payloads without a separate local protocol definition.
 Context acknowledgement does not confirm a later model turn consumed the selection.
 MCP Apps notifications have no invocation ID; local revisions order them but cannot
 prove correlation between overlapping invocations. Remote server-tool list proxying and list-change

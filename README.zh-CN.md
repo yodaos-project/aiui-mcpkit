@@ -68,7 +68,8 @@ npm test
 生成的 View 使用 `getApp().getAgent()` 提供 `provideContext`、`conversation.sendMessage`、
 `callTool`、`listResources` 和 `readResource`。上下文按 key 独立维护，汇总到
 `structuredContent.contexts`，不自动上传 App/Page 状态。重绑定关闭旧会话，公开环境
-独立位于 `App.environment`。
+独立位于 `App.environment`。provider 复用 Ink SDK 的请求类型，按 operation 分支自动
+收窄 payload，无需维护另一份本地协议类型。
 
 App、Page、AgentWorker 均可用 `defineAction()` 标记默认导出的方法；工具名显式声明，
 与方法名独立，返回值仍是普通可调用函数。模型调用的 `this` 绑定所属实例。

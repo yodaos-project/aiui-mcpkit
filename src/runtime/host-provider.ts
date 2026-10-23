@@ -1,20 +1,13 @@
 import type { App } from '@modelcontextprotocol/ext-apps';
+import type {
+  InkHostOperation,
+  InkHostProviderRequest,
+  InkHostProviderRequestContext,
+} from '@yodaos-pkg/ink';
 
 type JsonObject = Record<string, unknown>;
-type Operation =
-  | 'conversation.updateContext'
-  | 'conversation.sendMessage'
-  | 'tools.call'
-  | 'resources.list'
-  | 'resources.read';
-interface Request {
-  session: string;
-  realm: string;
-  id: string;
-  revision: number;
-  operation: Operation;
-  payload: JsonObject;
-}
+type Operation = InkHostOperation;
+type Request = InkHostProviderRequest;
 interface Observer {
   update(value: {
     capabilities: {
@@ -152,20 +145,13 @@ export function createMcpHostProvider(app: App) {
     },
     async request(
       request: Request,
-      context: {
-        signal: AbortSignal;
-        onProgress(value: {
-          value: number;
-          total?: number;
-          message?: string;
-        }): void;
-      },
+      context: InkHostProviderRequestContext,
     ): Promise<unknown> {
       if (!capabilities().operations.includes(request.operation))
         throw fail('NotSupportedError', 'Host operation is unavailable');
       const options = { signal: context.signal, timeout: 120_000 };
-      const payload = request.payload;
-      switch (request.operation) {
+      const { operation, payload } = request;
+      switch (operation) {
         case 'conversation.updateContext': {
           const host = app.getHostCapabilities()!.updateModelContext!;
           if (payload.content !== undefined && !host.text)
@@ -218,8 +204,8 @@ export function createMcpHostProvider(app: App) {
         case 'tools.call': {
           const result = await app.callServerTool(
             {
-              name: String(payload.name),
-              arguments: payload.input as JsonObject,
+              name: payload.name,
+              arguments: payload.input,
             },
             {
               ...options,
@@ -239,7 +225,7 @@ export function createMcpHostProvider(app: App) {
           const result = await app.listServerResources(
             payload.cursor === undefined
               ? {}
-              : { cursor: String(payload.cursor) },
+              : { cursor: payload.cursor },
             options,
           );
           return {
@@ -258,7 +244,7 @@ export function createMcpHostProvider(app: App) {
         }
         case 'resources.read': {
           const result = await app.readServerResource(
-            { uri: String(payload.uri) },
+            { uri: payload.uri },
             options,
           );
           return result.contents.map((value) => ({
@@ -269,6 +255,8 @@ export function createMcpHostProvider(app: App) {
             ...('text' in value ? { text: value.text } : { blob: value.blob }),
           }));
         }
+        default:
+          throw fail('NotSupportedError', 'Host operation is unavailable');
       }
     },
     async release(binding: { session: string; realm: string }) {
