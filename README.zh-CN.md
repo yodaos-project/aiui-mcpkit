@@ -77,3 +77,6 @@ Page 工具随显示、隐藏和卸载管理，Worker 注册表独立；动态�
 映射到原 App 的回调，注册变化发送列表通知；宿主必须支持 View 工具并纳入 LLM 路由。
 该路径与无界面 Worker 独立，Worker 仍只有受限的 `getApp().modelContext`。
 远端 server tools 的列表代理能力不因此获得支持。
+
+运行时卡片 API 需要宿主提供专门的渲染适配；当前 MCP Apps 适配器不声明卡片能力，
+也不会把卡片转成用户文本消息。

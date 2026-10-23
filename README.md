@@ -142,3 +142,6 @@ then run `npm install /absolute/path/to/ink/packages/ink-web/dist --no-save --pa
 in this checkout. The host-services browser test checks the installed SDK's actual
 `setHostProvider` method and skips on older runtimes; the native Worker tests need
 `INK_WORKER_BIN`. Both paths are run against the new runtime during feature validation.
+
+The runtime cards API requires a dedicated Host renderer; this MCP Apps adapter
+does not advertise card operations or convert cards into user messages.
