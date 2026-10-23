@@ -38,7 +38,7 @@ async function fixture() {
   return { root, source };
 }
 test(
-  'generated MCP tools execute declared Worker tools without app.js',
+  'generated MCP tools execute Worker action methods without app.js',
   { skip: !enabled },
   async () => {
     const f = await fixture();
@@ -55,15 +55,14 @@ test(
       if ('host' in app || 'postMessage' in app) throw new Error('Unexpected App capabilities');
       export default {
         available: 100,
-        tools: {
-          check_stock: {
-            description: 'Read stock',
-            execute(input, {signal}) {
-              signal.throwIfAborted();
-              return {content:[],structuredContent:{sku:input.sku,available:this.available}};
-            },
+        checkStock: defineAction({
+          name: 'check_stock',
+          description: 'Read stock',
+          execute(input, {signal}) {
+            signal.throwIfAborted();
+            return {content:[],structuredContent:{sku:input.sku,available:this.available}};
           },
-        },
+        }),
       };
     `,
       );
