@@ -62,3 +62,24 @@ npm test
 项目当前生成本地 stdio 服务，显示 UI 需要 Apps/WASM 支持。实际宿主验证范围见[兼容性说明](docs/reference/compatibility.zh-CN.md)，贡献流程与 benchmark 检查见[贡献指南](docs/contributing.zh-CN.md)。
 
 [提交 Issue](https://github.com/yodaos-project/aiui-mcpkit/issues) · [探索 AIUI](https://github.com/yodaos-project/AIUI)
+
+### Ink Agent 会话与当前 App 工具
+
+生成的 View 使用 `getApp().getAgent()` 提供 `provideContext`、`conversation.sendMessage`、
+`callTool`、`listResources` 和 `readResource`。上下文按 key 独立维护，汇总到
+`structuredContent.contexts`，不自动上传 App/Page 状态。重绑定关闭旧会话，公开环境
+独立位于 `App.environment`。provider 复用 Ink SDK 的请求类型，按 operation 分支自动
+收窄 payload，无需维护另一份本地协议类型。
+
+App、Page、AgentWorker 均可用 `ModelContext.defineAction()` 标记默认导出的方法；工具名显式声明，
+与方法名独立，返回值仍是普通可调用函数。该静态方法是 Ink 扩展，无须 import 或 App 实例，
+不提供独立的全局 `defineAction`。模型调用的 `this` 绑定所属实例。
+Page 工具随显示、隐藏和卸载管理，Worker 注册表独立；动态场景继续使用 `registerTool()`。
+`App.modelContext` 保留 WebMCP draft 工具接口。View 工具列表/调用通过 MCP Apps
+映射到原 App 的回调，注册变化发送列表通知；宿主必须支持 View 工具并纳入 LLM 路由。
+该路径与无界面 Worker 独立，Worker 仍只有受限的 `getApp().modelContext`。
+远端 server tools 的列表代理能力不因此获得支持。
+
+运行时的 `agent.conversation.sendCard()` 需要专用宿主渲染器，返回的句柄仅提供 `id` 与
+`update()`，不提供移除接口；卡片由宿主对话管理保留策略。当前 MCP Apps 适配器不声明
+`conversation.sendCard`、`conversation.updateCard`，也不会把卡片自动转为用户文本消息。
