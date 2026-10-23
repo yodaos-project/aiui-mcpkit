@@ -48,7 +48,7 @@ export default {
    const list = await host.listResources({cursor:'first'});
    const resource = await host.readResource('demo:stock');
    let refusal;
-   try { await host.sendMessage({role:'user',content:[{type:'text',text:'Use selection'}]}); } catch(error) {refusal=error.name;}
+   try { await host.conversation.sendMessage({role:'user',content:[{type:'text',text:'Use selection'}]}); } catch(error) {refusal=error.name;}
    this.postMessage({type:'direct-host-results',tool,list,resource,refusal});
   } catch(error) {this.postMessage({type:'direct-host-error',name:error.name,message:error.message});}
  },

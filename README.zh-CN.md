@@ -65,7 +65,7 @@ npm test
 
 ### Ink Agent 会话与当前 App 工具
 
-生成的 View 使用 `getApp().getAgent()` 提供 `provideContext`、`sendMessage`、
+生成的 View 使用 `getApp().getAgent()` 提供 `provideContext`、`conversation.sendMessage`、
 `callTool`、`listResources` 和 `readResource`。上下文按 key 独立维护，汇总到
 `structuredContent.contexts`，不自动上传 App/Page 状态。重绑定关闭旧会话，公开环境
 独立位于 `App.environment`。
@@ -78,5 +78,6 @@ Page 工具随显示、隐藏和卸载管理，Worker 注册表独立；动态�
 该路径与无界面 Worker 独立，Worker 仍只有受限的 `getApp().modelContext`。
 远端 server tools 的列表代理能力不因此获得支持。
 
-运行时卡片 API 需要宿主提供专门的渲染适配；当前 MCP Apps 适配器不声明卡片能力，
-也不会把卡片转成用户文本消息。
+运行时的 `agent.conversation.sendCard()` 需要专用宿主渲染器，返回的句柄仅提供 `id` 与
+`update()`，不提供移除接口；卡片由宿主对话管理保留策略。当前 MCP Apps 适配器不声明
+`conversation.sendCard`、`conversation.updateCard`，也不会把卡片自动转为用户文本消息。

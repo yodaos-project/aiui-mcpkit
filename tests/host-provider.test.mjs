@@ -89,7 +89,9 @@ test('MCP adapter negotiates precise operations and buffers only public invocati
   assert.equal(f.snapshot.capabilities.toolListChanged, false);
   assert.equal(f.snapshot.capabilities.resourceListChanged, false);
   assert.ok(
-    !f.snapshot.capabilities.operations.some((value) => value.startsWith('cards.')),
+    !f.snapshot.capabilities.operations.some((value) =>
+      ['conversation.sendCard', 'conversation.updateCard'].includes(value),
+    ),
   );
   assert.deepEqual(
     f.notifications.map((value) => value.type),

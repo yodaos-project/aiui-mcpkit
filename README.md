@@ -79,7 +79,7 @@ names, and return ordinary callable methods. Model calls receive the owning
 instance as `this`. Page actions follow show/hide/unload; Worker default exports
 support the same `defineAction()` methods in an independent registry. App methods use `this.modelContext`.
 Workers receive only this restricted App handle and do not run `app.js`.
-Agent sessions expose `provideContext`, `sendMessage`, `callTool`, `listResources`
+Agent sessions expose `provideContext`, `conversation.sendMessage`, `callTool`, `listResources`
 and `readResource`. Context entries have independent keys and lifecycle handles;
 updates aggregate into `structuredContent.contexts` without publishing App/Page
 state automatically. Provider rebinding closes old sessions. `App.environment`
@@ -143,5 +143,7 @@ in this checkout. The host-services browser test checks the installed SDK's actu
 `setHostProvider` method and skips on older runtimes; the native Worker tests need
 `INK_WORKER_BIN`. Both paths are run against the new runtime during feature validation.
 
-The runtime cards API requires a dedicated Host renderer; this MCP Apps adapter
-does not advertise card operations or convert cards into user messages.
+The runtime `agent.conversation.sendCard()` API requires a dedicated Host renderer.
+Its handles support `update()` without removal; the Host conversation owns retention.
+This MCP Apps adapter advertises neither `conversation.sendCard` nor
+`conversation.updateCard` and does not convert cards into user messages.
