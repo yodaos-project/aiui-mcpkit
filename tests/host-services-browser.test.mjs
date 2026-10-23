@@ -31,8 +31,8 @@ test(
       );
       await writeFile(join(source, 'app.js'), `export default {
         selectedSku: 'LIVE',
-        getSelection: defineAction({name:'get_selection',description:'Read live selection',inputSchema:{type:'object',properties:{}},execute(){return {selectedSku:this.selectedSku};}}),
-        holdSelection: defineAction({name:'hold_selection',description:'Wait for cancellation',execute(_,{signal}){return new Promise(resolve=>signal.addEventListener('abort',()=>{this.postMessage({type:'app-tool-aborted'});resolve(null);}));}})
+        getSelection: ModelContext.defineAction({name:'get_selection',description:'Read live selection',inputSchema:{type:'object',properties:{}},execute(){return {selectedSku:this.selectedSku};}}),
+        holdSelection: ModelContext.defineAction({name:'hold_selection',description:'Wait for cancellation',execute(_,{signal}){return new Promise(resolve=>signal.addEventListener('abort',()=>{this.postMessage({type:'app-tool-aborted'});resolve(null);}));}})
       };`);
       await writeFile(
         join(source, 'home.ink'),

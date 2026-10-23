@@ -55,7 +55,7 @@ test(
       if ('host' in app || 'postMessage' in app) throw new Error('Unexpected App capabilities');
       export default {
         available: 100,
-        checkStock: defineAction({
+        checkStock: ModelContext.defineAction({
           name: 'check_stock',
           description: 'Read stock',
           execute(input, {signal}) {

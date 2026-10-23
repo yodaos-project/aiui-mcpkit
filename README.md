@@ -72,12 +72,14 @@ to work. Capabilities come from the completed host handshake; unsupported method
 reject. The adapter supports text content, checks structured-context support,
 redacts raw transport metadata, and keeps `isError` tool results as business results.
 `getApp().modelContext` is the separate App-owned WebMCP draft tool interface:
-mark App/Page methods with `defineAction()`, or register dynamically with
+mark App/Page methods with `ModelContext.defineAction()`, or register dynamically with
 `registerTool`; discover with `getTools` and execute with `executeTool` (JSON text).
-Action definitions specify their tool names explicitly, independently of method
+The global `ModelContext` interface object provides this static Ink extension
+without an import or an App instance; the standalone global `defineAction` is
+not available. Action definitions specify their tool names explicitly, independently of method
 names, and return ordinary callable methods. Model calls receive the owning
 instance as `this`. Page actions follow show/hide/unload; Worker default exports
-support the same `defineAction()` methods in an independent registry. App methods use `this.modelContext`.
+support the same `ModelContext.defineAction()` methods in an independent registry. App methods use `this.modelContext`.
 Workers receive only this restricted App handle and do not run `app.js`.
 Agent sessions expose `provideContext`, `conversation.sendMessage`, `callTool`, `listResources`
 and `readResource`. Context entries have independent keys and lifecycle handles;

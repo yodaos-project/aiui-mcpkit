@@ -71,8 +71,9 @@ npm test
 独立位于 `App.environment`。provider 复用 Ink SDK 的请求类型，按 operation 分支自动
 收窄 payload，无需维护另一份本地协议类型。
 
-App、Page、AgentWorker 均可用 `defineAction()` 标记默认导出的方法；工具名显式声明，
-与方法名独立，返回值仍是普通可调用函数。模型调用的 `this` 绑定所属实例。
+App、Page、AgentWorker 均可用 `ModelContext.defineAction()` 标记默认导出的方法；工具名显式声明，
+与方法名独立，返回值仍是普通可调用函数。该静态方法是 Ink 扩展，无须 import 或 App 实例，
+不提供独立的全局 `defineAction`。模型调用的 `this` 绑定所属实例。
 Page 工具随显示、隐藏和卸载管理，Worker 注册表独立；动态场景继续使用 `registerTool()`。
 `App.modelContext` 保留 WebMCP draft 工具接口。View 工具列表/调用通过 MCP Apps
 映射到原 App 的回调，注册变化发送列表通知；宿主必须支持 View 工具并纳入 LLM 路由。
