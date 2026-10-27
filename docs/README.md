@@ -17,6 +17,7 @@ This is the complete AIUI MCPKit documentation. Read the getting-started guides 
 | --- | --- |
 | [Page tools](guides/page-tools.md) | Input schemas, routes and launch arguments |
 | [Typed business tools](guides/business-tools.md) | Handlers, generated types, results and errors |
+| [Agent sessions and live tools](guides/agent-session.md) | User messages, explicit context, App/Page actions and dynamic tools |
 | [Request lifecycle](guides/tool-lifecycle.md) | Loading, progress, cancellation, timeouts and retries |
 | [Public metadata](guides/metadata.md) | Merge rules, custom resources and exact inspection |
 | [ESM build integration](guides/esm-build.md) | Use MCPKit in your own Node project |

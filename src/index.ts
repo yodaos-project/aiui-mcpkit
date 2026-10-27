@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { readFile, readdir, mkdir, writeFile, realpath } from 'node:fs/promises';
+import { readFile, readdir, mkdir, writeFile, realpath, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +34,8 @@ export interface BuildPluginOptions extends MetadataOptions {
   retrySafeTools?: string[];
   /** Server-only handlers module. Defaults to <source>/mcp-server/handlers.ts for pages with schema.output. */
   handlers?: string;
+  /** Execute schema.output tools in this manifest worker using an external ink-worker host. */
+  worker?: { name: string };
   /** Generated handler/input/output declarations. Defaults to <outputDir>/tools.d.ts. */
   typesFile?: string;
   title?: string;
@@ -131,7 +133,9 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   }
   tools = protocol.tools;
   const hasBusinessTools = tools.some(tool => tool.outputSchema !== undefined);
-  const handlersPath = hasBusinessTools ? resolve(options.handlers ?? join(source, 'mcp-server/handlers.ts')) : undefined;
+  if (options.worker && options.handlers) throw new Error('worker and handlers are mutually exclusive.');
+  if (options.worker && (!options.worker.name || !Array.isArray(manifest.agentWorkers) || !manifest.agentWorkers.some((value: { name?: string }) => value.name === options.worker!.name))) throw new Error('worker.name must select an app.json.agentWorkers entry.');
+  const handlersPath = hasBusinessTools && !options.worker ? resolve(options.handlers ?? join(source, 'mcp-server/handlers.ts')) : undefined;
   if (handlersPath && nested(out, handlersPath)) throw new Error('Business handlers must be outside the output directory.');
   const typesFile = resolve(options.typesFile ?? join(out, 'tools.d.ts'));
   if (!typesFile.endsWith('.d.ts')) throw new Error('typesFile must end with .d.ts.');
@@ -145,8 +149,9 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     plugins: [{ name: 'business-handlers', setup(plugin) {
       plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit$/ }, () => ({ path: fileURLToPath(new URL('server-api.ts', runtime)) }));
       plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit\/tools$/ }, () => ({ path: fileURLToPath(new URL('business-tools.ts', runtime)) }));
-      plugin.onResolve({ filter: /^mcpkit:business-handlers$/ }, () => handlersPath
+      plugin.onResolve({ filter: /^mcpkit:business-handlers$/ }, () => options.worker ? { path: 'worker-handlers', namespace: 'mcpkit' } : handlersPath
         ? { path: handlersPath } : { path: 'empty-handlers', namespace: 'mcpkit' });
+      plugin.onLoad({ filter: /^worker-handlers$/, namespace: 'mcpkit' }, () => ({ contents: `import { createWorkerHandlers } from ${JSON.stringify(fileURLToPath(new URL('worker-tools.ts', runtime)))}; export const handlers = createWorkerHandlers(${JSON.stringify(options.worker!.name)}, ${JSON.stringify(tools.filter(tool => tool.outputSchema).map(tool => tool.name))});`, loader: 'ts', resolveDir: fileURLToPath(runtime) }));
       plugin.onLoad({ filter: /^empty-handlers$/, namespace: 'mcpkit' }, () => ({ contents: 'export const handlers = {};', loader: 'js' }));
     } }],
     define: { __APP_CONFIG__: JSON.stringify(config) },
@@ -195,6 +200,14 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   await mkdir(join(out, 'dist'), { recursive: true });
   await writeFile(join(out, 'view.html'), html);
   await writeFile(join(out, 'dist/server.mjs'), server.outputFiles[0].contents);
+  if (options.worker) {
+    await rm(join(out, 'worker-app'), { recursive: true, force: true });
+    for (const [path, entry] of Object.entries(packagedFiles)) {
+      const destination = join(out, 'worker-app', path);
+      await mkdir(dirname(destination), { recursive: true });
+      await writeFile(destination, entry.encoding === 'base64' ? Buffer.from(entry.data, 'base64') : entry.data);
+    }
+  }
   await mkdir(dirname(typesFile), { recursive: true });
   await writeFile(typesFile, toolTypes(tools));
   const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
