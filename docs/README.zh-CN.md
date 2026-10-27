@@ -18,6 +18,7 @@
 | [页面工具](guides/page-tools.zh-CN.md) | 输入 schema、页面路由与启动参数 |
 | [带类型的业务工具](guides/business-tools.zh-CN.md) | Handler、生成类型、结果和错误 |
 | [Agent 会话与实时工具](guides/agent-session.zh-CN.md) | 用户消息、显式上下文、App/Page Action 与动态工具 |
+| [运行时集成与 Worker](guides/runtime-integration.zh-CN.md) | 运行时契约、无界面执行、迁移与部署 |
 | [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 加载、进度、取消、超时与重试 |
 | [公开元数据](guides/metadata.zh-CN.md) | 合并规则、自定义资源与协议检查 |
 | [ESM 构建接入](guides/esm-build.zh-CN.md) | 在自己的 Node 项目中使用 MCPKit |

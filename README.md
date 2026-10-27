@@ -1,22 +1,36 @@
 # AIUI MCPKit
 
-**Turn AIUI Agents into interactive apps inside AI clients.**
+**Build interactive MCP Apps with JavaScript and AIUI.**
 
-MCPKit packages [AIUI Agent](https://github.com/yodaos-project/AIUI) pages, the Ink WebAssembly runtime and a local MCP server together. Compatible MCP Apps clients display the interface: AI uses tool data while users operate buttons and state directly.
+Give your AI tools an interface people can use: buttons, forms, calculations and live state inside an MCP Apps client. MCPKit turns your [AIUI agent](https://github.com/yodaos-project/AIUI) into a plugin, bundling its pages, the [Ink](https://github.com/jsar-project/ink) WebAssembly renderer and an MCP server.
 
-[简体中文](README.zh-CN.md) · [Documentation and tutorials](docs/README.md) · [Quickstart](docs/getting-started/quickstart.md)
+[![CI](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/ci.yml)
+[![Benchmarks](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/benchmark.yml/badge.svg?branch=main)](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/benchmark.yml)
+[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](package.json)
 
-## What you can build
+[简体中文](README.zh-CN.md) · [Quickstart](#quickstart) · [Examples](#see-it-in-action) · [Documentation](docs/README.md) · [Contributing](#contributing)
 
-- Generate MCP tools from page schemas and open each tool's page.
-- Implement typed business handlers with generated input/output declarations and runtime validation.
-- Handle progress, cancellation, timeouts and controlled retries.
-- Configure public metadata/custom UI resources and inspect final protocol items.
-- Build a complete plugin through the ESM API; install in Codex or connect a client directly over stdio.
+## See it in action
 
-## Try it
+| Interactive Counter | Business tools |
+| --- | --- |
+| [![Counter with live state, session statistics and recent actions](docs/assets/counter.png)](examples/counter) | [![Order quote with structured totals, stock data and calculate/cancel actions](docs/assets/business.png)](examples/business) |
+| Open a page with tool arguments, change state and expand the view. | Return a quote to the model, render stock data and call or cancel work from the UI. |
 
-You need **Node.js 22+**, Git and an MCP Apps client. Run these commands in a terminal:
+*Real Ink/WASM output captured in the local MCP Apps browser harness. The business example uses deterministic demo data.*
+
+## Why MCPKit?
+
+- **Define the tool where you build the UI.** Page schemas generate tool registration, validated inputs and typed business contracts. Keep names, descriptions and schemas in your `.ink` pages.
+- **Let the model use your live UI state.** Expose App/Page methods with `ModelContext.defineAction()` or register tools dynamically. Calls execute against the running instance, with cancellation and tool-list updates.
+- **Connect UI actions to the conversation.** Send user messages, publish selected context, call host tools and read resources through `getApp().getAgent()`. Publish only the state you choose.
+- **Build business tools with TypeScript.** Generated types and runtime validation cover inputs and outputs. Structured results reach the model; UI-only metadata supports rendering. Credentials stay in server code.
+- **Run business logic without opening a view.** Use a manifest-declared Agent Worker through the real Ink runtime, or keep Node.js handlers for server integrations.
+- **Package and verify the whole plugin.** An ESM API generates the server, UI resources, manifests and declarations. Progress, timeouts, cancellation, controlled retries and real WASM regression coverage are included.
+
+## Quickstart
+
+You need **Node.js 22+**, Git and an MCP Apps client. Run these commands in your terminal:
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
@@ -25,7 +39,14 @@ npm ci
 npm run build:examples
 ```
 
-Install the examples with a Codex CLI that supports plugin commands:
+This builds two independent plugins under `dist/examples/`:
+
+| Example | Tools | Try it |
+| --- | --- | --- |
+| [Counter](examples/counter) | `open_counter`, `open_countdown` | Start at 5 and add one, or count down from 8 in steps of 2. |
+| [Business demo](examples/business) | `quote_order`, `check_stock` | Calculate a quote, inspect stock and exercise loading/cancellation. |
+
+For Codex Desktop, install with a Codex CLI that supports plugin commands:
 
 ```sh
 codex plugin marketplace add ./dist/examples
@@ -33,25 +54,90 @@ codex plugin add ink-counter@aiui-mcpkit-examples
 codex plugin add business-demo@aiui-mcpkit-examples
 ```
 
-Restart the desktop host and confirm tools appear in the current session. Ask the client to call `open_counter` with `{ "initialCount": 5, "label": "Demo" }`; one **+ ADD ONE** click should change it to 6.
+Restart the host and confirm the tools appear in the active session. Ask it to call `open_counter` with `{ "initialCount": 5, "label": "Demo" }`. Click **+ ADD ONE**: the count should change from **5 to 6**.
 
-Follow the [quickstart](docs/getting-started/quickstart.md) for complete steps, business examples and expected results. For Claude Desktop, VS Code or other clients, see [client setup](docs/guides/clients.md).
+Next, call `quote_order` with `{ "quantity": 2 }`: expect **CNY 40**, remaining stock **98**, and working **CALCULATE** / **CANCEL** controls when host tool access is enabled.
 
-## Documentation and tutorials
+Use [client setup](docs/guides/clients.md) for Claude Desktop, VS Code and direct stdio connections. The [complete walkthrough](docs/getting-started/quickstart.md) covers installation, tool discovery and expected results.
 
-| Your goal | Start here |
+## Build your own
+
+Create an agent with `app.json` and registered `.ink` pages using [your first Agent](docs/getting-started/first-agent.md). A page's `script def` supplies its tool metadata and input schema; add `schema.output` for business results. MCPKit generates the protocol plumbing.
+
+After `npm run build`, save this as `build-agent.mjs` at the checkout root. Put your agent source in `./agent/`:
+
+```js
+import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
+
+const plugin = await buildPlugin({
+  source: './agent',
+  name: 'my-agent',
+  outputDir: './dist/my-agent',
+});
+
+console.log(plugin.outputDir);
+```
+
+Run `node build-agent.mjs`. The output contains `view.html`, `dist/server.mjs` and plugin/connection manifests. The generated server bundles its runtime dependencies; the deployment host needs Node.js 22+. Native Worker execution additionally needs `ink-worker`.
+
+For a separate Node.js project, follow [ESM package integration](docs/guides/esm-build.md). For business execution, choose [typed server handlers](docs/guides/business-tools.md) or [Agent Workers](docs/guides/runtime-integration.md#run-business-tools-in-a-worker).
+
+## Give the assistant access to your agent
+
+Add methods like these to a Page's default export. A model can read the current selection, and a button bound to `askAssistant` can send an explicit user message:
+
+```js
+export default {
+  data: { selectedSku: 'DEMO' },
+  getSelection: ModelContext.defineAction({
+    name: 'get_selection',
+    description: 'Read the product selected on this page',
+    annotations: { readOnlyHint: true },
+    execute() {
+      return { selectedSku: this.data.selectedSku };
+    },
+  }),
+  async askAssistant() {
+    await getApp().getAgent().conversation.sendMessage({
+      role: 'user',
+      content: [{ type: 'text', text: 'Describe product ' + this.data.selectedSku + '.' }],
+    });
+  },
+};
+```
+
+Use `agent.provideContext()` for context that should accompany later model turns, and `getApp().modelContext.registerTool()` for tools whose availability changes at runtime. See [Agent sessions and live tools](docs/guides/agent-session.md) for complete pages, context updates and tool revocation.
+
+## Client support
+
+MCPKit currently generates **local stdio servers**. Interactive rendering requires an MCP Apps host with WASM support; clients without Apps support receive tool data and an explicit UI-unavailable response.
+
+| Surface | Current verification |
 | --- | --- |
-| Learn MCP / AIUI concepts | [Overview](docs/getting-started/overview.md) · [Environment setup](docs/getting-started/installation.md) |
-| Write your first interactive page | [Your first Agent](docs/getting-started/first-agent.md) |
-| Provide tools and business data to AI | [Page tools](docs/guides/page-tools.md) · [Business tools](docs/guides/business-tools.md) |
-| Send messages or expose live App/Page tools | [Agent sessions and live tools](docs/guides/agent-session.md) |
-| Integrate a build system or look up APIs | [ESM integration](docs/guides/esm-build.md) · [Build API](docs/reference/build-api.md) |
-| Update plugins or diagnose a failure | [Development](docs/guides/development.md) · [Troubleshooting](docs/guides/troubleshooting.md) |
-| Check compatibility or measure performance | [Compatibility](docs/reference/compatibility.md) · [Benchmarks](docs/reference/benchmarks.md) |
+| Ink rendering and MCP Apps bridge | Real WASM browser tests cover tool input/results, UI actions, modes, messages, context and cancellation. |
+| Codex Desktop | Counter inline UI has been observed; additional interactions and modes are covered in the browser harness. |
+| Claude Desktop / VS Code | Connection guides are available; project-specific UI verification remains open. |
+| Conversation and live tools | Host capabilities control messaging/context access. The host must route View tools to its model; actual model consumption needs separate verification. |
 
-[Browse all documentation](docs/README.md), including metadata, request lifecycle and page message references.
+HTTPS deployment and conversation-card rendering remain separate work. See the [compatibility reference](docs/reference/compatibility.md) for protocol versions and capability boundaries, and [runtime integration](docs/guides/runtime-integration.md) for the pinned Ink SDK and Worker prerequisites.
 
-## Development and contributions
+## Documentation
+
+| You want to… | Read |
+| --- | --- |
+| Understand AIUI, Ink and MCPKit | [Overview](docs/getting-started/overview.md) |
+| Create pages and expose business operations | [Page tools](docs/guides/page-tools.md) · [Business tools](docs/guides/business-tools.md) |
+| Send messages, publish context or define live tools | [Agent sessions](docs/guides/agent-session.md) |
+| Execute headless business logic | [Runtime integration and Workers](docs/guides/runtime-integration.md) |
+| Integrate a build pipeline or customize metadata | [Build API](docs/reference/build-api.md) · [Metadata](docs/guides/metadata.md) |
+| Update an installation or debug a failure | [Development](docs/guides/development.md) · [Troubleshooting](docs/guides/troubleshooting.md) |
+| Measure rendering, packaging and server costs | [Benchmarks](docs/reference/benchmarks.md) |
+
+[Browse all guides and references →](docs/README.md)
+
+## Contributing
+
+Client test reports, runnable examples, documentation improvements and runtime fixes are welcome. [Open an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) with the client version and reproduction steps, or send a focused pull request.
 
 ```sh
 npm run build:examples
@@ -60,97 +146,6 @@ npm run typecheck
 npm test
 ```
 
-MCPKit currently generates local stdio servers. Rendering needs Apps/WASM support. See [compatibility](docs/reference/compatibility.md) for host verification boundaries and [contributing](docs/contributing.md) for the full checks and benchmark smoke command.
+See [contributing](docs/contributing.md) for native Worker tests and benchmark checks. Benchmarks record methodology and measurement limits; they complement functional tests.
 
-[Report an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) · [Explore AIUI](https://github.com/yodaos-project/AIUI)
-
-### Direct Ink host services and Worker execution
-
-MCPKit pins the published Ink SDK `0.20.0-daily.20261027171530`. Generated Views bind
-`getApp().getAgent()` to MCP Apps through `setAgentProvider()`:
-conversation context publication, explicit user messages, tool calls and resource
-list/read operations use typed runtime APIs. Legacy message-based pages continue
-to work. Capabilities come from the completed host handshake; unsupported methods
-reject. The adapter supports text content, checks structured-context support,
-redacts raw transport metadata, and keeps `isError` tool results as business results.
-`getApp().modelContext` is the separate App-owned WebMCP draft tool interface:
-mark App/Page methods with `ModelContext.defineAction()`, or register dynamically with
-`registerTool`; discover with `getTools` and execute with `executeTool` (JSON text).
-The global `ModelContext` interface object provides this static Ink extension
-without an import or an App instance; the standalone global `defineAction` is
-not available. Action definitions specify their tool names explicitly, independently of method
-names, and return ordinary callable methods. Model calls receive the owning
-instance as `this`. Page actions follow show/hide/unload; Worker default exports
-support the same `ModelContext.defineAction()` methods in an independent registry. App methods use `this.modelContext`.
-Workers receive only this restricted App handle and do not run `app.js`.
-Agent sessions expose `provideContext`, `conversation.sendMessage`, `callTool`, `listResources`
-and `readResource`. Context entries have independent keys and lifecycle handles;
-updates aggregate into `structuredContent.contexts` without publishing App/Page
-state automatically. Provider rebinding closes old sessions. `App.environment`
-is the separate immutable public environment. Live App tools are exposed through
-MCP Apps View tool listing/calling and require a host that routes View-provided
-tools to its LLM. These calls execute in the original App, not a headless worker.
-The adapter reuses Ink SDK provider request types, so operation branches narrow
-their payloads without a separate local protocol definition.
-Context acknowledgement does not confirm a later model turn consumed the selection.
-MCP Apps notifications have no invocation ID; local revisions order them but cannot
-prove correlation between overlapping invocations. Remote server-tool list proxying and list-change
-notifications are not advertised; live App registry changes are notified separately.
-
-A manifest-declared Agent Worker can implement business operations without a
-handwritten `mcp-server/handlers.ts` module:
-
-```javascript
-await buildPlugin({
-  source: '/absolute/path/to/agent',
-  name: 'worker-business',
-  outputDir: '/absolute/path/to/output',
-  worker: { name: 'business' },
-});
-```
-
-`worker.name` must match `app.json.agentWorkers`. Each page's existing `tool` name
-maps first to a tool registered on `getApp().modelContext`, then to an own function
-in the worker default export's `operations` object. Input and output schemas
-remain in registered `.ink` pages and are validated by the generated MCP server. `worker` and `handlers` are mutually exclusive.
-
-The generated server packages the app under `worker-app/` and launches the real
-Ink `ink-worker` executable over JSON Lines. Put the binary on PATH or configure
-`INK_WORKER_BIN` at deployment. Build it from Ink with
-`cargo build -p ink-script --bin ink-worker`. `INK_WORKER_CONFIGURATION` may name
-a private runtime JSON configuration file, exposed only as the operation context's
-immutable `configuration`. Configuration values are not embedded in View HTML.
-
-An operation receives `(input, { requestId, signal, reportProgress, configuration })`
-and explicitly returns an asynchronous JSON result. For page-backed business tools,
-return `{ content, structuredContent, uiMetadata? }`; the adapter validates output
-and converts `uiMetadata` to the existing UI-only result field. The worker executes
-in Ink's real module loader and realm, with timers and promises, without a Page or
-renderer. Node APIs, `process.env` and `fetch` are unavailable. This initial path is
-for pure computation; network-backed Node handlers require separate capability work.
-Session state is shared between its calls and released at shutdown. It is separate
-from UI `open` worker generations. Cancellation is per request and cooperative.
-
-The Ink repository's `fixtures/agents/host-business` is the quote/stock example.
-Its Page calls `getApp().getAgent().callTool()` and the generated server reaches the
-same worker operation used by model-triggered calls. Selecting a SKU publishes only
-`selectedSku`; sending a conversation message is a separate action.
-
-Validation is split between provider tests, real Ink/WASM browser tests, generated
-MCP server tests against `ink-worker`, and an interactive real-client/model check.
-Run Worker integration tests with `INK_WORKER_BIN=/absolute/path/to/ink-worker`.
-Browser harness delivery is not evidence that a production model consumed context;
-record that interactive check separately.
-
-Run `npm ci` to install the published runtime; no local Ink SDK build or link is
-needed. The host-services browser test is required and exercises this runtime.
-The native Worker tests separately need `INK_WORKER_BIN`. See
-[Agent sessions and live tools](docs/guides/agent-session.md) for message, context,
-declarative action and dynamic registration examples. This daily is currently
-published under `daily-candidate`; the dependency uses its exact version so a
-moving dist-tag cannot select an older runtime.
-
-The runtime `agent.conversation.sendCard()` API requires a dedicated Host renderer.
-Its handles support `update()` without removal; the Host conversation owns retention.
-This MCP Apps adapter advertises neither `conversation.sendCard` nor
-`conversation.updateCard` and does not convert cards into user messages.
+Built on [AIUI](https://github.com/yodaos-project/AIUI), [Ink](https://github.com/jsar-project/ink) and the [MCP Apps SDK](https://github.com/modelcontextprotocol/ext-apps).
