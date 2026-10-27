@@ -1,6 +1,7 @@
 import type { App } from '@modelcontextprotocol/ext-apps';
 import type {
   InkHostOperation,
+  InkHostProviderObserver,
   InkHostProviderRequest,
   InkHostProviderRequestContext,
 } from '@yodaos-pkg/ink';
@@ -8,20 +9,11 @@ import type {
 type JsonObject = Record<string, unknown>;
 type Operation = InkHostOperation;
 type Request = InkHostProviderRequest;
-interface Observer {
-  update(value: {
-    capabilities: {
-      operations: Operation[];
-      contentTypes: 'text'[];
-      toolListChanged: boolean;
-      resourceListChanged: boolean;
-    };
-    context: JsonObject;
-  }): void;
-  patchContext(value: JsonObject): void;
-  notify(value: JsonObject): void;
-  disconnect(): void;
-}
+type Notification = Parameters<InkHostProviderObserver['notify']>[0];
+type InvocationUpdate =
+  | { type: 'input' | 'partialInput'; input: JsonObject }
+  | { type: 'result'; result: ReturnType<typeof hostToolResult> }
+  | { type: 'cancelled'; reason?: string };
 const fail = (name: string, message: string) => new DOMException(message, name);
 function object(value: unknown): JsonObject | undefined {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -68,9 +60,9 @@ function publicContext(value: unknown): JsonObject {
 }
 /** Maps the negotiated MCP Apps surface to Ink services; it is never an MCP client API inside Ink. */
 export function createMcpHostProvider(app: App) {
-  let observer: Observer | undefined;
+  let observer: InkHostProviderObserver | undefined;
   let revision = 0;
-  let buffered: JsonObject[] = [];
+  let buffered: Notification[] = [];
   let contextTail = Promise.resolve();
   const revisions = new Map<string, number>();
   let owner: string | undefined;
@@ -92,14 +84,10 @@ export function createMcpHostProvider(app: App) {
       resourceListChanged: false,
     };
   };
-  const notify = (
-    type: 'input' | 'partialInput' | 'result' | 'cancelled',
-    value: JsonObject,
-  ) => {
+  const notify = (value: InvocationUpdate) => {
     // MCP Apps notifications do not carry an invocation ID. These revisions order
     // delivery only; they cannot prove correlation for overlapping host invocations.
     const notification = {
-      type,
       invocationId: null,
       revision: ++revision,
       ...value,
@@ -111,7 +99,7 @@ export function createMcpHostProvider(app: App) {
     }
   };
   return {
-    connect(next: Observer) {
+    connect(next: InkHostProviderObserver) {
       observer = next;
       next.update({
         capabilities: capabilities(),
@@ -130,13 +118,13 @@ export function createMcpHostProvider(app: App) {
       observer?.patchContext(publicContext(context));
     },
     input(input: JsonObject, partial = false) {
-      notify(partial ? 'partialInput' : 'input', { input });
+      notify({ type: partial ? 'partialInput' : 'input', input });
     },
     result(result: unknown) {
-      notify('result', { result: hostToolResult(result) });
+      notify({ type: 'result', result: hostToolResult(result) });
     },
     cancelled(reason?: string) {
-      notify('cancelled', { reason });
+      notify({ type: 'cancelled', reason });
     },
     disconnect() {
       observer?.disconnect();

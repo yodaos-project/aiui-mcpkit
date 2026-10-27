@@ -148,8 +148,7 @@ async function main() {
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });
-  const hostView = view as InkView & { setHostProvider?: (provider: unknown) => Promise<unknown> };
-  if (hostView.setHostProvider) await hostView.setHostProvider(hostProvider);
+  await view.setAgentProvider(hostProvider);
   view.modelContext?.addEventListener('toolchange', () => {
     app.sendToolListChanged().catch(() => {});
   });

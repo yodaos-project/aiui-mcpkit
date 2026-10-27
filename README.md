@@ -44,6 +44,7 @@ Follow the [quickstart](docs/getting-started/quickstart.md) for complete steps, 
 | Learn MCP / AIUI concepts | [Overview](docs/getting-started/overview.md) · [Environment setup](docs/getting-started/installation.md) |
 | Write your first interactive page | [Your first Agent](docs/getting-started/first-agent.md) |
 | Provide tools and business data to AI | [Page tools](docs/guides/page-tools.md) · [Business tools](docs/guides/business-tools.md) |
+| Send messages or expose live App/Page tools | [Agent sessions and live tools](docs/guides/agent-session.md) |
 | Integrate a build system or look up APIs | [ESM integration](docs/guides/esm-build.md) · [Build API](docs/reference/build-api.md) |
 | Update plugins or diagnose a failure | [Development](docs/guides/development.md) · [Troubleshooting](docs/guides/troubleshooting.md) |
 | Check compatibility or measure performance | [Compatibility](docs/reference/compatibility.md) · [Benchmarks](docs/reference/benchmarks.md) |
@@ -65,7 +66,8 @@ MCPKit currently generates local stdio servers. Rendering needs Apps/WASM suppor
 
 ### Direct Ink host services and Worker execution
 
-With Ink Web SDK 0.20 or later, generated Views bind `getApp().getAgent()` to MCP Apps:
+MCPKit pins the published Ink SDK `0.20.0-daily.20261027171530`. Generated Views bind
+`getApp().getAgent()` to MCP Apps through `setAgentProvider()`:
 conversation context publication, explicit user messages, tool calls and resource
 list/read operations use typed runtime APIs. Legacy message-based pages continue
 to work. Capabilities come from the completed host handshake; unsupported methods
@@ -140,12 +142,13 @@ Run Worker integration tests with `INK_WORKER_BIN=/absolute/path/to/ink-worker`.
 Browser harness delivery is not evidence that a production model consumed context;
 record that interactive check separately.
 
-During development, the new host API requires the locally built Ink SDK (the
-published 0.18 dependency keeps legacy pages supported). Build the Ink Web SDK,
-then run `npm install /absolute/path/to/ink/packages/ink-web/dist --no-save --package-lock=false`
-in this checkout. The host-services browser test checks the installed SDK's actual
-`setHostProvider` method and skips on older runtimes; the native Worker tests need
-`INK_WORKER_BIN`. Both paths are run against the new runtime during feature validation.
+Run `npm ci` to install the published runtime; no local Ink SDK build or link is
+needed. The host-services browser test is required and exercises this runtime.
+The native Worker tests separately need `INK_WORKER_BIN`. See
+[Agent sessions and live tools](docs/guides/agent-session.md) for message, context,
+declarative action and dynamic registration examples. This daily is currently
+published under `daily-candidate`; the dependency uses its exact version so a
+moving dist-tag cannot select an older runtime.
 
 The runtime `agent.conversation.sendCard()` API requires a dedicated Host renderer.
 Its handles support `update()` without removal; the Host conversation owns retention.

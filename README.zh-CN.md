@@ -44,6 +44,7 @@ codex plugin add business-demo@aiui-mcpkit-examples
 | 第一次接触 MCP / AIUI | [认识 MCPKit](docs/getting-started/overview.zh-CN.md) · [准备环境](docs/getting-started/installation.zh-CN.md) |
 | 写第一个可操作页面 | [创建第一个 Agent](docs/getting-started/first-agent.zh-CN.md) |
 | 给 AI 提供工具和业务数据 | [页面工具](docs/guides/page-tools.zh-CN.md) · [业务工具](docs/guides/business-tools.zh-CN.md) |
+| 发送消息或暴露运行中的 App/Page 工具 | [Agent 会话与实时工具](docs/guides/agent-session.zh-CN.md) |
 | 接入构建系统或查 API | [ESM 接入](docs/guides/esm-build.zh-CN.md) · [构建 API](docs/reference/build-api.zh-CN.md) |
 | 更新插件或定位问题 | [开发迭代](docs/guides/development.zh-CN.md) · [故障排查](docs/guides/troubleshooting.zh-CN.md) |
 | 确认兼容性或测量性能 | [协议兼容性](docs/reference/compatibility.zh-CN.md) · [性能基准](docs/reference/benchmarks.zh-CN.md) |
@@ -65,7 +66,13 @@ npm test
 
 ### Ink Agent 会话与当前 App 工具
 
-生成的 View 使用 `getApp().getAgent()` 提供 `provideContext`、`conversation.sendMessage`、
+MCPKit 固定使用已发布的 Ink SDK `0.20.0-daily.20261027171530`，生成的 View 通过
+`setAgentProvider()` 连接 MCP Apps。运行 `npm ci` 即可安装，不再需要本地构建或链接 Ink。
+这个 daily 当前位于 `daily-candidate` 标签；依赖固定完整版本号，避免浮动标签选中旧运行时。
+真实 WASM 浏览器测试为必跑项；独立的原生 Worker 测试仍需 `INK_WORKER_BIN`。
+完整示例见 [Agent 会话与实时工具](docs/guides/agent-session.zh-CN.md)。
+
+View 使用 `getApp().getAgent()` 提供 `provideContext`、`conversation.sendMessage`、
 `callTool`、`listResources` 和 `readResource`。上下文按 key 独立维护，汇总到
 `structuredContent.contexts`，不自动上传 App/Page 状态。重绑定关闭旧会话，公开环境
 独立位于 `App.environment`。provider 复用 Ink SDK 的请求类型，按 operation 分支自动

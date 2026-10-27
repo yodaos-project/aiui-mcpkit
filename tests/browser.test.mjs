@@ -68,8 +68,11 @@ for (const scenario of ['host-modes', 'inline-only', 'initial-fullscreen']) {
         let green = 0;
         let other = 0;
         for (let i = 0; i < data.length; i += 4) {
+          // RGB8 compositing can round antialiased green edges to (0, 1, 1).
+          // Treat one channel step from black as background, not another hue.
+          if (Math.max(data[i], data[i + 1], data[i + 2]) <= 1) continue;
           if (data[i + 1] > data[i] && data[i + 1] > data[i + 2]) green++;
-          else if (data[i] > 0 || data[i + 1] > 0 || data[i + 2] > 0) other++;
+          else other++;
         }
         return { green, other };
       });
