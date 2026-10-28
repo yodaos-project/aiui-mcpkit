@@ -3,6 +3,7 @@ import { AgentToolBridge } from './tool-bridge.js';
 import { createMcpHostProvider } from './host-provider.js';
 import { RequestLifecycle, type RequestPolicy } from './lifecycle.js';
 import { Inspector, type InspectorOptions, type InspectorTool } from './inspector.js';
+import { InteractionRecorder } from './interactions.js';
 import { mountInspector, captureBrowserDiagnostics } from './inspector-panel.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
@@ -20,6 +21,13 @@ document.body.dataset.mcpkitBuildId = __BUILD_INFO__.id;
 document.body.dataset.mcpkitVersion = __BUILD_INFO__.version;
 document.body.dataset.mcpkitBuildState = 'unknown';
 const inspector = config.inspector ? new Inspector(config.inspector) : undefined;
+const recording = inspector && config.inspector?.recording ? new InteractionRecorder(inspector, config.inspector.recording, {
+  viewport: { width: document.documentElement.clientWidth, height: window.innerHeight },
+  deviceScaleFactor: window.devicePixelRatio || 1, displayMode: 'inline',
+  page: document.body.dataset.page || config.page,
+}) : undefined;
+// Development-only API; no storage, host publication or production state access.
+if (recording) Object.defineProperty(window, '__mcpkitInteractions', { value: { snapshot: () => recording.snapshot(), export: () => recording.export() } });
 const stopDiagnostics = inspector ? captureBrowserDiagnostics(inspector) : undefined;
 let files: ReturnType<typeof decodeBundle>;
 
@@ -123,6 +131,7 @@ const toolBridge = new AgentToolBridge({
   send: state => view?.dispatchMessageEvent(state),
 });
 const stopPanel = inspector ? mountInspector(inspector, {
+  recording,
   policy: config.requestPolicy,
   capabilities: () => app.getHostCapabilities(),
   tools: async () => [
@@ -145,6 +154,7 @@ function destroyView() {
   webTools.close(); toolBridge.cancelAll('View closed'); liveRequests.cancelAll('View closed'); hostProvider.disconnect();
   view?.render(); view?.destroy();
   stopDiagnostics?.(); stopPanel?.();
+  recording?.dispose();
 }
 window.addEventListener('pagehide', () => { void snapshotSession?.close(); destroyView(); });
 app.onteardown = async () => {
@@ -217,6 +227,11 @@ app.ontoolresult = (result) => {
   if (config.sharedPages.includes(initialPage) && invocation?.page !== initialPage) return;
   // Host notifications have no correlation ID: accept only the current launch query.
   if (invocation?.query && query !== undefined && JSON.stringify(invocation.query) !== JSON.stringify(query)) return;
+  inspector?.record('host.tool-result', { result: { content: result.content,
+    ...(result.structuredContent !== undefined ? { structuredContent: result.structuredContent } : {}),
+    ...(result.isError !== undefined ? { isError: result.isError } : {}),
+    ...(invocation ? { invocation } : {}),
+  } });
   const serverBuild = (result._meta?.mcpkit as { build?: BuildIdentity } | undefined)?.build;
   if (serverBuild) {
     document.body.dataset.mcpkitServerBuildId = serverBuild.id;
@@ -235,6 +250,7 @@ app.ontoolresult = (result) => {
 function applyMode(actual: string) {
   if (actual !== 'inline' && actual !== 'fullscreen') return;
   mode = actual;
+  inspector?.record('view.mode', { mode: actual, initial: openedQuery === undefined });
   document.body.dataset.mode = actual;
   view?.setTarget(actual === 'fullscreen' ? '_blank' : '_current');
   resize();
@@ -312,6 +328,7 @@ async function main() {
       if (receiveStateMessage(message.data)) return;
       const data = message.data as Record<string, unknown> | null;
       if (data && data.type === 'mcpkit:inspect') {
+        if (data.kind === 'binding' && data.visibility === 'public') window.dispatchEvent(new CustomEvent('mcpkit:binding', { detail: { name: data.name, value: data.value } }));
         if (['binding', 'user-event', 'link'].includes(String(data.kind))) inspector?.record(`agent.${data.kind}`, {
           name: data.name, relatedRequestId: data.relatedRequestId, visibility: data.visibility === 'public' ? 'public' : 'private',
           value: data.visibility === 'public' ? data.value : '[PRIVATE UI STATE OMITTED]',
@@ -333,7 +350,14 @@ async function main() {
   });
   view.bindDomEvents({ canvas });
   if (inspector) {
-    for (const type of ['pointerdown', 'click', 'keydown']) canvas.addEventListener(type, () => inspector.record('agent.user-event', { type, target: 'canvas', detail: 'No key, text or private Page state collected' }), { signal: domEvents.signal });
+    // Capture-phase click precedes Ink's handler and any synchronous assertions.
+    for (const type of ['pointerdown', 'click', 'keydown', 'wheel', 'input', 'paste', 'drop']) canvas.addEventListener(type, event => {
+      const box = canvas.getBoundingClientRect();
+      inspector.record('agent.user-event', { type, target: 'canvas', ...(type === 'click' ? { x: (event as MouseEvent).clientX - box.left, y: (event as MouseEvent).clientY - box.top } : {}), detail: 'No key, text or private Page state collected' });
+    }, { signal: domEvents.signal, capture: true });
+    canvas.addEventListener('pointermove', event => {
+      if (event.buttons) inspector.record('agent.user-event', { type: 'drag', target: 'canvas' });
+    }, { signal: domEvents.signal, capture: true });
     inspector.record('runtime.ready', { page: initialPage });
   }
   openPage();

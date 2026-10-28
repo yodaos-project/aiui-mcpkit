@@ -63,6 +63,16 @@ void developmentOptions;
 const invalidInspector: BuildPluginOptions['inspector'] = { maxEvents: 'unbounded' };
 void invalidInspector;
 
+import { InteractionRecorder, validateInteractionRecord, type InteractionRecord, type RecordingOptions } from '@yodaos-pkg/aiui-mcpkit';
+const recordingOptions: RecordingOptions = { allow: { input: ['/count'], state: [''], context: ['/structuredContent'] }, maxSteps: 100 };
+const recording = new InteractionRecorder(new Inspector(), recordingOptions, { page: 'home', viewport: { width: 420, height: 280 }, displayMode: 'inline', deviceScaleFactor: 1 });
+const interactionRecord: InteractionRecord = recording.snapshot();
+validateInteractionRecord(interactionRecord);
+void verifyPlugin({ pluginDir: './dist/agent', replay: interactionRecord });
+// @ts-expect-error export authorization uses known payload channels
+const invalidRecording: RecordingOptions = { allow: { arbitraryPrivateState: [''] } };
+void invalidRecording;
+
 import { createMemorySnapshotStore, createSnapshotSession, type SnapshotScope } from '@yodaos-pkg/aiui-mcpkit/state';
 const snapshotScope: SnapshotScope = { userId: 'alice', conversationId: 'chat', applicationId: 'catalog', instanceId: 'card' };
 const snapshotStore = createMemorySnapshotStore().bind(snapshotScope);

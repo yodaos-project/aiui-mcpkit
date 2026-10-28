@@ -54,6 +54,8 @@ this.postMessage({
 
 ## 导出与启动诊断
 
+需要版本化交互测试数据时，在打开全新 View 前启用 `inspector.recording`。**Export interaction recording** 使用独立的显式数据白名单，并与 `verifyPlugin({ replay })` 集成，详见[交互录制与回放](interaction-replay.zh-CN.md)。普通 Inspector JSON 是诊断轨迹，不是可执行的回放记录。
+
 **Export redacted JSON** 下载本地 `mcpkit-inspector/1` 格式轨迹，包含所有保留事件，不受当前过滤条件影响；**Clear trace** 清空已保留事件。不会自动上传、写入浏览器存储或发布给宿主。事件有数量上限，进入缓存前生成快照；过长值、过深结构会截断。
 
 内置规则过滤凭据类字段、私有/UI 元数据、Bearer/Basic 凭据、URL 用户信息和查询参数值，以及常见凭据赋值；工具文本中的 JSON 也会递归处理。使用 `redactKeys` 补充业务敏感字段。脱敏是启发式规则，无法识别无标记文本中的任意秘密；分享前仍应检查公开文本与导出内容。脱敏只影响诊断，不修改真实参数、结果或模型上下文。

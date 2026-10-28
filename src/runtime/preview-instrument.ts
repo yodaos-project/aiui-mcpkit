@@ -1,6 +1,7 @@
 export interface PreviewBrowserState {
   errors: { code: 'RUNTIME_ERROR' | 'UNHANDLED_REJECTION' | 'CONSOLE_ERROR'; message: string }[];
   messages: unknown[];
+  bindings: { name: string; value: unknown }[];
   submissions: number;
   presented: boolean;
 }
@@ -11,7 +12,7 @@ declare global {
 
 /** Installed by Playwright only in preview contexts, before any app code. */
 export function instrumentPreview() {
-  const state = window.__mcpkitPreview = { errors: [], messages: [], submissions: 0, presented: false } as PreviewBrowserState;
+  const state = window.__mcpkitPreview = { errors: [], messages: [], bindings: [], submissions: 0, presented: false } as PreviewBrowserState;
   window.addEventListener('error', event => state.errors.push({ code: 'RUNTIME_ERROR', message: event.message }));
   window.addEventListener('unhandledrejection', event => state.errors.push({ code: 'UNHANDLED_REJECTION', message: String(event.reason) }));
   const error = console.error;
@@ -20,6 +21,7 @@ export function instrumentPreview() {
     return error.apply(this, args);
   };
   window.addEventListener('mcpkit:message', event => state.messages.push((event as CustomEvent).detail));
+  window.addEventListener('mcpkit:binding', event => state.bindings.push((event as CustomEvent).detail));
   let queued = false;
   // Observe actual surface submissions; canvas existence and data-ready alone
   // do not prove that Ink has drawn anything. Leave production contexts alone.

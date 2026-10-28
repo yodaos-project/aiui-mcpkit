@@ -36,6 +36,7 @@ plugin/
 | `page` | `--page` | `app.json` 中的第一个页面，不带 `.ink` |
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | 仅 ESM | [生命周期默认值](../guides/tool-lifecycle.zh-CN.md) |
+| `inspector.recording` | 仅 ESM | 默认关闭；显式导出白名单和有界[交互录制](../guides/interaction-replay.zh-CN.md) |
 | `inspector` | `--inspector` | `false`；`true` 或 `{ maxEvents?, redactKeys? }` 启用[开发面板](../guides/inspector.zh-CN.md) |
 | `retrySafeTools` | 仅 ESM | `[]` |
 | `applications` | 仅 ESM | 命名共享 UI 路由：`Record<string, { page: string }>`。工具通过 `application` 绑定；原 View 保留 App，新 View 独立。 |
@@ -130,6 +131,7 @@ PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取
 | `AgentToolBridge` | 使用相同生命周期把页面请求关联到宿主工具调用。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `BuildPluginOptions`、`BuildPluginResult`、`PageTool` | 构建输入、结果和工具映射。 | 本篇参考 |
 | `verifyPlugin`、`VerifyPluginOptions`、`PreviewVerificationResult`、`PreviewCheck`、`PreviewDiagnostic`、`PreviewErrorCode`、`PreviewError` | 验证运行时、画面和业务就绪状态，并可生成 PNG。 | [预览验证](../guides/preview-verification.zh-CN.md) |
+| `InteractionRecorder`, `InteractionRecord`, `InteractionStep`, `InteractionMock`, `InteractionChannel`, `RecordingOptions`, `validateInteractionRecord`, `validateRecordingOptions`, `equalInteractionValue`, `OMITTED`, `ReplayVerification` | 版本化授权导出及 `verifyPlugin({ replay })` 的严格 mock 与语义校验。 | [交互回放](../guides/interaction-replay.zh-CN.md) |
 | `inspectBuild`、`diagnosePlugin`、`BuildIdentity`、`BuildManifest`、`BuildInspection`、`DiagnoseOptions` | 只读检查源码与文件，并比较已观察到的服务和视图 ID。 | [构建诊断](../guides/build-diagnostics.zh-CN.md) |
 | `JsonValue`、`PublicMetadata`、`UiResource`、`MetadataOptions`、`ProtocolInspection` | 元数据、资源和检查配置的类型。 | [公开元数据](../guides/metadata.zh-CN.md) |
 | `SnapshotScope`, `SnapshotPayload`, `AgentSnapshot`, `SnapshotRecord`, `ScopedSnapshotStore`, `RestorationBinding`, `RestorationContext`, `RestorationAdapter`, `SnapshotJson`, `SnapshotError`, `createMemorySnapshotStore`, `createSnapshotSession` | 可选状态契约与作用域存储工具，浏览器可使用 `/state` 入口。 | [状态恢复](../guides/state-restoration.zh-CN.md) |

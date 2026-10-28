@@ -24,6 +24,7 @@ This is the complete AIUI MCPKit documentation. Read the getting-started guides 
 | [Runtime integration and Workers](guides/runtime-integration.md) | Runtime contracts, headless execution, configuration and deployment |
 | [Request lifecycle](guides/tool-lifecycle.md) | Loading, progress, cancellation, timeouts and retries |
 | [Inspector](guides/inspector.md) | Call tools, trace request IDs and bindings, inspect context and export redacted diagnostics |
+| [Interaction recording and replay](guides/interaction-replay.md) | Authorized exports, deterministic fixtures, mocked tools and semantic regression checks |
 | [Public metadata](guides/metadata.md) | Merge rules, custom resources and exact inspection |
 | [ESM build integration](guides/esm-build.md) | Use MCPKit in your own Node project |
 | [Preview verification and screenshots](guides/preview-verification.md) | Runtime, frame and business readiness checks; ESM API and CLI |

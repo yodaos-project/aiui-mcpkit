@@ -24,6 +24,7 @@
 | [运行时集成与 Worker](guides/runtime-integration.zh-CN.md) | 运行时契约、无界面执行、配置与部署 |
 | [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 加载、进度、取消、超时与重试 |
 | [Inspector](guides/inspector.zh-CN.md) | 调用工具、关联请求与绑定、检查上下文并导出脱敏诊断 |
+| [交互录制与回放](guides/interaction-replay.zh-CN.md) | 授权导出、确定性数据、工具 mock 和语义回归校验 |
 | [公开元数据](guides/metadata.zh-CN.md) | 合并规则、自定义资源与协议检查 |
 | [ESM 构建接入](guides/esm-build.zh-CN.md) | 在自己的 Node 项目中使用 MCPKit |
 | [预览验证与截图](guides/preview-verification.zh-CN.md) | 运行时、画面和业务就绪检查；ESM API 和 CLI |
