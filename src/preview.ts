@@ -5,14 +5,20 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { instrumentPreview } from './runtime/preview-instrument.js';
 import type { JsonValue } from './runtime/metadata.js';
+import { validateInteractionRecord, type InteractionRecord } from './runtime/interactions.js';
+import { runReplay, finishReplay, type ReplayVerification } from './replay.js';
+export type { ReplayVerification } from './replay.js';
 
 export type PreviewErrorCode = 'INVALID_OPTIONS' | 'BROWSER_UNAVAILABLE' | 'PREVIEW_FAILED' | 'SCREENSHOT_FAILED'
   | 'RUNTIME_ERROR' | 'UNHANDLED_REJECTION' | 'CONSOLE_ERROR'
+  | 'REPLAY_FAILED'
   | 'RUNTIME_READY_TIMEOUT' | 'FIRST_FRAME_TIMEOUT' | 'BUSINESS_READY_TIMEOUT';
 export interface PreviewDiagnostic { code: PreviewErrorCode; message: string }
 export type PreviewCheck = 'passed' | 'failed' | 'skipped';
 
 export interface VerifyPluginOptions {
+  /** Replay an exported record with strict mocked server calls and external network blocked. */
+  replay?: InteractionRecord;
   /** Directory returned by buildPlugin().outputDir. No server process is started. */
   pluginDir: string;
   /** Optional page route, without .ink; defaults to the built initial page. */
@@ -36,6 +42,7 @@ export interface VerifyPluginOptions {
 }
 
 export interface PreviewVerificationResult {
+  replay?: ReplayVerification;
   /** passed requires all three readiness checks and the configured error gate. */
   status: 'passed' | 'failed' | 'incomplete';
   usable: boolean;
@@ -69,15 +76,21 @@ function jsonObject(value: unknown): value is Record<string, JsonValue> {
  * Playwright is loaded only when this function is called.
  */
 export async function verifyPlugin(options: VerifyPluginOptions): Promise<PreviewVerificationResult> {
-  const viewport = options.viewport ?? { width: 420, height: 280 };
-  const displayMode = options.displayMode ?? 'inline';
-  const deviceScaleFactor = options.deviceScaleFactor ?? 1;
+  const invalid = (message: string): never => { throw new PreviewError('INVALID_OPTIONS', message); };
+  let replay: InteractionRecord | undefined;
+  if (options.replay !== undefined) {
+    try { validateInteractionRecord(options.replay); replay = structuredClone(options.replay); }
+    catch (error) { invalid(error instanceof Error ? error.message : 'Invalid replay record.'); }
+    if (options.input !== undefined || options.viewport !== undefined || options.displayMode !== undefined || options.deviceScaleFactor !== undefined || options.page !== undefined) invalid('Replay environment/input comes from the record; edit a copy to inject synthetic data.');
+  }
+  const viewport = replay?.viewport ?? options.viewport ?? { width: 420, height: 280 };
+  const displayMode = replay?.displayMode ?? options.displayMode ?? 'inline';
+  const deviceScaleFactor = replay?.deviceScaleFactor ?? options.deviceScaleFactor ?? 1;
   const budgets = {
     runtime: options.timeouts?.runtime ?? 15000,
     firstFrame: options.timeouts?.firstFrame ?? 15000,
     business: options.timeouts?.business ?? 15000,
   };
-  const invalid = (message: string): never => { throw new PreviewError('INVALID_OPTIONS', message); };
   if (typeof options.pluginDir !== 'string' || !options.pluginDir) invalid('pluginDir is required.');
   if (!['inline', 'fullscreen'].includes(displayMode)) invalid('displayMode must be inline or fullscreen.');
   if (![viewport.width, viewport.height].every(n => Number.isSafeInteger(n) && n > 0 && n <= 16384)) invalid('Viewport dimensions must be integers from 1 to 16384.');
@@ -93,6 +106,7 @@ export async function verifyPlugin(options: VerifyPluginOptions): Promise<Previe
     status: 'incomplete', usable: false, checks: { runtime: 'skipped', firstFrame: 'skipped', business: 'skipped' },
     diagnostics: [], viewport: { ...viewport }, displayMode, deviceScaleFactor,
   };
+  if (replay) result.replay = { status: 'failed', completedSteps: 0, checks: { state: 0, toolRequests: 0, modelContext: 0 } };
   let browser: import('playwright').Browser | undefined;
   let server: ReturnType<typeof createServer> | undefined;
   const add = (code: PreviewErrorCode, error: unknown) => result.diagnostics.push({ code, message: error instanceof Error ? error.message : String(error) });
@@ -104,11 +118,12 @@ export async function verifyPlugin(options: VerifyPluginOptions): Promise<Previe
     catch (error) { throw new PreviewError('BROWSER_UNAVAILABLE', `Chromium could not start. Run npx playwright install chromium or set executablePath. ${error instanceof Error ? error.message : error}`); }
 
     let html = await readFile(join(resolve(options.pluginDir), 'view.html'), 'utf8');
-    if (options.page) html = html.replace(/(<body\b[^>]*\bdata-page=")[^"]*"/, (_, prefix) => `${prefix}${options.page!.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}"`);
+    const route = replay?.page ?? options.page;
+    if (route) html = html.replace(/(<body\b[^>]*\bdata-page=")[^"]*"/, (_, prefix) => `${prefix}${route.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}"`);
     const script = (await build({
       entryPoints: [fileURLToPath(new URL('./runtime/preview-host.ts', import.meta.url))],
       bundle: true, write: false, platform: 'browser', format: 'esm', target: 'es2022',
-      define: { __PREVIEW_MODE__: JSON.stringify(displayMode), __PREVIEW_INPUT__: JSON.stringify(options.input ?? {}) },
+      define: { __PREVIEW_MODE__: JSON.stringify(displayMode), __PREVIEW_INPUT__: JSON.stringify(replay ? (replay.steps[0] as { input: unknown }).input : options.input ?? {}), __PREVIEW_REPLAY__: JSON.stringify(replay ?? null) },
     })).outputFiles[0].text;
     server = createServer((req, res) => {
       res.setHeader('Cache-Control', 'no-store');
@@ -120,11 +135,21 @@ export async function verifyPlugin(options: VerifyPluginOptions): Promise<Previe
       else res.writeHead(404).end();
     });
     await new Promise<void>((resolve, reject) => { server!.once('error', reject); server!.listen(0, '127.0.0.1', resolve); });
-    const context = await browser.newContext({ viewport, deviceScaleFactor });
+    const context = await browser.newContext({ viewport, deviceScaleFactor, ...(replay ? { serviceWorkers: 'block' as const } : {}) });
+    const origin = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
+    if (replay) {
+      await context.route('**/*', route => {
+        const request = route.request(), url = new URL(request.url());
+        if (url.origin === origin && ['/', '/view.html', '/host.js', '/favicon.ico'].includes(url.pathname) && request.method() === 'GET') return route.continue();
+        add('REPLAY_FAILED', 'Replay blocked an external or write network request.');
+        return route.abort('blockedbyclient');
+      });
+      await context.routeWebSocket('**/*', socket => { add('REPLAY_FAILED', 'Replay blocked a WebSocket connection.'); socket.close(); });
+    }
     await context.addInitScript(instrumentPreview);
     const page = await context.newPage();
     page.setDefaultTimeout(Math.max(...Object.values(budgets)));
-    await page.goto(`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`, { waitUntil: 'domcontentloaded', timeout: budgets.runtime });
+    await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: budgets.runtime });
     const failOnErrors = options.errorGate !== 'collect';
     // Run predicates in the host so startup failures before iframe navigation
     // are also diagnosed, and every wait has an independent bounded budget.
@@ -171,7 +196,14 @@ export async function verifyPlugin(options: VerifyPluginOptions): Promise<Previe
     const runtime = await wait('runtime', budgets.runtime, 'RUNTIME_READY_TIMEOUT');
     if (runtime) {
       const frame = await wait('firstFrame', budgets.firstFrame, 'FIRST_FRAME_TIMEOUT');
-      if (frame && options.readyWhen) await wait('business', budgets.business, 'BUSINESS_READY_TIMEOUT');
+      if (frame && replay) {
+        try { result.replay = await runReplay(page, replay, budgets.business); }
+        catch (error) {
+          if (error instanceof Error && error.cause && typeof error.cause === 'object') result.replay = error.cause as ReplayVerification;
+          result.checks.business = 'failed'; add('REPLAY_FAILED', error);
+        }
+      }
+      if (frame && options.readyWhen && result.checks.business !== 'failed') await wait('business', budgets.business, 'BUSINESS_READY_TIMEOUT');
     }
     // Drain pending setData/render work after the business message, including a
     // browser paint opportunity. Business authors must signal after async work.
@@ -194,6 +226,10 @@ export async function verifyPlugin(options: VerifyPluginOptions): Promise<Previe
         const png = await frame.locator('#ink').screenshot({ path, type: 'png', timeout: budgets.firstFrame });
         result.screenshot = { path, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
       } catch (error) { add('SCREENSHOT_FAILED', error); }
+    }
+    if (replay && result.replay && !result.diagnostics.some(d => d.code === 'REPLAY_FAILED') && result.checks.firstFrame === 'passed') {
+      try { await finishReplay(page, replay, result.replay); if (result.checks.business !== 'failed') result.checks.business = 'passed'; }
+      catch (error) { result.checks.business = 'failed'; add('REPLAY_FAILED', error); }
     }
     result.diagnostics.push(...await page.evaluate(() => [
       ...window.__mcpkitPreview.errors,

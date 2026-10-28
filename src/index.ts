@@ -22,6 +22,7 @@ export * from './runtime/lifecycle.js';
 export * from './runtime/tool-bridge.js';
 export { Inspector, redactDiagnostics, resolveInspectorOptions, type InspectorOptions, type InspectorEvent, type AgentInspectionMessage } from './runtime/inspector.js';
 export * from './runtime/state.js';
+export * from './runtime/interactions.js';
 export type { PageTool } from './runtime/page-tools.js';
 export * from './preview.js';
 

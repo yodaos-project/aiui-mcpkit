@@ -54,6 +54,8 @@ Only the explicit context projection is sent. The Inspector does not scan privat
 
 ## Export and diagnose startup failures
 
+For versioned interaction fixtures, enable `inspector.recording` before opening a fresh View. **Export interaction recording** uses a separate explicit data allowlist and integrates with `verifyPlugin({ replay })`; see [interaction recording and replay](interaction-replay.md). Ordinary Inspector JSON is a diagnostic trace, not an executable recording.
+
 **Export redacted JSON** downloads a local `mcpkit-inspector/1` trace. Export includes all retained events, independent of the current filter; **Clear trace** removes the retained events. Nothing is automatically sent, saved to browser storage or published to a host. Events are bounded and snapshotted before retention; long values/deep structures are truncated.
 
 Built-in filtering removes credential-like fields, private/UI metadata, Bearer/Basic credentials, URL userinfo/query values and common credential assignments, including JSON encoded in tool text. Add application-specific `redactKeys`. Redaction is heuristic: review public free text and exported traces before sharing; arbitrary secrets in unlabelled text cannot be reliably recognized. Redaction changes diagnostics only, never actual tool arguments, results or model publications.

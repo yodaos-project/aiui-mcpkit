@@ -1,7 +1,10 @@
 import type { RequestPolicy } from './lifecycle.js';
+import { validateRecordingOptions, type RecordingOptions } from './interactions.js';
 
 /** Development-only, bounded diagnostics. Values are redacted before retention. */
 export interface InspectorOptions {
+  /** Record a fresh View from launch. Export values require an explicit per-channel allowlist. */
+  recording?: RecordingOptions;
   /** Retained events per View, from 1 to 5000. Default: 500. */
   maxEvents?: number;
   /** Additional case-insensitive field names to remove, at any depth. */
@@ -25,13 +28,14 @@ export interface AgentInspectionMessage {
   visibility?: 'public' | 'private';
   value?: unknown;
 }
-export function resolveInspectorOptions(value: boolean | InspectorOptions = false): Required<InspectorOptions> | undefined {
+export function resolveInspectorOptions(value: boolean | InspectorOptions = false): (InspectorOptions & { maxEvents: number; redactKeys: string[] }) | undefined {
   if (value === false) return undefined;
   if (value !== true && (!value || typeof value !== 'object' || Array.isArray(value))) throw new Error('inspector must be a boolean or options object.');
-  const { maxEvents = 500, redactKeys = [] } = value === true ? {} : value;
+  const { maxEvents = 500, redactKeys = [], recording } = value === true ? {} : value;
   if (!Number.isSafeInteger(maxEvents) || maxEvents < 1 || maxEvents > 5000) throw new Error('inspector.maxEvents must be an integer between 1 and 5000.');
   if (!Array.isArray(redactKeys) || redactKeys.some(key => typeof key !== 'string' || !key)) throw new Error('inspector.redactKeys must contain nonempty field names.');
-  return { maxEvents, redactKeys: [...redactKeys] };
+  if (recording !== undefined) validateRecordingOptions(recording);
+  return { maxEvents, redactKeys: [...redactKeys], ...(recording !== undefined ? { recording: structuredClone(recording) } : {}) };
 }
 
 const sensitive = /authorization|cookie|password|passwd|secret|token|credential|api[-_]?key|private|^_meta$|^uiOnly$|^uiMetadata$/i;
@@ -52,7 +56,7 @@ export function redactDiagnostics(value: unknown, redactKeys: readonly string[] 
   const text = (value: string) => {
     const length = Math.min(value.length, 4000, textBudget);
     textBudget -= length;
-    return scrub(value.slice(0, length));
+    return scrub(value.slice(0, length)) + (value.length > length ? '[TRUNCATED]' : '');
   };
   function visit(value: unknown, depth: number): unknown {
     if (--remaining < 0 || depth > 10) return '[TRUNCATED]';
@@ -70,10 +74,11 @@ export function redactDiagnostics(value: unknown, redactKeys: readonly string[] 
     seen.add(value);
     try {
       if (value instanceof Error) return { name: text(value.name), message: text(value.message) };
-      if (Array.isArray(value)) return value.slice(0, 100).map(item => visit(item, depth + 1));
-      return Object.fromEntries(Object.keys(value).slice(0, 100).map(key => [text(key),
+      if (Array.isArray(value)) return [...value.slice(0, 100).map(item => visit(item, depth + 1)), ...(value.length > 100 ? ['[TRUNCATED]'] : [])];
+      const names = Object.keys(value);
+      return Object.fromEntries([...names.slice(0, 100).map(key => [text(key),
         sensitive.test(key) || keys.has(key.toLowerCase()) ? '[REDACTED]' : visit((value as Record<string, unknown>)[key], depth + 1),
-      ]));
+      ]), ...(names.length > 100 ? [['[TRUNCATED]', '[TRUNCATED]']] : [])]);
     } finally { seen.delete(value); }
   }
   try { return visit(value, 0); } catch { return '[UNAVAILABLE]'; }
@@ -84,15 +89,18 @@ export class Inspector {
   private events: InspectorEvent[] = [];
   private sequence = 0;
   private listeners = new Set<() => void>();
+  private eventListeners = new Set<(event: InspectorEvent) => void>();
   readonly options: { readonly maxEvents: number; readonly redactKeys: readonly string[] };
   constructor(options: InspectorOptions = {}) {
     const resolved = resolveInspectorOptions(options)!;
     this.options = Object.freeze({ maxEvents: resolved.maxEvents, redactKeys: Object.freeze(resolved.redactKeys) });
   }
   record(kind: string, data?: unknown, requestId: string | null = null): void {
-    this.events.push({ sequence: ++this.sequence, time: new Date().toISOString(), kind: scrub(kind),
-      requestId: requestId === null ? null : scrub(requestId), data: redactDiagnostics(data, this.options.redactKeys) });
+    const event = { sequence: ++this.sequence, time: new Date().toISOString(), kind: scrub(kind),
+      requestId: requestId === null ? null : scrub(requestId), data: redactDiagnostics(data, this.options.redactKeys) };
+    this.events.push(event);
     this.events = this.events.slice(-this.options.maxEvents);
+    for (const listener of this.eventListeners) { try { listener(structuredClone(event)); } catch { /* Observers cannot affect execution. */ } }
     for (const listener of this.listeners) { try { listener(); } catch { /* Diagnostics cannot affect execution. */ } }
   }
   snapshot(requestId?: string): InspectorEvent[] {
@@ -100,11 +108,13 @@ export class Inspector {
   }
   clear(): void { this.events = []; for (const listener of this.listeners) { try { listener(); } catch { /* Observers cannot affect diagnostics. */ } } }
   subscribe(listener: () => void): () => void { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
+  subscribeEvents(listener: (event: InspectorEvent) => void): () => void { this.eventListeners.add(listener); return () => { this.eventListeners.delete(listener); }; }
   export(): string { return JSON.stringify({ format: 'mcpkit-inspector/1', events: this.snapshot() }, null, 2); }
 }
 
 export interface InspectorTool { name: string; inputSchema: unknown; target: 'server' | 'view' }
 export interface InspectorControls {
+  recording?: { export(): string };
   policy: RequestPolicy;
   tools(): Promise<InspectorTool[]>;
   call(tool: InspectorTool, input: Record<string, unknown>): string;

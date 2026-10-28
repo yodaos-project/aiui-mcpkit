@@ -36,6 +36,7 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `page` | `--page` | First page in `app.json`, without `.ink` |
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | ESM only | [Lifecycle defaults](../guides/tool-lifecycle.md) |
+| `inspector.recording` | ESM only | Disabled; explicit export allowlist and bounded [interaction recording](../guides/interaction-replay.md) |
 | `inspector` | `--inspector` | `false`; `true` or `{ maxEvents?, redactKeys? }` enables the [developer panel](../guides/inspector.md) |
 | `retrySafeTools` | ESM only | `[]` |
 | `applications` | ESM only | Named shared UI routes: `Record<string, { page: string }>`. Bind tools with `application`; existing Views retain their App, new Views are independent. |
@@ -130,6 +131,7 @@ PNG/JPEG/GIF/WebP and TTF/OTF/WOFF/WOFF2 have recognized MIME hints; actual deco
 | `AgentToolBridge` | Bridge correlated page requests to host tool calls using the same lifecycle. | [Lifecycle](../guides/tool-lifecycle.md) |
 | `BuildPluginOptions`, `BuildPluginResult`, `PageTool` | Build inputs/results and discovered mappings. | This reference |
 | `verifyPlugin`, `VerifyPluginOptions`, `PreviewVerificationResult`, `PreviewCheck`, `PreviewDiagnostic`, `PreviewErrorCode`, `PreviewError` | Verify runtime/frame/business readiness and optionally capture a PNG. | [Preview verification](../guides/preview-verification.md) |
+| `InteractionRecorder`, `InteractionRecord`, `InteractionStep`, `InteractionMock`, `InteractionChannel`, `RecordingOptions`, `validateInteractionRecord`, `validateRecordingOptions`, `equalInteractionValue`, `OMITTED`, `ReplayVerification` | Versioned authorized exports and `verifyPlugin({ replay })` with strict mocks and semantic checks. | [Interaction replay](../guides/interaction-replay.md) |
 | `inspectBuild`, `diagnosePlugin`, `BuildIdentity`, `BuildManifest`, `BuildInspection`, `DiagnoseOptions` | Read-only file/source inspection and comparison with observed server/View IDs. | [Build diagnostics](../guides/build-diagnostics.md) |
 | `JsonValue`, `PublicMetadata`, `UiResource`, `MetadataOptions`, `ProtocolInspection` | Typed metadata, resource and inspection configuration. | [Metadata](../guides/metadata.md) |
 | `SnapshotScope`, `SnapshotPayload`, `AgentSnapshot`, `SnapshotRecord`, `ScopedSnapshotStore`, `RestorationBinding`, `RestorationContext`, `RestorationAdapter`, `SnapshotJson`, `SnapshotError`, `createMemorySnapshotStore`, `createSnapshotSession` | Optional state contracts and scoped persistence helpers; browser-safe `/state` entry point. | [Restoration](../guides/state-restoration.md) |

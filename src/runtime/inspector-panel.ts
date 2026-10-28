@@ -22,6 +22,7 @@ export function mountInspector(inspector: Inspector, controls: InspectorControls
   <p id="status" role="status"></p>
   <label>Request ID <input id="filter" aria-label="Request ID" placeholder="All requests"></label>
   <div class="actions"><button id="export">Export redacted JSON</button><button id="clear">Clear trace</button></div>
+  <button id="recording" hidden>Export interaction recording</button>
   <p id="count"></p><div id="events"></div></section>`;
   document.body.append(host);
   const element = <T extends HTMLElement>(id: string) => root.getElementById(id) as T;
@@ -87,6 +88,14 @@ export function mountInspector(inspector: Inspector, controls: InspectorControls
     const link = document.createElement('a'); link.href = url; link.download = 'mcpkit-inspector.json'; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
+  if (controls.recording) {
+    element('recording').hidden = false;
+    element('recording').onclick = () => {
+      const url = URL.createObjectURL(new Blob([controls.recording!.export()], { type: 'application/json' }));
+      const link = document.createElement('a'); link.href = url; link.download = 'mcpkit-interactions.json'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
+  }
   return () => { disposed = true; unsubscribe(); host.remove(); };
 }
 
