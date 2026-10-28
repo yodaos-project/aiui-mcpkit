@@ -20,10 +20,10 @@
 npm run build:examples
 npx playwright install chromium
 npm run typecheck
-npm test
+INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
 ```
 
-浏览器测试在 MCP Apps `AppBridge` 测试环境中运行真实 Agent，覆盖输入、状态连续性、显示模式和禁止网络访问的 CSP。可以通过 `CHROMIUM_PATH` 指定已有 Chromium，也支持可用的 `/usr/bin/chromium`。修改文档时请保持中英文 README 一致。
+原生宿主按[业务工具配置](guides/business-tools.zh-CN.md)构建。只使用已发布的 npm 依赖时，可运行 `INK_WORKER_BIN="$PWD/scripts/ink-worker-wasm.mjs" npm test` 执行完整套件。CI 选择此通用宿主，通过公开 SDK 的真实 Ink QuickJS/WASM 执行同一组 Worker Action，无需检出私有源码。浏览器测试在 MCP Apps `AppBridge` 测试环境中运行真实 Agent，覆盖输入、状态连续性、显示模式和禁止网络访问的 CSP。可以通过 `CHROMIUM_PATH` 指定已有 Chromium，也支持可用的 `/usr/bin/chromium`。修改文档时请保持中英文 README 一致。
 
 [查看源码](https://github.com/yodaos-project/aiui-mcpkit) · [反馈问题](https://github.com/yodaos-project/aiui-mcpkit/issues) · [了解 AIUI](https://github.com/yodaos-project/AIUI)
 

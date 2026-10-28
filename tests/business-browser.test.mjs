@@ -11,7 +11,7 @@ test('business example renders structured/UI data and calls/cancels its real ser
   // The unified build:examples command produces both plugins before npm test.
   const client = new Client({ name: 'business-browser', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } }); let browser, http;
   try {
-    await client.connect(new StdioClientTransport({ command: process.execPath, args: ['dist/examples/business/dist/server.mjs'] }));
+    await client.connect(new StdioClientTransport({ command: process.execPath, args: ['dist/examples/business/dist/server.mjs'], env: { INK_WORKER_BIN: process.env.INK_WORKER_BIN || 'ink-worker' } }));
     await client.listTools();
     const initial = await client.callTool({ name: 'quote_order', arguments: { quantity: 2 } });
     const html = (await client.readResource({ uri: 'ui://business-demo/quote_order.html' })).contents[0].text;

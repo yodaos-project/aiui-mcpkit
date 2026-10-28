@@ -60,6 +60,9 @@ test(
           description: 'Read stock',
           execute(input, {signal}) {
             signal.throwIfAborted();
+            if(input.sku === 'FAIL') return {isError:true,businessError:{code:'NOT_AVAILABLE',message:'Choose another SKU.'},uiMetadata:{reason:'UI_ONLY_REASON'}};
+            if(input.sku === 'MALFORMED') return {isError:true,businessError:{code:42,message:'Malformed failure'}};
+            if(input.sku === 'CRASH') throw new Error('PRIVATE_WORKER_EXCEPTION');
             return {content:[],structuredContent:{sku:input.sku,available:this.available}};
           },
         }),
@@ -88,6 +91,16 @@ test(
         sku: 'DEMO',
         available: 100,
       });
+      const failure = await client.callTool({name:'check_stock',arguments:{sku:'FAIL'}});
+      assert.equal(failure.isError,true);
+      assert.deepEqual(failure._meta.businessError,{code:'NOT_AVAILABLE',message:'Choose another SKU.'});
+      assert.deepEqual(failure._meta.uiOnly,{reason:'UI_ONLY_REASON'});
+      assert.equal(failure.structuredContent,undefined);
+      for(const sku of ['MALFORMED','CRASH']) {
+        const error = await client.callTool({name:'check_stock',arguments:{sku}});
+        assert.equal(error._meta.businessError.code,'INTERNAL_ERROR');
+        assert.ok(!JSON.stringify(error).includes('PRIVATE_WORKER_EXCEPTION'));
+      }
     } finally {
       await client.close();
       await rm(f.root, { recursive: true, force: true });

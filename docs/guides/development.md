@@ -15,13 +15,13 @@ English | [简体中文](development.zh-CN.md) · [Documentation index](../READM
 
 Changing a handler schema requires regenerating declarations before typechecking. An existing View can retain old code even after server reload; use a newly opened card to verify the rebuild.
 
-Edit the [Counter page](../../examples/counter/pages/counter/index.ink), the [business page](../../examples/business/pages/order/index.ink), or its [handlers](../../examples/business/mcp-server/handlers.ts), then run:
+Edit the [Counter page](../../examples/counter/pages/counter/index.ink), the [business page](../../examples/business/pages/order/index.ink), or its [Worker actions](../../examples/business/workers/business.js), then run:
 
 ```sh
 npm run update:examples
 ```
 
-This rebuilds both examples in the shared marketplace and updates `view.html`, `dist/server.mjs`, `plugin.json` and `mcp.json` for each installed plugin. Reload the MCP server or desktop host and open a **new card** to use the new interface and handlers. Existing cards retain their current view.
+This rebuilds both examples in the shared marketplace and updates `view.html`, `dist/server.mjs`, `plugin.json` and `mcp.json` for each installed plugin, plus Business Demo's `worker-app/`. Reload the MCP server or desktop host and open a **new card** to use the new interface and Worker actions. Existing cards retain their current view. Business calls require `ink-worker` on the server process's PATH or configured through `INK_WORKER_BIN`.
 
 The script uses `$CODEX_HOME` (default: `~/.codex`) and checks the matching version and `local` directories under `plugins/cache/aiui-mcpkit-examples`. Uninstalled examples are skipped; it fails if none are installed. To update one example at a custom installation path:
 

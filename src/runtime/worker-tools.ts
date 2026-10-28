@@ -6,6 +6,7 @@ import type {
   BusinessToolHandler,
   BusinessToolResult,
 } from './business-tools.js';
+import { BusinessToolError } from './business-error.js';
 import type { RequestContext } from './lifecycle.js';
 
 interface Pending {
@@ -179,9 +180,18 @@ export function createWorkerHandlers(
           content: BusinessToolResult<Record<string, unknown>>['content'];
           structuredContent: Record<string, unknown>;
           uiMetadata?: Record<string, unknown>;
+          isError?: boolean;
+          businessError?: { code: string; message: string };
         };
         if (!result || typeof result !== 'object')
           throw new Error('Invalid worker result');
+        // Business failures are explicit JSON results, not serialized exceptions.
+        // Unexpected Worker exceptions remain redacted by the normal server path.
+        if (result.isError === true) {
+          if (!result.businessError || typeof result.businessError.code !== 'string' || typeof result.businessError.message !== 'string')
+            throw new Error('Invalid worker business error');
+          throw new BusinessToolError(result.businessError.code, result.businessError.message, result.uiMetadata);
+        }
         return {
           content: result.content,
           structuredContent: result.structuredContent,

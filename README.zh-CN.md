@@ -44,7 +44,7 @@ npm run build:examples
 | 示例 | 工具 | 可以体验什么 |
 | --- | --- | --- |
 | [Counter](examples/counter) | `open_counter`、`open_countdown` | 从 5 开始加一，或从 8 开始每次减 2。 |
-| [业务示例](examples/business) | `quote_order`、`check_stock` | 计算报价、查询库存，以及查看加载和取消效果。 |
+| [业务示例](examples/business) | `quote_order`、`check_stock`、`find_products` | 通过 Worker Action 计算报价、查询库存和选择候选商品。 |
 
 在 Codex Desktop 中体验时，使用支持插件命令的 Codex CLI 安装：
 
@@ -56,7 +56,7 @@ codex plugin add business-demo@aiui-mcpkit-examples
 
 重启宿主，确认工具出现在当前会话。让客户端以 `{ "initialCount": 5, "label": "Demo" }` 调用 `open_counter`，点击 **+ ADD ONE**，计数应从 **5 变为 6**。
 
-接着以 `{ "quantity": 2 }` 调用 `quote_order`，预期看到 **CNY 40**、剩余库存 **98**。宿主开启工具访问后，**CALCULATE** 和 **CANCEL** 可用于发起与取消业务调用。
+Business Demo 通过 AgentWorker 的 `ModelContext.defineAction()` 实现工具。先在服务进程的 PATH 中配置 `ink-worker`，或设置 `INK_WORKER_BIN`（见[配置说明](docs/guides/business-tools.zh-CN.md)），再以 `{ "quantity": 2 }` 调用 `quote_order`，预期看到 **CNY 40**、剩余库存 **98**。宿主开启工具访问后，**CALCULATE** 和 **CANCEL** 可用于发起与取消业务调用。
 
 Claude Desktop、VS Code 和直接 stdio 连接见[客户端接入](docs/guides/clients.zh-CN.md)。[完整示例教程](docs/getting-started/quickstart.zh-CN.md)介绍安装、工具发现和每一步的预期结果。
 
@@ -80,7 +80,7 @@ console.log(plugin.outputDir);
 
 执行 `node build-agent.mjs`，输出目录将包含 `view.html`、`dist/server.mjs` 和插件/连接 manifest。生成的服务已打包运行时依赖，部署宿主需要 Node.js 22+；原生 Worker 执行还需要 `ink-worker`。
 
-在独立 Node.js 项目中接入，见 [ESM 包接入](docs/guides/esm-build.zh-CN.md)。业务执行可选择[带类型的服务端 handler](docs/guides/business-tools.zh-CN.md)，或 [Agent Worker](docs/guides/runtime-integration.zh-CN.md#通过-worker-执行业务工具)。
+在独立 Node.js 项目中接入，见 [ESM 包接入](docs/guides/esm-build.zh-CN.md)。业务执行使用 [AgentWorker Action](docs/guides/business-tools.zh-CN.md)；原生宿主契约见[运行时集成](docs/guides/runtime-integration.zh-CN.md#通过-worker-执行业务工具)。
 
 ## 让 AI 调用你的智能体
 

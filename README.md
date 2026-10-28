@@ -44,7 +44,7 @@ This builds two independent plugins under `dist/examples/`:
 | Example | Tools | Try it |
 | --- | --- | --- |
 | [Counter](examples/counter) | `open_counter`, `open_countdown` | Start at 5 and add one, or count down from 8 in steps of 2. |
-| [Business demo](examples/business) | `quote_order`, `check_stock` | Calculate a quote, inspect stock and exercise loading/cancellation. |
+| [Business demo](examples/business) | `quote_order`, `check_stock`, `find_products` | Run Worker actions for quotes, stock and candidate selection. |
 
 For Codex Desktop, install with a Codex CLI that supports plugin commands:
 
@@ -56,7 +56,7 @@ codex plugin add business-demo@aiui-mcpkit-examples
 
 Restart the host and confirm the tools appear in the active session. Ask it to call `open_counter` with `{ "initialCount": 5, "label": "Demo" }`. Click **+ ADD ONE**: the count should change from **5 to 6**.
 
-Next, call `quote_order` with `{ "quantity": 2 }`: expect **CNY 40**, remaining stock **98**, and working **CALCULATE** / **CANCEL** controls when host tool access is enabled.
+Business Demo implements its tools with AgentWorker `ModelContext.defineAction()` methods. Configure `ink-worker` on the server process's PATH or through `INK_WORKER_BIN` ([setup](docs/guides/business-tools.md)), then call `quote_order` with `{ "quantity": 2 }`: expect **CNY 40**, remaining stock **98**, and working **CALCULATE** / **CANCEL** controls when host tool access is enabled.
 
 Use [client setup](docs/guides/clients.md) for Claude Desktop, VS Code and direct stdio connections. The [complete walkthrough](docs/getting-started/quickstart.md) covers installation, tool discovery and expected results.
 
@@ -80,7 +80,7 @@ console.log(plugin.outputDir);
 
 Run `node build-agent.mjs`. The output contains `view.html`, `dist/server.mjs` and plugin/connection manifests. The generated server bundles its runtime dependencies; the deployment host needs Node.js 22+. Native Worker execution additionally needs `ink-worker`.
 
-For a separate Node.js project, follow [ESM package integration](docs/guides/esm-build.md). For business execution, choose [typed server handlers](docs/guides/business-tools.md) or [Agent Workers](docs/guides/runtime-integration.md#run-business-tools-in-a-worker).
+For a separate Node.js project, follow [ESM package integration](docs/guides/esm-build.md). Implement business execution with [AgentWorker actions](docs/guides/business-tools.md); see [runtime integration](docs/guides/runtime-integration.md#run-business-tools-in-a-worker) for the native host contract.
 
 ## Give the assistant access to your agent
 

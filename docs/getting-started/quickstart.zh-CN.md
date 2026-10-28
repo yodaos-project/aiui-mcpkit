@@ -54,6 +54,8 @@ open_countdown({ "start": 8, "step": 2 })
 
 ## 再试业务示例
 
+业务工具由 AgentWorker 的 `ModelContext.defineAction()` 实现。先在 MCP 服务进程的 PATH 中配置原生 `ink-worker`，或设置该进程的 `INK_WORKER_BIN`，并随插件部署 `worker-app/`。见[业务工具](../guides/business-tools.zh-CN.md)。
+
 让客户端以以下 JSON 参数调用 `quote_order`：
 
 ```json
@@ -63,6 +65,8 @@ open_countdown({ "start": 8, "step": 2 })
 预期结构化结果：数量 2、单价 18、总价 36、币种 CNY。不传优惠码时，总价为 40。页面还会从仅供界面使用的数据中显示剩余库存 98。点击 **CALCULATE** 再发起一次真实 handler 调用，在加载中点击 **CANCEL** 取消。此操作需要宿主提供 `serverTools` 能力和工具访问权限。
 
 用 `{ "sku": "DEMO" }` 调用 `check_stock`，打开库存页面并得到可用库存 100。其他 SKU 返回 `UNKNOWN_SKU`，其他优惠码返回 `INVALID_COUPON`，无需外部服务即可观察错误路径。
+
+用 `{ "query": "travel" }` 调用 `find_products`，在页面中选择商品后询问模型。完整流程和独立的桌面模型验收步骤见[候选选择](../guides/candidate-selection.zh-CN.md)。
 
 ## 完成检查
 

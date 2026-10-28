@@ -2,6 +2,8 @@ import { CallToolResultSchema } from '@modelcontextprotocol/core';
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import { inputValidator } from './page-tools.js';
 import { RequestLifecycleError, type RequestContext } from './lifecycle.js';
+import { BusinessToolError } from './business-error.js';
+export { BusinessToolError } from './business-error.js';
 
 /** A serializable business contract. Handlers are supplied in a server-only module. */
 export interface BusinessToolDefinition<Name extends string = string> {
@@ -22,13 +24,6 @@ export interface BusinessToolResult<Output extends object> {
 }
 export type BusinessToolHandler<Input extends object, Output extends object> =
   (input: Input, context: RequestContext) => BusinessToolResult<Output> | Promise<BusinessToolResult<Output>>;
-/** Expected business failures may expose a safe code/message and UI-only details. */
-export class BusinessToolError extends Error {
-  constructor(public readonly code: string, message: string, public readonly details?: Record<string, unknown>) {
-    super(message); this.name = 'BusinessToolError';
-  }
-}
-
 export function businessToolExecutor(tool: BusinessToolDefinition, handler: BusinessToolHandler<Record<string, unknown>, Record<string, unknown>>) {
   const input = inputValidator(tool.inputSchema, 'inputSchema');
   const output = inputValidator(tool.outputSchema, 'outputSchema');

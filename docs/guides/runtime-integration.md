@@ -58,6 +58,8 @@ maps first to a tool registered on `getApp().modelContext`, then to an own funct
 in the worker default export's `operations` object. Input and output schemas
 remain in registered `.ink` pages and are validated by the generated MCP server. `worker` and `handlers` are mutually exclusive.
 
+The repository's [Business Demo](../../examples/business/workers/business.js) uses `ModelContext.defineAction()` for all its tools, with no separate handler module. Its generated `worker-app/` must be deployed with the server.
+
 ## Deploy the native host
 
 The generated server packages the app under `worker-app/` and launches the real
@@ -83,6 +85,8 @@ renderer. Node APIs, `process.env` and `fetch` are unavailable. This initial pat
 for pure computation; network-backed Node handlers require separate capability work.
 Before moving a business module into a Worker, check those dependencies and use
 private `configuration` instead of reading environment variables directly.
+
+Registered `ModelContext.defineAction()` callbacks receive an execution `signal`, not the operation-only `configuration` or `reportProgress` extensions. Explicit business failures can return `{ isError: true, businessError: { code, message }, uiMetadata? }`; the MCPKit adapter converts these to standard business-error results and keeps unexpected exceptions private. Worker source is also included in View assets, so never embed private configuration in source.
 Session state is shared between its calls and released at shutdown. It is separate
 from UI `open` worker generations. Cancellation is per request and cooperative.
 
@@ -106,7 +110,7 @@ record that interactive check separately.
 
 Run `npm ci` to install the published runtime; no local Ink SDK build or link is
 needed. The host-services browser test is required and exercises this runtime.
-The native Worker tests separately need `INK_WORKER_BIN`. See
+Business Demo calls and native Worker tests require `ink-worker` on PATH or `INK_WORKER_BIN`. See
 [Agent sessions and live tools](agent-session.md) for message, context,
 declarative action and dynamic registration examples. The dependency uses its
 exact version so a moving dist-tag cannot select an older runtime.

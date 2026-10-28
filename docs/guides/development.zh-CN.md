@@ -15,13 +15,13 @@
 
 修改 handler schema 后，先重新生成类型声明再检查类型。已打开的界面可能在重载服务后仍保留旧代码，验证新构建时打开新卡片。
 
-修改 [Counter 页面](../../examples/counter/pages/counter/index.ink)、[业务页面](../../examples/business/pages/order/index.ink) 或其[处理器](../../examples/business/mcp-server/handlers.ts)，然后运行：
+修改 [Counter 页面](../../examples/counter/pages/counter/index.ink)、[业务页面](../../examples/business/pages/order/index.ink) 或其 [Worker Action](../../examples/business/workers/business.js)，然后运行：
 
 ```sh
 npm run update:examples
 ```
 
-该命令在共享 marketplace 中重建两个示例，并为每个已安装插件更新 `view.html`、`dist/server.mjs`、`plugin.json` 和 `mcp.json`。重载 MCP 服务端或桌面宿主，并打开**新卡片**以使用更新后的界面和处理器。已有卡片保留当前视图。
+该命令在共享 marketplace 中重建两个示例，为每个已安装插件更新 `view.html`、`dist/server.mjs`、`plugin.json` 和 `mcp.json`，并同步 Business Demo 的 `worker-app/`。重载 MCP 服务端或桌面宿主，并打开**新卡片**以使用更新后的界面和 Worker Action。已有卡片保留当前视图。业务调用需要服务进程通过 PATH 或 `INK_WORKER_BIN` 找到 `ink-worker`。
 
 脚本使用 `$CODEX_HOME`，默认为 `~/.codex`，检查 `plugins/cache/aiui-mcpkit-examples` 下对应版本及 `local` 目录。未安装的示例会跳过；一个都未安装时会报错。更新自定义安装路径中的单个示例：
 

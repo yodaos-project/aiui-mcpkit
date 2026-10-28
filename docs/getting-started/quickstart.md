@@ -54,6 +54,8 @@ The [Counter source](../../examples/counter/pages/counter/index.ink) shows state
 
 ## Try the business demo next
 
+The business tools run as AgentWorker `ModelContext.defineAction()` methods. First put the native `ink-worker` on the MCP server process's PATH or set its `INK_WORKER_BIN`; deploy `worker-app/` with the plugin. See [business tools](../guides/business-tools.md).
+
 Ask the client to call `quote_order` with this JSON input:
 
 ```json
@@ -63,6 +65,8 @@ Ask the client to call `quote_order` with this JSON input:
 Expected structured result: quantity 2, unit price 18, total 36, currency CNY. Without the coupon, total is 40. The page additionally displays remaining stock 98 from UI-only data. Click **CALCULATE** to exercise a second real handler call; click **CANCEL** while it is loading to stop it. This requires host tool access and its `serverTools` capability.
 
 Call `check_stock` with `{ "sku": "DEMO" }` to open the stock page and receive available stock 100. A different SKU returns `UNKNOWN_SKU`; a different coupon returns `INVALID_COUPON`. This validates the error path without a real external service.
+
+Call `find_products` with `{ "query": "travel" }` to choose a product and ask the model about your selection. See [Candidate selection](../guides/candidate-selection.md) for the complete flow and separate desktop-model acceptance procedure.
 
 ## Completion checklist
 
