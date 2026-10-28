@@ -51,7 +51,7 @@ npm run bench -- --samples 1 --operations 3 --idle-ms 250 \
 | 空闲 CPU | Chromium CDP `TaskDuration` 增量 / CDP 实际时间，以一个主线程的百分比表示。包括 host 与采集器开销；仪表盘数据流已暂停。 |
 | 内存 | 通过 `ps` 采样当前独立 Chromium 各进程的 RSS 总和，另行记录 CDP JS heap 和导出的 WASM 线性内存 buffer，分别报告峰值与原始样本。 |
 
-内存采样覆盖导航、启动、交互、空闲和截图验证。RSS 可能重复计算共享内存，包含浏览器、renderer、utility 进程，不能当作精确瞬时峰值或 GPU 分配量。WASM 线性内存也不等于整个 runtime 的内存。当前不支持 Windows RSS 测量，会明确报错。
+内存采样覆盖导航、启动、交互、空闲和截图验证。首次导航期间继续记录 RSS 和 JS heap，WASM 样本在导航完成前记为 `null`，避免在被替换的页面上下文中执行取值。`wasmUnavailableSamples` 统计这些未知值，WASM 峰值仅根据有效测量计算。RSS 可能重复计算共享内存，包含浏览器、renderer、utility 进程，不能当作精确瞬时峰值或 GPU 分配量。WASM 线性内存也不等于整个 runtime 的内存。当前不支持 Windows RSS 测量，会明确报错。
 
 测量代码只注入基准浏览器上下文，包装 Canvas2D 修改方法，每次输入只回读一个很小的标记像素。该开销、就绪轮询、CDP 采样及截图属于本 harness；A/B 必须保持方法一致。操作系统文件缓存、机器负载和温度不会重置。每个样本使用新的 Chromium 进程与 profile，避免复用上一次的浏览器/WASM 缓存。
 

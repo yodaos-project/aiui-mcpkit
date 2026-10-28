@@ -35,7 +35,7 @@ async function waitForSequence(frame, sequence) {
 export async function browserSample(scene, settings, base, outputDirectory, index) {
   const options = await launchOptions();
   const browser = await chromium.launch(options);
-  let sampling = true, sampler, page;
+  let sampling = true, sampler, page, initialNavigationComplete = false;
   const errors = [];
   try {
     const context = await browser.newContext({ viewport: { width: 800, height: 800 }, deviceScaleFactor: settings.dpr, reducedMotion: 'no-preference' });
@@ -56,7 +56,11 @@ export async function browserSample(scene, settings, base, outputDirectory, inde
       const rss = await rssBytes(processInfo.map(info => info.id));
       const { metrics } = await cdp.send('Performance.getMetrics');
       const heap = metrics.find(m => m.name === 'JSHeapUsedSize')?.value;
-      const wasm = await page.evaluate(() => document.querySelector('iframe')?.contentWindow?.__benchmark?.wasmMemories.reduce((sum, memory) => sum + memory.buffer.byteLength, 0) || 0);
+      // RSS/heap sampling includes startup. DOM evaluation must wait until the
+      // initial navigation stops replacing its execution context; null is unknown.
+      const wasm = initialNavigationComplete
+        ? await page.evaluate(() => document.querySelector('iframe')?.contentWindow?.__benchmark?.wasmMemories.reduce((sum, memory) => sum + memory.buffer.byteLength, 0) || 0)
+        : null;
       assert.ok(Number.isFinite(heap), 'CDP JS heap measurement unavailable');
       memory.push({ atMs: performance.now(), browserRssBytes: rss, jsHeapBytes: heap, wasmLinearBytes: wasm });
     }
@@ -65,6 +69,7 @@ export async function browserSample(scene, settings, base, outputDirectory, inde
     // Keep a rejection observed until cleanup awaits the sampling task.
     void sampler.catch(() => {});
     await page.goto(`${base}/?scenario=${scene.id}&mode=${scene.mode}&width=${scene.width}&height=${scene.height}&input=${encodeURIComponent(JSON.stringify(scene.input))}`);
+    initialNavigationComplete = true;
     const appFrame = () => page.frames().find(f => f.url().includes('/view?'));
     await frame.locator('body[data-ready="true"]').waitFor({ timeout: 30000 });
     const iframe = appFrame();
@@ -117,14 +122,16 @@ export async function browserSample(scene, settings, base, outputDirectory, inde
     await sampleMemory();
     sampling = false; await sampler;
     assert.deepEqual(errors, []);
-    assert.ok(memory.some(s => s.wasmLinearBytes > 0), 'Exported WASM linear memory measurement unavailable');
+    const wasmSamples = memory.map(sample => sample.wasmLinearBytes).filter(Number.isFinite);
+    assert.ok(wasmSamples.some(bytes => bytes > 0), 'Exported WASM linear memory measurement unavailable');
     return { index, chromium: browser.version(), firstVerifiedFrameMs: active.firstVerifiedFrameMs, timeToInteractiveMs,
       inputToCanvasMs: distribution(active.latencies), frameOpportunities: frameStats(active.rafTimes, settings.targetHz),
       canvasSubmissions: { count: active.presentations.length, perSecond: active.presentations.length * 1000 / active.durationMs, intervals: frameStats(active.presentations, settings.targetHz).intervalsMs },
       activeDurationMs: active.durationMs,
       idle: { durationMs: idleSeconds * 1000, mainThreadCpuPercent: (after.TaskDuration - before.TaskDuration) / idleSeconds * 100 },
       memory: { sampleIntervalMs: settings.memorySampleMs, peakBrowserRssBytes: Math.max(...memory.map(s => s.browserRssBytes)),
-        peakJsHeapBytes: Math.max(...memory.map(s => s.jsHeapBytes)), peakWasmLinearBytes: Math.max(...memory.map(s => s.wasmLinearBytes)), samples: memory },
+        peakJsHeapBytes: Math.max(...memory.map(s => s.jsHeapBytes)), peakWasmLinearBytes: Math.max(...wasmSamples),
+        wasmUnavailableSamples: memory.filter(sample => sample.wasmLinearBytes === null).length, samples: memory },
       correctness: { passed: true, initialState, finalState: active.state, initialPixels, finalPixels, liveTicks: active.ticks.at(-1) ?? null, errors },
       raw: { inputToCanvasMs: active.latencies, rafTimestampsMs: active.rafTimes, canvasSubmissionTimestampsMs: active.presentations } };
   } catch (error) {
