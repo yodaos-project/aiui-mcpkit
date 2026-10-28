@@ -8,11 +8,13 @@ import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
 import { browserWebRegistry, mirrorWebTools, type WebRegistry } from './webmcp.js';
 import type { BuildIdentity } from './build-info.js';
+import { createRestoration } from 'mcpkit:restoration-adapter';
+import { createSnapshotSession, SnapshotError, type SnapshotPayload } from './state.js';
 
 declare const __BUILD_INFO__: BuildIdentity;
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, BundleEntry>;
-declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[]; inspector?: InspectorOptions; tools?: InspectorTool[] };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[]; pages: string[]; restoration: boolean; inspector?: InspectorOptions; tools?: InspectorTool[] };
 const config = __APP_CONFIG__;
 document.body.dataset.mcpkitBuildId = __BUILD_INFO__.id;
 document.body.dataset.mcpkitVersion = __BUILD_INFO__.version;
@@ -27,7 +29,6 @@ let view: InkView | undefined;
 const hostProvider = createMcpHostProvider(app, inspector);
 const liveRequests = new RequestLifecycle(config.requestPolicy);
 const domEvents = new AbortController();
-let closed = false;
 let inspectorSequence = 0;
 let liveSequence = 0;
 async function executeViewTool(name: string, input: Record<string, unknown>, signal?: AbortSignal, requestId?: string): Promise<string> {
@@ -41,6 +42,49 @@ async function executeViewTool(name: string, input: Record<string, unknown>, sig
     return owner.executeTool(tool, input, { signal: context.signal });
   }, { signal, requestId, onChange: snapshot => inspector?.record('view-tool.state', snapshot, snapshot.requestId) });
   return handle.result;
+}
+let snapshotSession: ReturnType<typeof createSnapshotSession> | undefined;
+let restoredState: SnapshotPayload | undefined;
+let restoreId: string | undefined;
+let restoreReady = true;
+let restoreAccepted = false;
+let restoreTimer: ReturnType<typeof setTimeout> | undefined;
+let destroyed = false;
+let closing = false;
+let restorationAbort: AbortController | undefined;
+let pendingStateRestore: Record<string, unknown> | undefined;
+let saveSequence = 0;
+function stateStatus(status: string, error?: unknown) {
+  document.body.dataset.restoration = status;
+  const code = error instanceof SnapshotError ? error.code : error ? 'STORAGE_ERROR' : undefined;
+  if (code) document.body.dataset.restorationError = code;
+  else delete document.body.dataset.restorationError;
+  view?.dispatchMessageEvent({ type: 'mcpkit:state-status', restoreId, status, ...(code ? { code } : {}) });
+}
+function receiveStateMessage(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Record<string, unknown>;
+  if (typeof message.type !== 'string' || !message.type.startsWith('mcpkit:state-')) return false;
+  // Never log snapshots or forward them into model context/tool input buffers.
+  if (message.type === 'mcpkit:state-connect') {
+    if (!destroyed && pendingStateRestore) {
+      const restoration = pendingStateRestore; pendingStateRestore = undefined;
+      view?.dispatchMessageEvent(restoration);
+    }
+    return true;
+  }
+  if (!snapshotSession || message.restoreId !== restoreId || destroyed) return true;
+  if (message.type === 'mcpkit:state-ready' && !restoreReady) {
+    restoreReady = true; restoreAccepted = true; pendingStateRestore = undefined; clearTimeout(restoreTimer); stateStatus('ready'); deliverToolResult();
+  } else if (message.type === 'mcpkit:state-save' && restoreReady && restoreAccepted) {
+    const owner = restoreId;
+    const sequence = ++saveSequence;
+    stateStatus('saving');
+    void snapshotSession.save({ page: message.page as string, data: message.data as SnapshotPayload['data'] }).then(() => {
+      if (!destroyed && owner === restoreId && sequence === saveSequence) stateStatus('saved');
+    }, error => { if (!destroyed && owner === restoreId && sequence === saveSequence) stateStatus('error', error); });
+  }
+  return true;
 }
 const browserRegistry = browserWebRegistry(
   (document as Document & { modelContext?: WebRegistry }).modelContext,
@@ -61,6 +105,7 @@ app.onlisttools = async () => ({
   })),
 });
 app.oncalltool = async (params, extra) => {
+  if (closing || destroyed) throw new Error('Ink App is closing');
   const text = await executeViewTool(params.name, params.arguments || {}, extra.mcpReq.signal, `view:${typeof extra.mcpReq.id}:${extra.mcpReq.id}`);
   const result = JSON.parse(text);
   return { content: [{ type: 'text', text }],
@@ -92,16 +137,21 @@ const stopPanel = inspector ? mountInspector(inspector, {
   },
   cancel: requestId => { toolBridge.lifecycle.cancel(requestId); liveRequests.cancel(requestId); },
 }) : undefined;
-function closeView() {
-  if (closed) return;
-  closed = true;
+function destroyView() {
+  if (destroyed) return;
+  destroyed = true;
+  clearTimeout(restoreTimer); restorationAbort?.abort();
   domEvents.abort(); viewportObserver.disconnect(); window.removeEventListener('resize', resize);
   webTools.close(); toolBridge.cancelAll('View closed'); liveRequests.cancelAll('View closed'); hostProvider.disconnect();
   view?.render(); view?.destroy();
   stopDiagnostics?.(); stopPanel?.();
 }
-window.addEventListener('pagehide', closeView);
-app.onteardown = () => { closeView(); return {}; };
+window.addEventListener('pagehide', () => { void snapshotSession?.close(); destroyView(); });
+app.onteardown = async () => {
+  closing = true; webTools.close(); toolBridge.cancelAll('View closed'); liveRequests.cancelAll('View closed');
+  try { await snapshotSession?.close(); } finally { destroyView(); }
+  return {};
+};
 app.ontoolcancelled = params => {
   hostProvider.cancelled(params.reason);
   toolBridge.cancelAll(params.reason || 'Host cancelled');
@@ -115,7 +165,7 @@ let query: Record<string, unknown> | undefined = config.waitForToolInput ? undef
 let openedQuery: string | undefined;
 let pendingResult: Parameters<NonNullable<typeof app.ontoolresult>>[0] | undefined;
 function deliverToolResult() {
-  if (!view || !pendingResult) return;
+  if (!view || !pendingResult || !restoreReady) return;
   const result = pendingResult; pendingResult = undefined;
   inspector?.record('agent.tool-result', { structuredContent: result.structuredContent, uiOnly: result._meta?.uiOnly,
     state: result.isError ? 'error' : 'ready', request: result._meta?.request },
@@ -140,8 +190,18 @@ function openPage() {
   if (serialized === openedQuery) { deliverToolResult(); return; }
   toolBridge.cancelAll('Page replaced');
   liveRequests.cancelAll('Page replaced');
-  inspector?.record('agent.open', { page: initialPage, query });
-  view.openBundle({ appId: config.name, files, initialPage, query,
+  const restored = openedQuery === undefined ? restoredState : undefined;
+  clearTimeout(restoreTimer);
+  restoreReady = !snapshotSession;
+  restoreAccepted = false;
+  restoreId = crypto.randomUUID();
+  pendingStateRestore = config.restoration ? { type: 'mcpkit:restore-state', restoreId, supported: !!snapshotSession, ...(restored ? { snapshot: restored } : {}) } : undefined;
+  if (snapshotSession) restoreTimer = setTimeout(() => {
+    restoreReady = true; pendingStateRestore = undefined;
+    stateStatus('error', new SnapshotError('RESTORE_NOT_HANDLED', 'App did not acknowledge restoration.')); deliverToolResult();
+  }, 5000);
+  inspector?.record('agent.open', { page: restored?.page ?? initialPage, query });
+  view.openBundle({ appId: config.name, files, initialPage: restored?.page ?? initialPage, query,
     hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   openedQuery = serialized;
   resize();
@@ -214,14 +274,32 @@ async function wasmBytes(): Promise<Uint8Array> {
 let startupStage: 'host' | 'bundle' | 'wasm' | 'agent' = 'host';
 async function main() {
   await app.connect(new PostMessageTransport(window.parent, window.parent));
-  if (closed) return;
+  if (destroyed) return;
   inspector?.record('host.connected', { capabilities: app.getHostCapabilities() });
   applyMode(app.getHostContext()?.displayMode || 'inline');
   startupStage = 'bundle';
   files = decodeBundle(__INK_FILES__);
+  stateStatus('unavailable');
+  if (config.restoration) {
+    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
+    restorationAbort = controller;
+    try {
+      const binding = await Promise.race([createRestoration({ applicationId: config.name, initialPage, signal: controller.signal }), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { controller.abort(); reject(new SnapshotError('TIMEOUT', 'Restoration adapter timed out.')); }, 5000);
+      })]);
+      clearTimeout(timer);
+      if (binding && !destroyed) {
+        snapshotSession = createSnapshotSession(binding, { applicationId: config.name, pages: config.pages });
+        restoredState = await snapshotSession.restore();
+        stateStatus(restoredState ? 'restored' : 'empty');
+      }
+    } catch (error) { controller.abort(); snapshotSession = undefined; stateStatus('rejected', error); }
+    finally { clearTimeout(timer); }
+  }
+  if (destroyed) return;
   startupStage = 'wasm';
   const binary = await wasmBytes();
-  if (closed) return;
+  if (destroyed) return;
   const box = canvas.getBoundingClientRect();
   view = await createInkView({
     width: Math.max(1, Math.round(box.width)),
@@ -231,6 +309,7 @@ async function main() {
     wasm: { moduleOrPath: binary },
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
+      if (receiveStateMessage(message.data)) return;
       const data = message.data as Record<string, unknown> | null;
       if (data && data.type === 'mcpkit:inspect') {
         if (['binding', 'user-event', 'link'].includes(String(data.kind))) inspector?.record(`agent.${data.kind}`, {
@@ -244,10 +323,10 @@ async function main() {
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });
-  if (closed) { view.destroy(); return; }
+  if (destroyed) { view.destroy(); return; }
   startupStage = 'agent';
   await view.setAgentProvider(hostProvider);
-  if (closed) return;
+  if (destroyed) return;
   view.modelContext?.addEventListener('toolchange', () => {
     app.sendToolListChanged().catch(() => {});
     void webTools.sync().catch(() => { document.body.dataset.webmcp = 'error'; });

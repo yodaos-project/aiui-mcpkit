@@ -20,6 +20,7 @@
 | [Agent 会话与实时工具](guides/agent-session.zh-CN.md) | 用户消息、显式上下文、App/Page Action 与动态工具 |
 | [候选选择](guides/candidate-selection.zh-CN.md) | 可运行的选择示例及协议、浏览器和模型分层验收 |
 | [多工具共享 App](guides/shared-agent.zh-CN.md) | 多工具更新、导航保留与实例隔离 |
+| [作用域状态恢复](guides/state-restoration.zh-CN.md) | 快照存储、生命周期、版本及恢复边界 |
 | [运行时集成与 Worker](guides/runtime-integration.zh-CN.md) | 运行时契约、无界面执行、迁移与部署 |
 | [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 加载、进度、取消、超时与重试 |
 | [Inspector](guides/inspector.zh-CN.md) | 调用工具、关联请求与绑定、检查上下文并导出脱敏诊断 |

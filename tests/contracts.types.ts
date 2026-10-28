@@ -62,3 +62,15 @@ void developmentOptions;
 // @ts-expect-error a retention limit is numeric
 const invalidInspector: BuildPluginOptions['inspector'] = { maxEvents: 'unbounded' };
 void invalidInspector;
+
+import { createMemorySnapshotStore, createSnapshotSession, type SnapshotScope } from '@yodaos-pkg/aiui-mcpkit/state';
+const snapshotScope: SnapshotScope = { userId: 'alice', conversationId: 'chat', applicationId: 'catalog', instanceId: 'card' };
+const snapshotStore = createMemorySnapshotStore().bind(snapshotScope);
+const snapshotSession = createSnapshotSession({ store: snapshotStore, dataVersion: 1, validate: data => typeof data.draft === 'string' }, { applicationId: 'catalog', pages: ['home'] });
+void snapshotSession.save({ page: 'home', data: { draft: 'note' } });
+// @ts-expect-error identities cannot be changed on an acquired capability
+snapshotStore.scope.userId = 'bob';
+// @ts-expect-error store reads accept no caller-selected identity or scope
+void snapshotStore.read({ signal: new AbortController().signal, userId: 'bob' });
+// @ts-expect-error snapshot values must be JSON data
+void snapshotSession.save({ page: 'home', data: { callback: () => {} } });

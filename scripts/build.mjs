@@ -11,6 +11,11 @@ await build({
   outfile: fileURLToPath(new URL('dist/index.mjs', root)),
 });
 await build({
+  entryPoints: [fileURLToPath(new URL('src/runtime/state.ts', root))],
+  bundle: true, platform: 'neutral', format: 'esm', target: 'es2022',
+  outfile: fileURLToPath(new URL('dist/state.mjs', root)),
+});
+await build({
   entryPoints: [fileURLToPath(new URL('src/runtime/business-tools.ts', root))],
   bundle: true, packages: 'external', platform: 'node', format: 'esm', target: 'node22',
   outfile: fileURLToPath(new URL('dist/tools.mjs', root)),

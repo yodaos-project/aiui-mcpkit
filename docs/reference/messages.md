@@ -73,3 +73,7 @@ An expected `BusinessToolError` returns `isError: true`, text `CODE: message`, `
 [Documentation index](../README.md) · Previous: [Build API](build-api.md) · Next: [Protocol compatibility](compatibility.md)
 
 Shared application result events also include `tool` (the server tool name) and `input` (its validated arguments). Register named UI routes with `applications`; see [shared App ownership and routing](../guides/shared-agent.md).
+
+## Scoped restoration messages
+
+`mcpkit:state-connect`, `mcpkit:restore-state`, `mcpkit:state-ready`, `mcpkit:state-save` and `mcpkit:state-status` form an opt-in App/View handshake. They use a launch nonce and a host-bound store; snapshots are consumed before debug logging and never published automatically to the model. See [message fields, ordering and failure behavior](../guides/state-restoration.md#restore-then-receive-new-results).
