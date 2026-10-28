@@ -14,7 +14,8 @@ export default {
     this.catalogPage?.setData({ query: state.query, candidates: state.candidates,
       selectedName: state.selected ? state.selected.name : 'None',
       detailName: state.detail ? state.detail.name : '', detailPrice: state.detail ? state.detail.unitPrice : 0,
-      status: 'Revision ' + state.revision });
+      detailSku: state.detail ? state.detail.sku : '', selectedSku: state.selected ? state.selected.sku : '',
+      selectedPrice: state.selected ? state.selected.unitPrice : 0, empty: state.candidates.length === 0, status: '' });
   },
   apply(tool, data, input) {
     if (tool === 'search_catalog' && Array.isArray(data.candidates)) {

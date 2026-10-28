@@ -129,7 +129,9 @@ function applyMode(actual: string) {
 function resize() {
   if (!view) return;
   const box = canvas.getBoundingClientRect();
-  const width = Math.max(1, Math.round(box.width));
+  // Ink pins the canvas and its parent to the last logical pixel width.
+  // Measure the host viewport, otherwise resizing keeps that old width forever.
+  const width = Math.max(1, document.documentElement.clientWidth);
   const height = Math.max(1, Math.round(box.height));
   if (width !== lastWidth || height !== lastHeight) {
     view.setViewport(width, height, window.devicePixelRatio || 1);
@@ -139,7 +141,9 @@ function resize() {
   if (mode === 'inline') app.sendSizeChanged({ height: Math.ceil(document.body.scrollHeight) }).catch(() => {});
 }
 
-new ResizeObserver(resize).observe(canvas);
+const viewportObserver = new ResizeObserver(resize);
+viewportObserver.observe(canvas);
+viewportObserver.observe(document.documentElement);
 window.addEventListener('resize', resize);
 app.onhostcontextchanged = (context) => {
   hostProvider.contextChanged(context);

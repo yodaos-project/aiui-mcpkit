@@ -75,8 +75,22 @@ The other simultaneous catalog stayed on `travel`, revision 1, with both origina
 
 The user manually expanded cards. The model performed the business operations through document-bound tools. Native Codex window automation was rejected by the computer-use tool, so no native button automation was used. Desktop screenshots capture the full visible App document; the backend does not support cropped captures.
 
-![Real desktop: detail and bag selection survive lamp search](../assets/shared-agent-desktop-detail.png)
+![Initial desktop layout before fullscreen adaptation](../assets/shared-agent-desktop-detail-before.png)
 
 ![Other desktop instance remains unselected on travel](../assets/shared-agent-desktop-isolated.png)
 
 No purchase was made. No issue was closed and no GitHub changes were published during this acceptance step.
+
+## Fullscreen layout follow-up
+
+The shared catalog now uses a centered, bounded-width workspace in `_blank` mode. Wide views show product details and selection side by side; narrow views stack the panels and buttons. Short views use a condensed layout, and inline cards keep compact product tiles. Internal revision counters remain available through `catalog_state` without appearing in the product UI.
+
+The viewport test also uncovered a runtime sizing problem: Ink writes pixel widths onto the canvas and its parent. Measuring that canvas again retained its old width when the host grew or shrank. The View now measures the document viewport width and observes it, allowing `setViewport` to update the canvas. The regression checks actual canvas widths and preserved App state while switching between inline and fullscreen at **900×1034, 1280×800, 360×700 and 480×352**, on detail, filtered search and the full three-product catalog.
+
+The user expanded the updated card in the real desktop. Document-bound tools read instance `catalog-wim4ivenp2f`, inspected and selected `TRAVEL-BAG`, then searched `lamp`. The final model-readable state retained that instance ID, the detail route, the bag detail and selection, and contained only the lamp search result (revision 5). The refreshed screenshot below was captured from that actual desktop App; it is not the browser-harness image. The original desktop screenshot is retained above for comparison.
+
+![Adapted real desktop fullscreen layout](../assets/shared-agent-desktop-detail.png)
+
+The narrow-layout screenshot below comes from the real Ink WASM browser harness at 360×700:
+
+![Narrow fullscreen layout](../assets/shared-agent-detail-narrow.png)

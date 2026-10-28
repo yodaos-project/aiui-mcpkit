@@ -4,7 +4,7 @@
 
 Business Demo 提供搜索、商品详情和选择共享目录。Worker Action 查询并校验演示商品，App Action 更新原有的实时界面。不购买商品，无需示例专用 MCP server。
 
-![更新搜索后仍保留已选的包](../assets/shared-agent-search.png)
+![全屏目录保留已选的包](../assets/shared-agent-desktop-detail.png)
 
 ## 独立注册 UI
 
@@ -43,6 +43,8 @@ node scripts/update-examples.mjs --example business
 宿主将后续输入和结果投递到同一个共享 View 时，MCPKit 保留 bundle、导航栈及 App Action，并通过含 `tool`、`input` 的结果事件投递数据。普通页面工具仍使用原有重启语义。共享 View 忽略其他 App 路由的结果。宿主结果通知没有调用编号，无法可靠区分参数相同的重叠通知；并发更新应使用实时 App Action，示例会忽略较早搜索的迟到结果。
 
 宿主提供浏览器 WebMCP 时，View 也会将实时 Ink 注册表投影到 `document.modelContext`（或旧版 navigator 注册表），浏览器 Agent 因而可以发现并调用同一实例的 Action。注册随工具变化及销毁撤销，未变化的 App 工具在页面导航时保持可用。不支持浏览器 API 的宿主保留 MCP Apps 路由，两种路径都不复制 Worker 或业务实现。
+
+目录通过 `_blank` 样式适配展开后的空间：内容居中，放大商品信息，并独立展示选择摘要。窄视口改为纵向面板及操作，较矮视口使用紧凑布局，内嵌卡片保留紧凑商品网格。切换模式或调整尺寸不重置 App 状态。
 
 ## 状态归属与隔离
 

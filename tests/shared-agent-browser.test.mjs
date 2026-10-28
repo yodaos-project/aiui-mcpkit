@@ -58,6 +58,27 @@ for(const frame of document.querySelectorAll('iframe')) {
     await expect.poll(async()=>{try{return (await call(0,'catalog_state')).candidates.length;}catch{return -1;}}).toBe(2);
     await expect.poll(async()=>{try{return (await call(1,'catalog_state')).candidates.length;}catch{return -1;}}).toBe(2);
     assert.ok(await page.evaluate(()=>window.toolChanges>0), 'Initial App tools must notify the host');
+    async function captureLayouts(route) {
+      const before=await call(0,'catalog_state');
+      for(const [width,height,label] of [[900,1034,'desktop'],[1280,800,'wide'],[360,700,'narrow'],[480,352,'short']]) {
+        await page.evaluate(({width,height})=>{
+          const frame=document.querySelector('iframe');frame.style.width=width+'px';frame.style.height=height+'px';
+          window.bridges[0].setHostContext({displayMode:'fullscreen',availableDisplayModes:['inline','fullscreen']});
+        },{width,height});
+        await page.frameLocator('iframe').first().locator('body[data-mode="fullscreen"]').waitFor();
+        const canvas=page.frameLocator('iframe').first().locator('canvas');
+        await expect.poll(()=>canvas.evaluate(c=>Math.round(c.getBoundingClientRect().width))).toBe(width);
+        await expect.poll(()=>canvas.evaluate(c=>Math.round(c.getBoundingClientRect().height))).toBe(height);
+        assert.deepEqual(await call(0,'catalog_state'),before,'Display changes must retain the shared App state');
+        if(process.env.INK_SCREENSHOTS) await canvas.screenshot({path:`${process.env.INK_SCREENSHOTS}/shared-agent-${route}-${label}.png`});
+      }
+      await page.evaluate(()=>{
+        const frame=document.querySelector('iframe');frame.style.width='420px';frame.style.height='280px';
+        window.bridges[0].setHostContext({displayMode:'inline',availableDisplayModes:['inline','fullscreen']});
+      });
+      await page.frameLocator('iframe').first().locator('body[data-mode="inline"]').waitFor();
+      assert.deepEqual(await call(0,'catalog_state'),before);
+    }
     const first=await call(0,'catalog_state'), second=await call(1,'catalog_state');
     assert.notEqual(first.instanceId,second.instanceId);
     const body=page.frameLocator('iframe').first().locator('body');
@@ -92,11 +113,17 @@ for(const frame of document.querySelectorAll('iframe')) {
     assert.equal(failed.isError,true);
     assert.equal((await call(0,'catalog_state')).selected.sku,'TRAVEL-BAG');
     // Back navigation shows refreshed search data; it does not return to a new App.
-    await page.frameLocator('iframe').first().locator('canvas').click({position:{x:130,y:160}});
+    await captureLayouts('detail');
+    await page.frameLocator('iframe').first().locator('canvas').click({position:{x:310,y:182}});
     await expect.poll(async()=>(await call(0,'catalog_state')).route).toBe('search');
     const returned=await call(0,'catalog_state');
     assert.equal(returned.instanceId,first.instanceId);assert.equal(returned.query,'lamp');
     if(process.env.INK_SCREENSHOTS) await page.frameLocator('iframe').first().locator('canvas').screenshot({path:`${process.env.INK_SCREENSHOTS}/shared-agent-search.png`});
+    await captureLayouts('search');
+    await call(0,'catalog_search',{query:''});
+    assert.equal((await call(0,'catalog_state')).candidates.length,3);
+    if(process.env.INK_SCREENSHOTS) await page.frameLocator('iframe').first().locator('canvas').screenshot({path:`${process.env.INK_SCREENSHOTS}/shared-agent-all-inline.png`});
+    await captureLayouts('all');
     await page.evaluate(()=>window.bridges[0].teardownResource({}));
     assert.deepEqual(await body.evaluate(body=>Object.keys(body.ownerDocument.defaultView.webTools)),[]);
     assert.deepEqual(await call(1,'catalog_state'),second);

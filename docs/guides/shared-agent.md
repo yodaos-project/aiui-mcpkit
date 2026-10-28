@@ -4,7 +4,7 @@ English | [简体中文](shared-agent.zh-CN.md) · [Documentation index](../READ
 
 Business Demo includes a shared catalog with search, product details and selection. Worker actions query and validate demo products; App actions update the original live UI. No purchase is made and no example-specific MCP server is needed.
 
-![Search updated while preserving the selected bag](../assets/shared-agent-search.png)
+![Fullscreen catalog with the selected bag preserved](../assets/shared-agent-desktop-detail.png)
 
 ## Register the UI independently
 
@@ -43,6 +43,8 @@ These are `ModelContext.defineAction()` methods in [app.js](../../examples/busin
 When the host sends a subsequent input/result to an existing shared View, MCPKit delivers the result with `tool` and `input` fields and preserves the bundle, navigation stack and App actions. Ordinary page tools retain their existing relaunch behavior. Shared Views ignore results for other application routes. Host result notifications have no invocation ID: overlapping host notifications with identical arguments cannot be correlated reliably. Use live App actions for concurrent updates; the example ignores stale search completions.
 
 When a host exposes browser WebMCP, the View also projects its live Ink registry into `document.modelContext` (or the legacy navigator registry). A browser agent can discover and call these same instance-bound Actions through WebMCP. Registrations follow tool changes and teardown; unchanged App tools survive Page navigation. Hosts without this browser API keep the MCP Apps route. Neither route duplicates Worker/business implementations.
+
+The catalog has a dedicated `_blank` layout: a centered workspace with larger product details and a separate selection summary. Narrow viewports stack the panels and actions, while short viewports use compact controls. The inline card keeps a compact product grid. Switching display mode or resizing preserves App state.
 
 ## Ownership and isolation
 
