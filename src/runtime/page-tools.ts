@@ -12,6 +12,8 @@ export interface PageTool {
   page: string;
   inputSchema: Record<string, unknown>;
   resourceUri: string;
+  /** Named shared application registered by the builder. */
+  application?: string;
   /** schema.output in the page definition marks a server business tool. */
   outputSchema?: Record<string, unknown>;
 }
@@ -44,19 +46,28 @@ export function pageTools(files: Record<string, string>, pages: string[], name: 
     try {
       const definition = JSON.parse(definitions[0][2]);
       if (!definition || typeof definition !== 'object' || Array.isArray(definition)) throw new Error('script def must be a JSON object.');
-      if (definition.schema === undefined) continue;
-      const schema = definition.schema?.data;
-      if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('schema.data must be a JSON object.');
-      inputValidator(schema);
-      const output = definition.schema.output;
-      if (output !== undefined) inputValidator(output, 'schema.output');
-      const tool = definition.tool ?? `open_${page.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-      if (typeof tool !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(tool)) throw new Error('tool must contain 1–128 letters, numbers, underscores, or hyphens.');
-      if (tools.some(item => item.name === tool)) throw new Error(`Duplicate tool name: ${tool}`);
-      if (typeof definition.description !== 'string' || !definition.description.trim()) throw new Error('A page tool requires a nonempty description.');
-      const title = definition.navigationBarTitleText ?? page;
-      if (typeof title !== 'string' || !title.trim()) throw new Error('navigationBarTitleText must be a nonempty string.');
-      tools.push({ name: tool, title, description: definition.description, page, inputSchema: schema, ...(output === undefined ? {} : { outputSchema: output }), resourceUri: `ui://${name}/${tool}.html` });
+      if (definition.tools !== undefined && definition.schema !== undefined) throw new Error('Use tools or schema, not both.');
+      const declarations = definition.tools ?? (definition.schema === undefined ? [] : [definition]);
+      if (!Array.isArray(declarations) || !declarations.length) {
+        if (definition.tools !== undefined) throw new Error('tools must be a nonempty array.');
+        continue;
+      }
+      for (const declaration of declarations) {
+        const schema = declaration.schema?.data;
+        if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('schema.data must be a JSON object.');
+        inputValidator(schema);
+        const output = declaration.schema.output;
+        if (output !== undefined) inputValidator(output, 'schema.output');
+        const tool = declaration.tool ?? `open_${page.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        if (typeof tool !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(tool)) throw new Error('tool must contain 1–128 letters, numbers, underscores, or hyphens.');
+        if (tools.some(item => item.name === tool)) throw new Error(`Duplicate tool name: ${tool}`);
+        if (typeof declaration.description !== 'string' || !declaration.description.trim()) throw new Error('A page tool requires a nonempty description.');
+        const title = definition.navigationBarTitleText ?? page;
+        if (typeof title !== 'string' || !title.trim()) throw new Error('navigationBarTitleText must be a nonempty string.');
+        const application = declaration.application ?? definition.application;
+        if (application !== undefined && (typeof application !== 'string' || !/^[a-z][a-z0-9-]*$/.test(application))) throw new Error('application must be a lowercase identifier.');
+        tools.push({ name: tool, title, description: declaration.description, page, inputSchema: schema, ...(output === undefined ? {} : { outputSchema: output }), ...(application === undefined ? {} : { application }), resourceUri: `ui://${name}/${tool}.html` });
+      }
     } catch (error) {
       throw new Error(`${page}.ink: ${error instanceof Error ? error.message : error}`);
     }

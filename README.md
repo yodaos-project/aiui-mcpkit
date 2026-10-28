@@ -56,6 +56,8 @@ codex plugin add business-demo@aiui-mcpkit-examples
 
 Restart the host and confirm the tools appear in the active session. Ask it to call `open_counter` with `{ "initialCount": 5, "label": "Demo" }`. Click **+ ADD ONE**: the count should change from **5 to 6**.
 
+The business demo also includes [a shared catalog App](docs/guides/shared-agent.md): search, inspect and select through tools while preserving navigation and isolating each View.
+
 Business Demo implements its tools with AgentWorker `ModelContext.defineAction()` methods. Configure `ink-worker` on the server process's PATH or through `INK_WORKER_BIN` ([setup](docs/guides/business-tools.md)), then call `quote_order` with `{ "quantity": 2 }`: expect **CNY 40**, remaining stock **98**, and working **CALCULATE** / **CANCEL** controls when host tool access is enabled.
 
 Use [client setup](docs/guides/clients.md) for Claude Desktop, VS Code and direct stdio connections. The [complete walkthrough](docs/getting-started/quickstart.md) covers installation, tool discovery and expected results.

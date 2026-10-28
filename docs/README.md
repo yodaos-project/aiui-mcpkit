@@ -19,6 +19,7 @@ This is the complete AIUI MCPKit documentation. Read the getting-started guides 
 | [Typed business tools](guides/business-tools.md) | Handlers, generated types, results and errors |
 | [Agent sessions and live tools](guides/agent-session.md) | User messages, explicit context, App/Page actions and dynamic tools |
 | [Candidate selection](guides/candidate-selection.md) | Runnable selection example and separate protocol, browser and model acceptance |
+| [Shared App](guides/shared-agent.md) | Multiple tools, persistent navigation and instance isolation |
 | [Runtime integration and Workers](guides/runtime-integration.md) | Runtime contracts, headless execution, migration and deployment |
 | [Request lifecycle](guides/tool-lifecycle.md) | Loading, progress, cancellation, timeouts and retries |
 | [Public metadata](guides/metadata.md) | Merge rules, custom resources and exact inspection |

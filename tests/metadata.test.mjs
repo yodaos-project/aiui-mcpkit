@@ -8,6 +8,29 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
 
 const capabilities = { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } };
+
+test('shared application registration separates tool contracts from the UI route and rejects invalid bindings', async () => {
+  const f = await fixture();
+  try {
+    await writeFile(join(f.source, 'app.json'), JSON.stringify({pages:['home','contracts']}));
+    const schema = {data:{type:'object',properties:{},additionalProperties:false}};
+    const definition = {application:'dashboard', tools:[{tool:'search',description:'Search',schema},{tool:'inspect',description:'Inspect',schema}]};
+    await writeFile(join(f.source,'contracts.ink'), `<script def>${JSON.stringify(definition)}</script>`);
+    const options = {...f,applications:{dashboard:{page:'home'}}};
+    const result = await buildPlugin(options);
+    assert.deepEqual(result.tools.map(t=>t.page),['home','home']);
+    assert.deepEqual(result.tools.map(t=>t.resourceUri),['ui://metadata-test/applications/dashboard.html','ui://metadata-test/applications/dashboard.html']);
+    const resources=result.inspectProtocol(capabilities).resources;
+    assert.equal(resources.length,1);
+    assert.equal(resources[0].name,'dashboard');
+    await assert.rejects(buildPlugin({...options,applications:{}}), /Unknown application/);
+    await assert.rejects(buildPlugin({...options,applications:{dashboard:{page:'missing'}}}), /registered pages/);
+    for (const invalid of [{...definition,tools:[]},{...definition,schema},{...definition,application:'../bad'}]) {
+      await writeFile(join(f.source,'contracts.ink'), `<script def>${JSON.stringify(invalid)}</script>`);
+      await assert.rejects(buildPlugin(options));
+    }
+  } finally {await rm(f.root,{recursive:true,force:true});}
+});
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'mcpkit-metadata-'));
   const source = join(root, 'agent'); await mkdir(source);

@@ -156,8 +156,8 @@ export function prepareProtocol(name: string, tools: PageTool[], requestPolicy: 
     }
     resourceMeta.ui = { ...ui, csp: { ...csp, ...value } };
   }
-  const resources: ProtocolResource[] = tools.map(tool => ({ name: tool.name, uri: tool.resourceUri, mimeType: RESOURCE_MIME_TYPE,
-    page: tool.page, _meta: merge(resourceDefaults, resourceMeta) }));
+  const resources: ProtocolResource[] = [...new Map(tools.map(tool => [tool.resourceUri, { name: tool.application ?? tool.name, uri: tool.resourceUri, mimeType: RESOURCE_MIME_TYPE,
+    page: tool.page, _meta: merge(resourceDefaults, resourceMeta) }])).values()];
   const custom = options.uiResources === undefined ? [] : options.uiResources;
   if (!Array.isArray(custom)) throw new Error('uiResources must be an array.');
   for (const resource of custom) {

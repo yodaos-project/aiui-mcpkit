@@ -56,6 +56,8 @@ codex plugin add business-demo@aiui-mcpkit-examples
 
 重启宿主，确认工具出现在当前会话。让客户端以 `{ "initialCount": 5, "label": "Demo" }` 调用 `open_counter`，点击 **+ ADD ONE**，计数应从 **5 变为 6**。
 
+业务示例还提供[多工具共享目录 App](docs/guides/shared-agent.zh-CN.md)：通过工具搜索、查看详情和选择商品，保留导航，并隔离每个 View 的状态。
+
 Business Demo 通过 AgentWorker 的 `ModelContext.defineAction()` 实现工具。先在服务进程的 PATH 中配置 `ink-worker`，或设置 `INK_WORKER_BIN`（见[配置说明](docs/guides/business-tools.zh-CN.md)），再以 `{ "quantity": 2 }` 调用 `quote_order`，预期看到 **CNY 40**、剩余库存 **98**。宿主开启工具访问后，**CALCULATE** 和 **CANCEL** 可用于发起与取消业务调用。
 
 Claude Desktop、VS Code 和直接 stdio 连接见[客户端接入](docs/guides/clients.zh-CN.md)。[完整示例教程](docs/getting-started/quickstart.zh-CN.md)介绍安装、工具发现和每一步的预期结果。

@@ -11,6 +11,7 @@ for (const example of examples) {
     outputDir: join(output, example.id),
     typesFile: join(root, 'examples', example.id, '.mcpkit/tools.d.ts'),
     ...(example.worker ? { worker: example.worker } : {}),
+    ...(example.applications ? { applications: example.applications } : {}),
   });
   // The examples are installed through the shared catalog, not individual catalogs.
   await rm(join(result.outputDir, '.agents'), { recursive: true, force: true });

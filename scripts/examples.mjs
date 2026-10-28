@@ -6,7 +6,7 @@ export const examplesDirectory = join(root, 'dist/examples');
 export const marketplaceName = 'aiui-mcpkit-examples';
 export const examples = [
   { id: 'counter', name: 'ink-counter', title: 'AIUI MCPKit Counter' },
-  { id: 'business', name: 'business-demo', title: 'MCPKit Business Demo', worker: { name: 'business' } },
+  { id: 'business', name: 'business-demo', title: 'MCPKit Business Demo', worker: { name: 'business' }, applications: { catalog: { page: 'pages/catalog/index' } } },
 ];
 export function selectExamples(id) {
   if (id === undefined) return examples;

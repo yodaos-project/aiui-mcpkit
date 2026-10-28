@@ -4,10 +4,11 @@ import { createMcpHostProvider } from './host-provider.js';
 import type { RequestPolicy } from './lifecycle.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
+import { browserWebRegistry, mirrorWebTools, type WebRegistry } from './webmcp.js';
 
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, BundleEntry>;
-declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[] };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[] };
 const config = __APP_CONFIG__;
 const files = decodeBundle(__INK_FILES__);
 
@@ -15,6 +16,18 @@ const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'], tools: { listChanged: true } }, { autoResize: false });
 let view: InkView | undefined;
 const hostProvider = createMcpHostProvider(app);
+const browserRegistry = browserWebRegistry(
+  (document as Document & { modelContext?: WebRegistry }).modelContext,
+  (navigator as Navigator & { modelContext?: Parameters<typeof browserWebRegistry>[1] }).modelContext);
+const webTools = mirrorWebTools(browserRegistry,
+  async () => (await view?.modelContext?.getTools()) || [],
+  async (name, input, signal) => {
+    const owner = view?.modelContext;
+    const tool = (await owner?.getTools())?.find(tool => tool.name === name);
+    if (!owner || !tool) throw new Error('Ink App tool is unavailable');
+    return JSON.parse(await owner.executeTool(tool, input, { signal }));
+  });
+document.body.dataset.webmcp = browserRegistry ? 'available' : 'unavailable';
 // View-provided tools execute in the owning live App, independently of headless worker tools.
 app.onlisttools = async () => ({
   tools: (await view?.modelContext?.getTools() || []).map(tool => ({
@@ -47,8 +60,8 @@ const toolBridge = new AgentToolBridge({
   }),
   send: state => view?.dispatchMessageEvent(state),
 });
-window.addEventListener('pagehide', () => { toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.destroy(); });
-app.onteardown = () => { toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.render(); view?.destroy(); return {}; };
+window.addEventListener('pagehide', () => { webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.destroy(); });
+app.onteardown = () => { webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.render(); view?.destroy(); return {}; };
 app.ontoolcancelled = params => {
   hostProvider.cancelled(params.reason);
   toolBridge.cancelAll(params.reason || 'Host cancelled');
@@ -64,6 +77,8 @@ function deliverToolResult() {
   if (!view || !pendingResult) return;
   const result = pendingResult; pendingResult = undefined;
   view.dispatchMessageEvent({ type: 'mcpkit:tool-result', structuredContent: result.structuredContent,
+    tool: (result._meta?.aiui as { tool?: string } | undefined)?.tool,
+    input: (result._meta?.aiui as { query?: Record<string, unknown> } | undefined)?.query,
     uiOnly: result._meta?.uiOnly, error: result._meta?.businessError, isError: result.isError === true, request: result._meta?.request });
 }
 const initialPage = document.body.dataset.page || config.page;
@@ -72,6 +87,12 @@ function openPage() {
   if (!view || query === undefined || document.body.dataset.requestState === 'cancelled') return;
   document.body.dataset.requestState = 'ready';
   const serialized = JSON.stringify(query);
+  // An existing shared View owns its App and navigation. New data is delivered
+  // through result events; it must never reopen the bundle or cancel live work.
+  if (config.sharedPages.includes(initialPage) && openedQuery !== undefined) {
+    openedQuery = serialized;
+    deliverToolResult(); return;
+  }
   if (serialized === openedQuery) { deliverToolResult(); return; }
   toolBridge.cancelAll('Page replaced');
   view.openBundle({ appId: config.name, files, initialPage, query,
@@ -87,6 +108,7 @@ app.ontoolinput = (input) => { hostProvider.input(input.arguments || {}); pendin
 app.ontoolresult = (result) => {
   if (document.body.dataset.requestState === 'cancelled') return;
   const invocation = result._meta?.aiui as { page?: string; query?: Record<string, unknown> } | undefined;
+  if (config.sharedPages.includes(initialPage) && invocation?.page !== initialPage) return;
   // Host notifications have no correlation ID: accept only the current launch query.
   if (invocation?.query && query !== undefined && JSON.stringify(invocation.query) !== JSON.stringify(query)) return;
   try { hostProvider.result(result); } catch { console.debug('Ink host result content modality is unavailable'); }
@@ -107,7 +129,9 @@ function applyMode(actual: string) {
 function resize() {
   if (!view) return;
   const box = canvas.getBoundingClientRect();
-  const width = Math.max(1, Math.round(box.width));
+  // Ink pins the canvas and its parent to the last logical pixel width.
+  // Measure the host viewport, otherwise resizing keeps that old width forever.
+  const width = Math.max(1, document.documentElement.clientWidth);
   const height = Math.max(1, Math.round(box.height));
   if (width !== lastWidth || height !== lastHeight) {
     view.setViewport(width, height, window.devicePixelRatio || 1);
@@ -117,7 +141,9 @@ function resize() {
   if (mode === 'inline') app.sendSizeChanged({ height: Math.ceil(document.body.scrollHeight) }).catch(() => {});
 }
 
-new ResizeObserver(resize).observe(canvas);
+const viewportObserver = new ResizeObserver(resize);
+viewportObserver.observe(canvas);
+viewportObserver.observe(document.documentElement);
 window.addEventListener('resize', resize);
 app.onhostcontextchanged = (context) => {
   hostProvider.contextChanged(context);
@@ -151,6 +177,7 @@ async function main() {
   await view.setAgentProvider(hostProvider);
   view.modelContext?.addEventListener('toolchange', () => {
     app.sendToolListChanged().catch(() => {});
+    void webTools.sync().catch(() => { document.body.dataset.webmcp = 'error'; });
   });
   view.bindDomEvents({ canvas });
   openPage();

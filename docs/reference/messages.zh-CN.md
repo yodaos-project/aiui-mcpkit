@@ -69,3 +69,5 @@ this.postMessage({ type: 'mcpkit:cancel-tool', requestId: 'quote-1' });
 ---
 
 [文档目录](../README.zh-CN.md) · 上一篇：[构建 API](build-api.zh-CN.md) · 下一篇：[协议兼容性](compatibility.zh-CN.md)
+
+共享 App 的结果事件还包含 `tool`（服务端工具名）及 `input`（已校验的参数）。通过 `applications` 注册命名 UI 路由，见[共享 App 归属与路由](../guides/shared-agent.zh-CN.md)。

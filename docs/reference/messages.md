@@ -69,3 +69,5 @@ An expected `BusinessToolError` returns `isError: true`, text `CODE: message`, `
 ---
 
 [Documentation index](../README.md) · Previous: [Build API](build-api.md) · Next: [Protocol compatibility](compatibility.md)
+
+Shared application result events also include `tool` (the server tool name) and `input` (its validated arguments). Register named UI routes with `applications`; see [shared App ownership and routing](../guides/shared-agent.md).
