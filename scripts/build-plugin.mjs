@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
+import { runWatch } from './watch.mjs';
 
 async function main() {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
@@ -9,6 +10,8 @@ async function main() {
     tool: { type: 'string' }, page: { type: 'string' },
     version: { type: 'string' }, help: { type: 'boolean' },
     inspector: { type: 'boolean' },
+    watch: { type: 'boolean' }, 'no-preview': { type: 'boolean' },
+    port: { type: 'string' }, input: { type: 'string' },
   } });
   if (values.help) {
     console.log(`Usage: node scripts/build-plugin.mjs [source] --name <plugin-name> [options]
@@ -20,17 +23,30 @@ async function main() {
   --tool <name>          Fallback opener without page schemas (default: open_app)
   --page <path>          Initial page (default: first app.json pages entry)
   --version <version>    Plugin and server version (default: 0.1.0)
-  --inspector            Embed the development Inspector (disabled by default)`);
+  --inspector            Embed the development Inspector (disabled by default)
+  --watch                Watch source/dependencies, rebuild and reload local preview
+  --no-preview           Watch/build only; external hosts require manual reload
+  --port <number>        Loopback preview port (default: automatically assigned)
+  --input <json>         Preview launch arguments (default: {})
+
+Watch reloads reset App/Page memory and navigation. Browser storage remains.
+Watch prints JSON events with attempt numbers, build IDs and external-host steps.`);
     return;
   }
   if (positionals.length > 1) throw new Error('Expected at most one source directory.');
   if (!values.name) throw new Error('--name is required; use --help for usage.');
-  const result = await buildPlugin({
+  const options = {
     source: positionals[0] ?? '.', name: values.name, outputDir: values.out,
     title: values.title, description: values.description,
     tool: values.tool, page: values.page, version: values.version,
     inspector: values.inspector,
-  });
+  };
+  if (values.watch) {
+    await runWatch({ ...options, preview: values['no-preview'] ? false : { port: values.port === undefined ? undefined : Number(values.port), input: JSON.parse(values.input ?? '{}') } });
+    return;
+  }
+  if (values['no-preview'] || values.port !== undefined || values.input !== undefined) throw new Error('--no-preview, --port and --input require --watch.');
+  const result = await buildPlugin(options);
   console.log(`Built plugin ${result.name} ${result.build.id} in ${result.outputDir}`);
   console.log(`Assets: ${result.assets.files.length} files, ${result.assets.totalBytes} source bytes; View HTML: ${result.assets.viewBytes} bytes`);
   for (const file of result.assets.files.filter(file => file.encoding === 'base64')) console.log(`  ${file.path}: ${file.bytes} bytes (${file.mimeType})`);

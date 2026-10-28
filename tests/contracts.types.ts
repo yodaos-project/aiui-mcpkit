@@ -54,6 +54,17 @@ void verification;
 const invalidMode: VerifyPluginOptions['displayMode'] = 'pip';
 void invalidMode;
 
+import { watchPlugin, type WatchPluginOptions, type PluginWatcher, type WatchState } from '@yodaos-pkg/aiui-mcpkit';
+const watchOptions: WatchPluginOptions = { source: './agent', name: 'watch-demo', pollInterval: 200, debounce: 100,
+  preview: { input: { count: 5 }, displayMode: 'fullscreen' }, watchPaths: ['./shared'],
+  onEvent(event: WatchState) { void event.sequence; void event.diagnostics[0]?.line; void event.action; },
+};
+const watcher: Promise<PluginWatcher> = watchPlugin(watchOptions);
+void watcher;
+// @ts-expect-error preview can be disabled or configured, not enabled with true
+const invalidWatchPreview: WatchPluginOptions['preview'] = true;
+void invalidWatchPreview;
+
 import { Inspector, type AgentInspectionMessage } from '@yodaos-pkg/aiui-mcpkit';
 const developmentOptions: BuildPluginOptions = { source: './agent', name: 'inspect', inspector: { maxEvents: 100, redactKeys: ['customerId'] } };
 const inspectionMessage: AgentInspectionMessage = { type: 'mcpkit:inspect', kind: 'binding', name: 'total', requestId: 'quote-1', visibility: 'public', value: 40 };

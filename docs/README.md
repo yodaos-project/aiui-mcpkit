@@ -29,7 +29,7 @@ This is the complete AIUI MCPKit documentation. Read the getting-started guides 
 | [ESM build integration](guides/esm-build.md) | Use MCPKit in your own Node project |
 | [Preview verification and screenshots](guides/preview-verification.md) | Runtime, frame and business readiness checks; ESM API and CLI |
 | [Client setup](guides/clients.md) | Codex, Claude Desktop, VS Code and stdio |
-| [Development workflow](guides/development.md) | Rebuild, update installed copies and reload Views |
+| [Development workflow](guides/development.md) | Watch/rebuild with automatic local preview reload, update installed copies |
 | [Build diagnostics](guides/build-diagnostics.md) | Compare source, installed files, server and loaded View; stable URI upgrade rules |
 | [Troubleshooting](guides/troubleshooting.md) | Diagnose build, discovery, calls and rendering |
 

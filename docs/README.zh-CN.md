@@ -29,7 +29,7 @@
 | [ESM 构建接入](guides/esm-build.zh-CN.md) | 在自己的 Node 项目中使用 MCPKit |
 | [预览验证与截图](guides/preview-verification.zh-CN.md) | 运行时、画面和业务就绪检查；ESM API 和 CLI |
 | [客户端接入](guides/clients.zh-CN.md) | Codex、Claude Desktop、VS Code 与 stdio |
-| [开发迭代](guides/development.zh-CN.md) | 重新构建、同步安装副本、重载界面 |
+| [开发迭代](guides/development.zh-CN.md) | 监听重建、自动刷新本地预览、同步安装副本 |
 | [构建诊断](guides/build-diagnostics.zh-CN.md) | 比较源码、安装文件、服务和视图版本，以及稳定 URI 升级规则 |
 | [故障排查](guides/troubleshooting.zh-CN.md) | 定位构建、发现、调用和渲染问题 |
 
