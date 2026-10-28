@@ -49,21 +49,15 @@ cargo build -p ink-script --bin ink-worker
 
 仓库的 [Business Demo](../../examples/business/workers/business.js) 全部通过 `ModelContext.defineAction()` 实现工具，无需单独的 Handler 模块。生成的 `worker-app/` 需要随服务一同部署。
 
-## Worker 契约与迁移
+## Worker 执行契约
 
-[Ink #682](https://github.com/jsar-project/ink/issues/682) 已提供无界面调用能力。现有 Node Handler 模块按以下步骤迁移：
+在 manifest 声明的 Worker 中，通过 `ModelContext.defineAction({ name: '<工具名>', execute })` 方法或自有 `operations['<工具名>']` 函数实现每个页面业务工具。名称必须对应注册页面的 `tool`，schema 校验和响应封装由生成的 MCP 适配器负责。完整代码见 [Worker 示例](business-tools.zh-CN.md#实现-action)。
 
-1. 保持 `app.json.pages`、`.ink` 工具名和 `schema.data`/`schema.output` 不变。纯页面打开工具保留原行为，MCP 注册和校验仍由生成的适配器负责。
-2. 移动代码前检查导入、网络与配置依赖。当前 Worker 路径不提供 Node 专用包、`node:*`、`process.env` 和 `fetch`。依赖网络的 Node 集成先保留在可选 Handler 适配器，等待所需运行时/宿主能力；不能直接复制到 Worker 并假设行为等价。
-3. 将受支持的计算移入 `workers/business.js`，按[业务工具](business-tools.zh-CN.md#声明并构建-worker)在 `app.json.agentWorkers` 中注册。使用 `ModelContext.defineAction({ name: '<原工具名>', execute })`，或自有 `operations['<原工具名>']` 函数。保留工具名和成功结果中的 `content`/`structuredContent`，将 Node Handler 的 `uiOnly` 改为 Worker 的 `uiMetadata`。通过 `signal` 协作取消；使用 operation 进度时，将 `context.progress({ progress, total })` 改为 `context.reportProgress({ value, total })`。
-4. 将构建选项 `handlers` 替换为 `worker: { name: 'business' }`，重新构建并生成类型；全部业务工具具备 Worker 实现后再移除旧服务端模块。`worker` 和 `handlers` 不能共存，Worker 无法执行时也不会回退到 Node Handler。私有配置放入 `INK_WORKER_CONFIGURATION` 指定的部署文件，通过 operation 上下文中不可变的 `configuration` 读取；声明式 Action 不接收此扩展。
-5. 一起部署生成的完整 `worker-app/`、服务、UI 和 manifest，配置下述宿主，在不打开 UI 的情况下调用工具，确认结果、取消/进度和关闭行为后再切换客户端。既有 MCP 工具名、schema、路由和客户端调用参数仍是契约。
-
-具名操作接收 `(input, { requestId, signal, reportProgress, configuration })`，显式返回可异步完成的 JSON 结果。页面业务工具返回 `{ content, structuredContent, uiMetadata? }`，适配器校验输出，并将 `uiMetadata` 转为现有的 UI-only 结果字段。
+具名操作接收 `(input, { requestId, signal, reportProgress, configuration })`，显式返回可异步完成的 JSON 结果。页面业务工具返回 `{ content, structuredContent, uiMetadata? }`，适配器校验输出，并将 `uiMetadata` 转为 `_meta.uiOnly`。进度通过 `reportProgress({ value, total?, message? })` 上报。
 
 注册的 `ModelContext.defineAction()` 回调接收执行 `signal`，不提供仅属于 operation 的 `configuration` 和 `reportProgress`。显式业务失败可返回 `{ isError: true, businessError: { code, message }, uiMetadata? }`，由 MCPKit 转换为标准业务错误；未预期的异常保持私有。Worker 源码也会进入 View 资源，不应在源码中嵌入私有配置。
 
-Worker 在真实 Ink 模块加载器和执行环境中运行，支持定时器和 Promise，不创建 Page 或渲染器。当前路径不提供 Node API、`process.env` 和 `fetch`，适合纯计算；依赖网络的 Node handler 迁移需要单独的能力支持。将业务模块迁入 Worker 时，应先检查这些依赖，并通过私有 `configuration` 替代直接读取环境变量。
+Worker 在真实 Ink 模块加载器和执行环境中运行，支持定时器和 Promise，不创建 Page 或渲染器。当前路径不提供 Node API、`process.env` 和 `fetch`；需要 Node 依赖或网络访问的业务逻辑使用 [Node Handler](business-tools.zh-CN.md#node-handler-与校验时机)。Worker 私有配置通过 operation 上下文中不可变的 `configuration` 读取。
 
 同一执行会话的调用共享 Worker 状态，关闭时释放；它与 UI `open` 触发的 Worker generation 独立。取消按请求处理，并依赖业务实现协作。
 
@@ -81,7 +75,7 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
 
 运行 `npm ci` 即可安装已发布的 Web 运行时，不再需要本地构建或链接 Ink Web SDK。宿主服务浏览器测试为必跑项；Business Demo 调用和原生 Worker 测试需通过 PATH 或 `INK_WORKER_BIN` 找到 `ink-worker`。消息、上下文、声明式 Action 和动态注册示例见 [Agent 会话与实时工具](agent-session.zh-CN.md)。依赖固定完整版本号，避免浮动 dist-tag 选中较旧的运行时。
 
-验证基线为 Node.js 22.21.1 和上述固定版本的 SDK，部署要求 Node.js 22+。原生部署另需支持 #682 及 JSON Lines 调用契约的 Ink `ink-worker` 构建；npm SDK 不会安装该可执行文件。仓库 CI 使用 `INK_WORKER_BIN="$PWD/scripts/ink-worker-wasm.mjs" npm test`，通过公开 SDK 的真实 QuickJS/WASM 宿主执行，无需私有 Ink 源码，也不在 Node 中求值 Worker 模块。原生桌面执行另见[验收记录](../validation/candidate-selection-2026-10-28.md)。两条路径都不向 Worker 代码提供 Node 网络 API。Handler 构建期、启动期和调用期的检查见[业务工具](business-tools.zh-CN.md#现有-node-handler-与校验时机)。
+验证基线为 Node.js 22.21.1 和上述固定版本的 SDK，部署要求 Node.js 22+。原生部署另需实现 JSON Lines 调用契约的 Ink `ink-worker` 可执行文件；npm SDK 不会安装它。生成的完整 `worker-app/`、服务、UI 和 manifest 需一起部署。仓库 CI 使用 `INK_WORKER_BIN="$PWD/scripts/ink-worker-wasm.mjs" npm test`，通过公开 SDK 的真实 QuickJS/WASM 宿主执行，无需私有 Ink 源码，也不在 Node 中求值 Worker 模块。原生桌面执行另见[验收记录](../validation/candidate-selection-2026-10-28.md)。两条路径都不向 Worker 代码提供 Node 网络 API。Handler 构建期、启动期和调用期的检查见[业务工具](business-tools.zh-CN.md#node-handler-与校验时机)。
 
 ## 对话卡片
 

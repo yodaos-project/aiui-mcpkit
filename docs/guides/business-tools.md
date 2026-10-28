@@ -91,11 +91,11 @@ Initial results arrive as `{ type: 'mcpkit:tool-result', structuredContent, uiOn
 
 Worker source is bundled with the app, including the browser View: do not put credentials in it. The supplier label is public demo data returned as UI metadata. UI-only data is excluded from model-visible results, but remains accessible to the host/user. The selection page explicitly projects selected fields into context.
 
-## Existing Node handlers and validation
+## Node handlers and validation
 
-`mcp-server/handlers.ts` was the temporary business entrypoint while headless Worker invocation was pending in [Ink #682](https://github.com/jsar-project/ink/issues/682). MCPKit retains this optional adapter for existing Node integrations; Business Demo has migrated to the Worker adapter. See the [migration steps](runtime-integration.md#worker-contract-and-migration).
+Node handlers execute in the generated MCP server process and can use Node.js APIs, environment variables and external services. This adapter is selected when `worker` is omitted. For Worker execution, see [Worker configuration](runtime-integration.md#run-business-tools-in-a-worker).
 
-A page opener without `schema.output` needs no handler. A business tool with `schema.output` requires an execution implementation, even when no UI is displayed. Its name, description and input/output schemas still come only from registered `.ink` pages; do not add a handwritten contracts file or registration list.
+A page opener without `schema.output` needs no handler. A business tool with `schema.output` requires an execution implementation, even when no UI is displayed. Its name, description and input/output schemas come from registered `.ink` pages.
 
 For the Node adapter, export `handlers` from `<source>/mcp-server/handlers.ts`, or select another module with `buildPlugin({ ..., handlers: '/absolute/path/to/handlers.ts' })`. Use generated types:
 

@@ -91,11 +91,11 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker npm run start:examples -- business
 
 Worker 源码随应用打包，也进入浏览器 View，不能放置凭据。供应商标签是公开演示数据，以 UI 元数据返回。UI-only 数据排除在模型可见结果之外，但宿主及用户仍可访问。选择页面仅显式投影选中字段到上下文。
 
-## 现有 Node Handler 与校验时机
+## Node Handler 与校验时机
 
-在 [Ink #682](https://github.com/jsar-project/ink/issues/682) 提供无界面 Worker 调用能力前，`mcp-server/handlers.ts` 是临时的业务执行入口。MCPKit 为已有 Node 集成保留该可选适配器；Business Demo 已迁入 Worker。具体操作见[迁移步骤](runtime-integration.zh-CN.md#worker-契约与迁移)。
+Node Handler 在生成的 MCP 服务进程中执行，可以使用 Node.js API、环境变量和外部服务。未配置 `worker` 时使用此适配器；Worker 执行方式见 [Worker 配置](runtime-integration.zh-CN.md#通过-worker-执行业务工具)。
 
-没有 `schema.output` 的页面打开工具不需要 Handler。声明了 `schema.output` 的业务工具必须有执行实现，无论是否显示 UI。工具名、说明和输入/输出 schema 仍只来自注册的 `.ink` 页面，不要另建手写契约文件或注册列表。
+没有 `schema.output` 的页面打开工具不需要 Handler。声明了 `schema.output` 的业务工具必须有执行实现，无论是否显示 UI。工具名、说明和输入/输出 schema 来自注册的 `.ink` 页面。
 
 Node 适配器默认从 `<source>/mcp-server/handlers.ts` 读取导出的 `handlers`，也可通过 `buildPlugin({ ..., handlers: '/absolute/path/to/handlers.ts' })` 指定其他模块。使用生成类型：
 
