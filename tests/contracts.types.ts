@@ -53,6 +53,16 @@ void verification;
 // @ts-expect-error only supported MCPKit display modes are accepted
 const invalidMode: VerifyPluginOptions['displayMode'] = 'pip';
 void invalidMode;
+
+import { Inspector, type AgentInspectionMessage } from '@yodaos-pkg/aiui-mcpkit';
+const developmentOptions: BuildPluginOptions = { source: './agent', name: 'inspect', inspector: { maxEvents: 100, redactKeys: ['customerId'] } };
+const inspectionMessage: AgentInspectionMessage = { type: 'mcpkit:inspect', kind: 'binding', name: 'total', requestId: 'quote-1', visibility: 'public', value: 40 };
+new Inspector({ maxEvents: 100 }).record('agent.binding', inspectionMessage, 'quote-1');
+void developmentOptions;
+// @ts-expect-error a retention limit is numeric
+const invalidInspector: BuildPluginOptions['inspector'] = { maxEvents: 'unbounded' };
+void invalidInspector;
+
 import { createMemorySnapshotStore, createSnapshotSession, type SnapshotScope } from '@yodaos-pkg/aiui-mcpkit/state';
 const snapshotScope: SnapshotScope = { userId: 'alice', conversationId: 'chat', applicationId: 'catalog', instanceId: 'card' };
 const snapshotStore = createMemorySnapshotStore().bind(snapshotScope);

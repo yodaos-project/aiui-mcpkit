@@ -2,6 +2,8 @@
 
 [English](messages.md) | 简体中文 · [文档目录](../README.zh-CN.md)
 
+可选的 `mcpkit:inspect` 消息通过 `requestId` 关联应用用户事件和显式选择的数据绑定，仅在启用 [Inspector](../guides/inspector.zh-CN.md) 时采集，不会发布模型上下文，默认省略私有值。类型契约为 `AgentInspectionMessage`。
+
 编写 Ink 页面的 `onLoad`、`onMessage` 和 `postMessage` 时查阅本篇。完整实现见[业务页面](../../examples/business/pages/order/index.ink)。下面是经 Apps 通道传递的 MCPKit 页面消息，不是直接写入服务 stdin 的 JSON-RPC 请求。
 
 ## 初始输入与结果

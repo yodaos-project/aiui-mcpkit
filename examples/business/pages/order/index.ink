@@ -56,6 +56,7 @@ export default {
   quote() {
     this.sequence = (this.sequence || 0) + 1;
     this.requestId = 'quote-' + this.sequence;
+    this.postMessage({ type: 'mcpkit:inspect', kind: 'user-event', name: 'quote', requestId: this.requestId });
     this.postMessage({ type: 'mcpkit:call-tool', requestId: this.requestId, name: 'quote_order', arguments: { quantity: this.data.quantity } });
   },
   cancel() { if (this.requestId) this.postMessage({ type: 'mcpkit:cancel-tool', requestId: this.requestId }); },
@@ -65,15 +66,18 @@ export default {
       if (result.requestId !== this.requestId) return;
       this.setData({ state: result.state, error: result.error ? result.error.message : '' });
       if (result.state !== 'ready') return;
-      this.applyResult(result.result);
+      this.applyResult(result.result, result.requestId);
     } else if (result.type === 'mcpkit:tool-result') {
       if (result.isError) { this.setData({ state: 'error', error: result.error ? result.error.message : 'Tool failed.' }); return; }
-      this.applyResult({ structuredContent: result.structuredContent, _meta: { uiOnly: result.uiOnly } });
+      this.applyResult({ structuredContent: result.structuredContent, _meta: { uiOnly: result.uiOnly } }, result.request && result.request.requestId);
     }
   },
-  applyResult(result) {
+  applyResult(result, requestId) {
     const quote = result.structuredContent;
-    if (quote && quote.total !== undefined) this.setData({ total: quote.total, state: 'ready', remaining: result._meta && result._meta.uiOnly ? result._meta.uiOnly.stockRemaining : '-' });
+    if (quote && quote.total !== undefined) {
+      this.setData({ total: quote.total, state: 'ready', remaining: result._meta && result._meta.uiOnly ? result._meta.uiOnly.stockRemaining : '-' });
+      this.postMessage({ type: 'mcpkit:inspect', kind: 'binding', name: 'total', requestId, visibility: 'public', value: quote.total });
+    }
     this.postMessage({ type: 'quote-rendered', quote, uiOnly: result._meta && result._meta.uiOnly });
   }
 };
