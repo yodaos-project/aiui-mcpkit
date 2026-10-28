@@ -36,7 +36,8 @@
     "watch:examples": "npm run build && node scripts/watch-examples.mjs",
     "diagnose:examples": "node scripts/diagnose-examples.mjs",
     "verify:plugin": "node scripts/verify-plugin.mjs",
-    "start:examples": "node scripts/start-examples.mjs"
+    "start:examples": "node scripts/start-examples.mjs",
+    "capture:examples": "node scripts/capture-examples.mjs"
   },
   "description": "Build MCP App plugins from AIUI Agents.",
   "files": [

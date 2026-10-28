@@ -73,7 +73,7 @@ console.log(watcher.previewUrl, watcher.state);
 npm run update:examples
 ```
 
-该命令在共享 marketplace 中重建两个示例，为每个已安装插件更新 `view.html`、`dist/server.mjs`、`plugin.json`、`mcp.json` 和 `build.json`，并同步 Business Demo 的 `worker-app/`。重载 MCP 服务端或桌面宿主，并打开**新卡片**以使用更新后的界面和 Worker Action。已有卡片保留当前视图。业务调用需要服务进程通过 PATH 或 `INK_WORKER_BIN` 找到 `ink-worker`。
+该命令在共享 marketplace 中重建全部示例，为每个已安装插件更新 `view.html`、`dist/server.mjs`、`plugin.json`、`mcp.json` 和 `build.json`，并同步 Business Demo 的 `worker-app/`。重载 MCP 服务端或桌面宿主，并打开**新卡片**以使用更新后的界面和 Worker Action。已有卡片保留当前视图。业务调用需要服务进程通过 PATH 或 `INK_WORKER_BIN` 找到 `ink-worker`。
 
 脚本使用 `$CODEX_HOME`，默认为 `~/.codex`，检查 `plugins/cache/aiui-mcpkit-examples` 下对应版本及 `local` 目录。未安装的示例会跳过；一个都未安装时会报错。更新自定义安装路径中的单个示例：
 
@@ -83,7 +83,7 @@ npm run update:examples -- --example business --plugin-dir /absolute/path/to/ins
 
 未指定 `--example` 时，`--plugin-dir` 指向 marketplace 缓存目录，其中包含 `ink-counter/<version-or-local>` 和 `business-demo/<version-or-local>`。直接配置 MCP 的客户端在重建后会获得注册路径中的新服务端文件，需要通过客户端重载服务端。
 
-在终端启动单个 stdio 服务端时，使用 `npm run start:examples`，默认选择 Counter，或使用 `npm run start:examples -- business`。同一 marketplace 中的两个插件各自保留独立服务端。
+在终端启动单个 stdio 服务端时，使用 `npm run start:examples`，默认选择 Counter，或使用 `npm run start:examples -- business`。同一 marketplace 中的插件各自保留独立服务端。
 
 运行 `npm run diagnose:examples -- --example counter --plugin-dir /absolute/path/to/installed/ink-counter`，可在不修改文件的情况下比较源码、构建和安装字节。实际服务与视图 ID、缓存诊断及 URI 升级规则见[构建诊断](build-diagnostics.zh-CN.md)。更新助手不会重启服务或清理宿主缓存。
 

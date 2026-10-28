@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { examplesDirectory, selectExamples } from './examples.mjs';
+import { examples, examplesDirectory, selectExamples } from './examples.mjs';
 
 try {
-  if (process.argv.length > 3) throw new Error('Usage: npm run start:examples -- [counter|business]');
+  if (process.argv.length > 3) throw new Error(`Usage: npm run start:examples -- [${examples.map(example => example.id).join('|')}]`);
   const [example] = selectExamples(process.argv[2] ?? 'counter');
   const directory = join(examplesDirectory, example.id);
   const server = join(directory, 'dist/server.mjs');
