@@ -26,7 +26,7 @@ Give your AI tools an interface people can use: buttons, forms, calculations and
 - **Connect UI actions to the conversation.** Send user messages, publish selected context, call host tools and read resources through `getApp().getAgent()`. Publish only the state you choose.
 - **Build business tools with TypeScript.** Generated types and runtime validation cover inputs and outputs. Structured results reach the model; UI-only metadata supports rendering. Credentials stay in server code.
 - **Run business logic without opening a view.** Use a manifest-declared Agent Worker through the real Ink runtime, or keep Node.js handlers for server integrations.
-- **Package and verify the whole plugin.** An ESM API generates the server, UI resources, manifests and declarations. Progress, timeouts, cancellation, controlled retries and real WASM regression coverage are included.
+- **Package and verify the whole plugin.** An ESM API generates the server, UI resources, manifests and declarations. [Preview verification](docs/guides/preview-verification.md) checks runtime, frame and business readiness before accepting screenshots. Progress, timeouts, cancellation, controlled retries and real WASM regression coverage are included.
 
 ## Quickstart
 

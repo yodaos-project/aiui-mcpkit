@@ -13,6 +13,7 @@
 | `npm run typecheck` | 检查 TypeScript 类型 |
 | `npm test` | 运行打包、MCP 和浏览器测试 |
 | `npm run bench` | 测量渲染、服务端和打包基线 |
+| `npm run verify:plugin -- <plugin-directory> ...` | [验证就绪状态并截取 Agent PNG](guides/preview-verification.zh-CN.md) |
 
 提交代码改动前运行：
 

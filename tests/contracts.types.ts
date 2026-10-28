@@ -41,3 +41,15 @@ void checkInspection;
 // @ts-expect-error typed CSP only exposes connection and resource lists
 const invalidCsp: BuildPluginOptions["uiCsp"] = { frameDomains: [] };
 void invalidCsp;
+
+import { verifyPlugin, type VerifyPluginOptions, type PreviewVerificationResult } from '@yodaos-pkg/aiui-mcpkit';
+const preview: VerifyPluginOptions = {
+  pluginDir: './dist/my-agent', input: { count: 42 }, displayMode: 'fullscreen',
+  viewport: { width: 480, height: 352 }, readyWhen: { message: { type: 'ready', count: 42 } },
+  screenshotPath: './screenshots/agent.png', errorGate: 'fail', timeouts: { business: 1000 },
+};
+const verification: Promise<PreviewVerificationResult> = verifyPlugin(preview);
+void verification;
+// @ts-expect-error only supported MCPKit display modes are accepted
+const invalidMode: VerifyPluginOptions['displayMode'] = 'pip';
+void invalidMode;

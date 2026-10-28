@@ -127,6 +127,7 @@ PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取
 | `RequestLifecycle`、`RequestLifecycleError`、`resolveRequestPolicy` | 为异步任务添加超时、取消和重试策略。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `AgentToolBridge` | 使用相同生命周期把页面请求关联到宿主工具调用。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `BuildPluginOptions`、`BuildPluginResult`、`PageTool` | 构建输入、结果和工具映射。 | 本篇参考 |
+| `verifyPlugin`、`VerifyPluginOptions`、`PreviewVerificationResult`、`PreviewCheck`、`PreviewDiagnostic`、`PreviewErrorCode`、`PreviewError` | 验证运行时、画面和业务就绪状态，并可生成 PNG。 | [预览验证](../guides/preview-verification.zh-CN.md) |
 | `inspectBuild`、`diagnosePlugin`、`BuildIdentity`、`BuildManifest`、`BuildInspection`、`DiagnoseOptions` | 只读检查源码与文件，并比较已观察到的服务和视图 ID。 | [构建诊断](../guides/build-diagnostics.zh-CN.md) |
 | `JsonValue`、`PublicMetadata`、`UiResource`、`MetadataOptions`、`ProtocolInspection` | 元数据、资源和检查配置的类型。 | [公开元数据](../guides/metadata.zh-CN.md) |
 

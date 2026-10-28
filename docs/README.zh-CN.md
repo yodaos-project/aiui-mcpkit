@@ -24,6 +24,7 @@
 | [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 加载、进度、取消、超时与重试 |
 | [公开元数据](guides/metadata.zh-CN.md) | 合并规则、自定义资源与协议检查 |
 | [ESM 构建接入](guides/esm-build.zh-CN.md) | 在自己的 Node 项目中使用 MCPKit |
+| [预览验证与截图](guides/preview-verification.zh-CN.md) | 运行时、画面和业务就绪检查；ESM API 和 CLI |
 | [客户端接入](guides/clients.zh-CN.md) | Codex、Claude Desktop、VS Code 与 stdio |
 | [开发迭代](guides/development.zh-CN.md) | 重新构建、同步安装副本、重载界面 |
 | [构建诊断](guides/build-diagnostics.zh-CN.md) | 比较源码、安装文件、服务和视图版本，以及稳定 URI 升级规则 |

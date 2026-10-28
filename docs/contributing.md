@@ -13,6 +13,7 @@ Try the example, connect a new host, or improve the build API. [Open an issue](h
 | `npm run typecheck` | Check TypeScript types |
 | `npm test` | Run packaging, MCP, and browser tests |
 | `npm run bench` | Measure rendering, server and packaging baselines |
+| `npm run verify:plugin -- <plugin-directory> ...` | [Verify readiness and capture an Agent PNG](guides/preview-verification.md) |
 
 Before submitting a code change:
 
