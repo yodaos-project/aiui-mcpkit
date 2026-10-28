@@ -33,9 +33,9 @@ Four new examples, each with its own visual identity and a working interaction:
 
 [![Watch the MCPKit showcase](docs/assets/showcase-poster.jpg)](docs/assets/mcpkit-showcase.mp4)
 
-**[Watch the 33-second English showcase →](docs/assets/mcpkit-showcase.mp4)** · [Without background music](docs/assets/mcpkit-showcase-nobgm.mp4) · [Video source and reproduction](videos/showcase/README.md)
+**[Watch the 33-second English showcase →](docs/assets/mcpkit-showcase.mp4)** · [Without background music](docs/assets/mcpkit-showcase-nobgm.mp4)
 
-From a Codex conversation to an independent view and back, with the same selection preserved. The English film also highlights desktop agents such as Codex and Claude Code, and AIUI on Rokid Glasses. The Codex/desktop shells are labelled illustrations, app interfaces are actual runtime captures, and the glasses use the official product image from the [AIUI site](https://open.rokid.com/aiui/?lang=en-US). Interactive desktop views depend on host capabilities.
+From a Codex conversation to an independent view and back, with the same selection preserved. The English film also highlights desktop agents such as Codex and Claude Code, and AIUI on Rokid Glasses. The Codex/desktop shells are labelled illustrations, app interfaces are actual runtime captures, and the glasses use the official product image from the [AIUI site](https://open.rokid.com/aiui/?lang=en-US). Interactive desktop views depend on host capabilities. Music: [Cat Walk — Arulo](https://assets.mixkit.co/music/371/371.mp3) ([Mixkit license](https://mixkit.co/license/#musicFree)); sound effects: [Mixkit](https://mixkit.co/license/#sfxFree).
 
 ## Why MCPKit?
 

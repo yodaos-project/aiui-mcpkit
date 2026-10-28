@@ -27,6 +27,4 @@ node --test tests/showcase-browser.test.mjs
 npm run capture:examples
 ```
 
-The capture command requires built examples. It verifies state changes through live actions, captures actual Ink canvas output at 800×500/DPR 3 and inline/narrow layouts, and records action coordinates and states in `videos/showcase/out/captures/layout.json`. It writes README images to `docs/assets/examples/` and intermediate captures to ignored `videos/showcase/out/captures/`; `npm run capture:modes` updates the film textures. `CHROMIUM_PATH` can select an existing Chromium executable.
-
-[Promotional film source and rendering](../videos/showcase/README.md)
+The capture command requires built examples. It verifies state changes through live actions, captures actual Ink canvas output at 800×500/DPR 3 and inline/narrow layouts, and records action coordinates and states in ignored `test-results/showcase-captures/layout.json`. README images are written to `docs/assets/examples/`; intermediate interaction captures stay under `test-results/showcase-captures/`. `CHROMIUM_PATH` can select an existing Chromium executable.

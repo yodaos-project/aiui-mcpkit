@@ -27,6 +27,4 @@ node --test tests/showcase-browser.test.mjs
 npm run capture:examples
 ```
 
-采集命令需要先构建示例。它通过实时 Action 验证状态变化，采集真实 Ink canvas 的 800×500/DPR 3 画面以及内嵌、窄屏布局，将操作坐标与状态写入 `videos/showcase/out/captures/layout.json`。README 截图位于 `docs/assets/examples/`，中间截图位于已忽略的 `videos/showcase/out/captures/`；`npm run capture:modes` 更新成片使用的 `videos/showcase/public/textures/`。可通过 `CHROMIUM_PATH` 指定现有 Chromium。
-
-[宣传视频源码与渲染方式](../videos/showcase/README.zh-CN.md)
+采集命令需要先构建示例。它通过实时 Action 验证状态变化，采集真实 Ink canvas 的 800×500/DPR 3 画面以及内嵌、窄屏布局，将操作坐标与状态写入已忽略的 `test-results/showcase-captures/layout.json`。README 截图位于 `docs/assets/examples/`，交互过程的中间截图保留在 `test-results/showcase-captures/`。可通过 `CHROMIUM_PATH` 指定现有 Chromium。

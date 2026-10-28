@@ -4,8 +4,8 @@ import { chromium, expect } from '@playwright/test';
 import { serveShowcase, liveState, waitForExample } from './lib/showcase-browser.mjs';
 
 const assets = 'docs/assets/examples';
-const textures = 'videos/showcase/out/captures';
-await mkdir(assets, { recursive: true }); await mkdir(textures, { recursive: true });
+const captures = 'test-results/showcase-captures';
+await mkdir(assets, { recursive: true }); await mkdir(captures, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 const manifest = { renderer: 'Ink/WASM through MCP Apps AppBridge', data: 'Curated, deterministic demo fixtures; no live services', captures: [] };
 try {
@@ -20,11 +20,11 @@ try {
       const state = () => liveState(page, tool);
       async function capture(name, action) {
         await canvas.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        await canvas.screenshot({ path: `${textures}/${name}.png` });
+        await canvas.screenshot({ path: `${captures}/${name}.png` });
         manifest.captures.push({ id, file: `${name}.png`, viewport: { width: 800, height: 500 }, dpr: 3, mode: 'fullscreen', action, state: await state(), layout: { canvas: { x: 0, y: 0, width: 800, height: 500 } }, errors: [...errors] });
       }
       await capture(`${id}-before`, 'Initial tool input');
-      await copyFile(`${textures}/${id}-before.png`, `${assets}/${id}.png`);
+      await copyFile(`${captures}/${id}-before.png`, `${assets}/${id}.png`);
       if (id === 'travel') {
         await click(135, 278); await expect.poll(async () => (await state()).day).toBe(2);
         await capture('travel-day2', { click: { x: 135, y: 278 } });
@@ -64,5 +64,5 @@ try {
     }
     console.log(`Captured ${id}: real initial/interactive states, inline and narrow layouts`);
   }
-  await writeFile(`${textures}/layout.json`, JSON.stringify(manifest, null, 2) + '\n');
+  await writeFile(`${captures}/layout.json`, JSON.stringify(manifest, null, 2) + '\n');
 } finally { await browser.close(); }

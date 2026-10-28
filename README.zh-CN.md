@@ -33,9 +33,9 @@
 
 [![观看 MCPKit 宣传短片](docs/assets/showcase-poster.jpg)](docs/assets/mcpkit-showcase.mp4)
 
-**[观看 33 秒英文宣传短片 →](docs/assets/mcpkit-showcase.mp4)** · [无背景音乐版](docs/assets/mcpkit-showcase-nobgm.mp4) · [视频源码与复现方法](videos/showcase/README.zh-CN.md)
+**[观看 33 秒英文宣传短片 →](docs/assets/mcpkit-showcase.mp4)** · [无背景音乐版](docs/assets/mcpkit-showcase-nobgm.mp4)
 
-从 Codex 对话内渲染，到独立视图继续操作，再携带选择返回对话。英文成片还展示 Codex、Claude Code 等电脑智能体客户端，以及 AIUI 在 Rokid Glasses 上的运行能力。客户端外壳明确标注为示意，应用画面来自真实运行时，眼镜素材使用 [AIUI 官网](https://open.rokid.com/aiui/?lang=en-US)的官方产品图；电脑端交互界面依赖宿主能力。
+从 Codex 对话内渲染，到独立视图继续操作，再携带选择返回对话。英文成片还展示 Codex、Claude Code 等电脑智能体客户端，以及 AIUI 在 Rokid Glasses 上的运行能力。客户端外壳明确标注为示意，应用画面来自真实运行时，眼镜素材使用 [AIUI 官网](https://open.rokid.com/aiui/?lang=en-US)的官方产品图；电脑端交互界面依赖宿主能力。配乐：[Cat Walk — Arulo](https://assets.mixkit.co/music/371/371.mp3)（[Mixkit 许可](https://mixkit.co/license/#musicFree)）；音效：[Mixkit](https://mixkit.co/license/#sfxFree)。
 
 ## 为什么选择 MCPKit？
 
