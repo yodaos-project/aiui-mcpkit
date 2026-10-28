@@ -10,6 +10,8 @@ export interface BuildManifest {
   /** Local provenance only; never exposed through MCP or embedded in the View. */
   source: { directory: string; excluded: string[]; files: Record<string, string> };
   inputs: Record<string, string>;
+  /** Local server dependency paths, used to select development reload actions. */
+  serverInputs?: string[];
   artifacts: Record<string, string>;
   resources: string[];
 }
@@ -30,7 +32,7 @@ export async function sourceSnapshot(directory: string, excluded: string[]): Pro
     for (const entry of (await readdir(path, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
       const next = join(path, entry.name);
       const name = relative(directory, next).replaceAll('\\', '/');
-      if (excluded.some(value => next === value || next.startsWith(value + sep)) || ['.git', 'node_modules', '.mcpkit', 'dist'].includes(name) || entry.name === '.env' || entry.name.startsWith('.env.')) continue;
+      if (excluded.some(value => next === value || next.startsWith(value + sep)) || (entry.name === '.mcpkit' || ['.git', 'node_modules', 'dist'].includes(name)) || entry.name === '.env' || entry.name.startsWith('.env.')) continue;
       if (entry.isDirectory()) await walk(next);
       else if (entry.isFile()) files[name] = sha256(await readFile(next));
       else throw new Error(`Unsupported source entry: ${next}`);

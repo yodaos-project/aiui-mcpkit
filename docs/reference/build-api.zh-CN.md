@@ -130,6 +130,7 @@ PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取
 | `RequestLifecycle`、`RequestLifecycleError`、`resolveRequestPolicy` | 为异步任务添加超时、取消和重试策略。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `AgentToolBridge` | 使用相同生命周期把页面请求关联到宿主工具调用。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `BuildPluginOptions`、`BuildPluginResult`、`PageTool` | 构建输入、结果和工具映射。 | 本篇参考 |
+| `watchPlugin`、`WatchPluginOptions`、`PluginWatcher`、`WatchState`、`WatchChange`、`WatchChangeKind`、`WatchDiagnostic` | 暂存重建、版本事件与可选本机预览刷新。 | [开发工作流](../guides/development.zh-CN.md) |
 | `verifyPlugin`、`VerifyPluginOptions`、`PreviewVerificationResult`、`PreviewCheck`、`PreviewDiagnostic`、`PreviewErrorCode`、`PreviewError` | 验证运行时、画面和业务就绪状态，并可生成 PNG。 | [预览验证](../guides/preview-verification.zh-CN.md) |
 | `InteractionRecorder`, `InteractionRecord`, `InteractionStep`, `InteractionMock`, `InteractionChannel`, `RecordingOptions`, `validateInteractionRecord`, `validateRecordingOptions`, `equalInteractionValue`, `OMITTED`, `ReplayVerification` | 版本化授权导出及 `verifyPlugin({ replay })` 的严格 mock 与语义校验。 | [交互回放](../guides/interaction-replay.zh-CN.md) |
 | `inspectBuild`、`diagnosePlugin`、`BuildIdentity`、`BuildManifest`、`BuildInspection`、`DiagnoseOptions` | 只读检查源码与文件，并比较已观察到的服务和视图 ID。 | [构建诊断](../guides/build-diagnostics.zh-CN.md) |
