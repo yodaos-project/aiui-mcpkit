@@ -20,6 +20,7 @@ export * from './runtime/business-tools.js';
 export * from './runtime/lifecycle.js';
 export * from './runtime/tool-bridge.js';
 export type { PageTool } from './runtime/page-tools.js';
+export * from './preview.js';
 
 /** Options for packaging an AIUI Agent as an MCP Apps plugin. */
 export interface BuildPluginOptions extends MetadataOptions {

@@ -184,6 +184,7 @@ async function main() {
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
       toolBridge.receive(message.data);
+      window.dispatchEvent(new CustomEvent('mcpkit:message', { detail: message.data }));
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });

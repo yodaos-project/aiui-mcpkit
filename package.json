@@ -16,6 +16,12 @@
     "@types/node": "^26.6.3",
     "typescript": "^7.0.2"
   },
+  "peerDependencies": {
+    "playwright": "^1.63.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": { "optional": true }
+  },
   "name": "@yodaos-pkg/aiui-mcpkit",
   "version": "0.1.0",
   "type": "module",
@@ -28,6 +34,7 @@
     "build:examples": "npm run build && node scripts/build-examples.mjs",
     "update:examples": "npm run build:examples && node scripts/update-examples.mjs",
     "diagnose:examples": "node scripts/diagnose-examples.mjs",
+    "verify:plugin": "node scripts/verify-plugin.mjs",
     "start:examples": "node scripts/start-examples.mjs"
   },
   "description": "Build MCP App plugins from AIUI Agents.",

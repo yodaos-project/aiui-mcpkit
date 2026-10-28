@@ -127,6 +127,7 @@ PNG/JPEG/GIF/WebP and TTF/OTF/WOFF/WOFF2 have recognized MIME hints; actual deco
 | `RequestLifecycle`, `RequestLifecycleError`, `resolveRequestPolicy` | Wrap async work in timeout, cancellation and retry policies. | [Lifecycle](../guides/tool-lifecycle.md) |
 | `AgentToolBridge` | Bridge correlated page requests to host tool calls using the same lifecycle. | [Lifecycle](../guides/tool-lifecycle.md) |
 | `BuildPluginOptions`, `BuildPluginResult`, `PageTool` | Build inputs/results and discovered mappings. | This reference |
+| `verifyPlugin`, `VerifyPluginOptions`, `PreviewVerificationResult`, `PreviewCheck`, `PreviewDiagnostic`, `PreviewErrorCode`, `PreviewError` | Verify runtime/frame/business readiness and optionally capture a PNG. | [Preview verification](../guides/preview-verification.md) |
 | `inspectBuild`, `diagnosePlugin`, `BuildIdentity`, `BuildManifest`, `BuildInspection`, `DiagnoseOptions` | Read-only file/source inspection and comparison with observed server/View IDs. | [Build diagnostics](../guides/build-diagnostics.md) |
 | `JsonValue`, `PublicMetadata`, `UiResource`, `MetadataOptions`, `ProtocolInspection` | Typed metadata, resource and inspection configuration. | [Metadata](../guides/metadata.md) |
 
