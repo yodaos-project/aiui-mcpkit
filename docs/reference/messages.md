@@ -2,6 +2,8 @@
 
 English | [简体中文](messages.zh-CN.md) · [Documentation index](../README.md)
 
+Optional `mcpkit:inspect` messages associate application user events and explicitly selected bindings with a `requestId`. They are consumed only by the opt-in [Inspector](../guides/inspector.md), omitted from model context, and omit private values by default. See `AgentInspectionMessage` for the typed contract.
+
 Use this reference when wiring an Ink page's `onLoad`, `onMessage` and `postMessage`. For runnable code, see the [business page](../../examples/business/pages/order/index.ink). Protocol messages below are MCPKit page messages carried by the Apps channel; do not write them directly to server stdin as JSON-RPC requests.
 
 ## Initial input and result

@@ -13,12 +13,14 @@ import type { BundleEntry } from './runtime/bundle.js';
 import { sha256, sourceSnapshot, type BuildManifest } from './diagnostics.js';
 export { inspectBuild, diagnosePlugin } from './diagnostics.js';
 export type { BuildIdentity, BuildManifest, BuildInspection, DiagnoseOptions } from './diagnostics.js';
+import { resolveInspectorOptions, type InspectorOptions } from './runtime/inspector.js';
 export type { AssetLimits, AssetInfo, AssetReport, BuildDiagnostic } from './assets.js';
 import type { ClientCapabilities } from '@modelcontextprotocol/server';
 export type { MetadataOptions, PublicMetadata, JsonValue, UiResource, ProtocolInspection } from './runtime/metadata.js';
 export * from './runtime/business-tools.js';
 export * from './runtime/lifecycle.js';
 export * from './runtime/tool-bridge.js';
+export { Inspector, redactDiagnostics, resolveInspectorOptions, type InspectorOptions, type InspectorEvent, type AgentInspectionMessage } from './runtime/inspector.js';
 export type { PageTool } from './runtime/page-tools.js';
 export * from './preview.js';
 
@@ -34,6 +36,8 @@ export interface BuildPluginOptions extends MetadataOptions {
   outputDir?: string;
   /** Shared timeout policy for generated server and Agent tool bridge. */
   requestPolicy?: Partial<RequestPolicy>;
+  /** Embed a local developer Inspector. Disabled by default; omit for production. */
+  inspector?: boolean | InspectorOptions;
   /** Tool names explicitly safe to repeat after a request timeout. */
   retrySafeTools?: string[];
   /** Server-only handlers module. Defaults to <source>/mcp-server/handlers.ts for pages with schema.output. */
@@ -93,6 +97,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   if (!options.source || !options.name) throw new Error('source and name are required.');
   if (!/^[a-z][a-z0-9-]*$/.test(options.name)) throw new Error('name must use lowercase letters, numbers, and hyphens, starting with a letter.');
   const requestPolicy = resolveRequestPolicy(options.requestPolicy);
+  const inspector = resolveInspectorOptions(options.inspector);
   const assetLimits = validateAssetLimits(options.assetLimits);
   const assets: AssetReport = { files: [], totalBytes: 0, viewBytes: 0, diagnostics: [] };
   const retrySafeTools = options.retrySafeTools ?? [];
@@ -204,7 +209,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     define: {
       __BUILD_INFO__: '__mcpkitBuildInfo',
       __WASM_GZIP_BASE64__: JSON.stringify(gzipSync(wasm, { level: 9 }).toString('base64')),
-      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools, sharedPages: Object.values(applications).map(app => app.page) }),
+      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools, sharedPages: Object.values(applications).map(app => app.page), inspector, tools: inspector ? tools.map(({ name, inputSchema }) => ({ name, inputSchema, target: 'server' })) : undefined }),
     },
   });
   const excluded = [out, typesFile];

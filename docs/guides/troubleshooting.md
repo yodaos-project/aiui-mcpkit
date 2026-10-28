@@ -2,6 +2,8 @@
 
 English | [简体中文](troubleshooting.zh-CN.md) · [Documentation index](../README.md)
 
+For live request tracing, enable the [Inspector](inspector.md) with `buildPlugin({ ..., inspector: true })` or the helper's `--inspector` flag. It calls real tools, shows effective lifecycle settings, distinguishes sent model context from private UI state, and exports redacted diagnostics, including browser/WASM/CSP/resource failures.
+
 Work through failures in this order: **build → server startup → tool discovery → tool call → UI rendering → page-initiated call**. A successful earlier step does not prove the later step works. Use the current client's actual tool list and logs rather than assuming a README command made a tool available.
 
 ## Common symptoms

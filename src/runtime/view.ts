@@ -1,7 +1,9 @@
 import { App, PostMessageTransport } from '@modelcontextprotocol/ext-apps';
 import { AgentToolBridge } from './tool-bridge.js';
 import { createMcpHostProvider } from './host-provider.js';
-import type { RequestPolicy } from './lifecycle.js';
+import { RequestLifecycle, type RequestPolicy } from './lifecycle.js';
+import { Inspector, type InspectorOptions, type InspectorTool } from './inspector.js';
+import { mountInspector, captureBrowserDiagnostics } from './inspector-panel.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
 import { browserWebRegistry, mirrorWebTools, type WebRegistry } from './webmcp.js';
@@ -10,28 +12,42 @@ import type { BuildIdentity } from './build-info.js';
 declare const __BUILD_INFO__: BuildIdentity;
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, BundleEntry>;
-declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[] };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[]; inspector?: InspectorOptions; tools?: InspectorTool[] };
 const config = __APP_CONFIG__;
 document.body.dataset.mcpkitBuildId = __BUILD_INFO__.id;
 document.body.dataset.mcpkitVersion = __BUILD_INFO__.version;
 document.body.dataset.mcpkitBuildState = 'unknown';
-const files = decodeBundle(__INK_FILES__);
+const inspector = config.inspector ? new Inspector(config.inspector) : undefined;
+const stopDiagnostics = inspector ? captureBrowserDiagnostics(inspector) : undefined;
+let files: ReturnType<typeof decodeBundle>;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'], tools: { listChanged: true } }, { autoResize: false });
 let view: InkView | undefined;
-const hostProvider = createMcpHostProvider(app);
+const hostProvider = createMcpHostProvider(app, inspector);
+const liveRequests = new RequestLifecycle(config.requestPolicy);
+const domEvents = new AbortController();
+let closed = false;
+let inspectorSequence = 0;
+let liveSequence = 0;
+async function executeViewTool(name: string, input: Record<string, unknown>, signal?: AbortSignal, requestId?: string): Promise<string> {
+  requestId ??= `live-${++liveSequence}`;
+  inspector?.record('view-tool.input', { name, input }, requestId);
+  const handle = liveRequests.start(async context => {
+    const owner = view?.modelContext;
+    const tool = (await owner?.getTools())?.find(tool => tool.name === name);
+    if (!owner || !tool) throw new Error('Ink App tool is unavailable');
+    if (context.signal.aborted) throw new DOMException('Tool invocation cancelled', 'AbortError');
+    return owner.executeTool(tool, input, { signal: context.signal });
+  }, { signal, requestId, onChange: snapshot => inspector?.record('view-tool.state', snapshot, snapshot.requestId) });
+  return handle.result;
+}
 const browserRegistry = browserWebRegistry(
   (document as Document & { modelContext?: WebRegistry }).modelContext,
   (navigator as Navigator & { modelContext?: Parameters<typeof browserWebRegistry>[1] }).modelContext);
 const webTools = mirrorWebTools(browserRegistry,
   async () => (await view?.modelContext?.getTools()) || [],
-  async (name, input, signal) => {
-    const owner = view?.modelContext;
-    const tool = (await owner?.getTools())?.find(tool => tool.name === name);
-    if (!owner || !tool) throw new Error('Ink App tool is unavailable');
-    return JSON.parse(await owner.executeTool(tool, input, { signal }));
-  });
+  async (name, input, signal) => JSON.parse(await executeViewTool(name, input, signal)));
 document.body.dataset.webmcp = browserRegistry ? 'available' : 'unavailable';
 // View-provided tools execute in the owning live App, independently of headless worker tools.
 app.onlisttools = async () => ({
@@ -45,11 +61,7 @@ app.onlisttools = async () => ({
   })),
 });
 app.oncalltool = async (params, extra) => {
-  const owner = view;
-  if (!owner?.modelContext) throw new Error('Ink App tools are unavailable');
-  const tool = (await owner.modelContext.getTools()).find(tool => tool.name === params.name);
-  if (!tool) throw new Error('Ink App tool is unavailable');
-  const text = await owner.modelContext.executeTool(tool, params.arguments || {}, { signal: extra.mcpReq.signal });
+  const text = await executeViewTool(params.name, params.arguments || {}, extra.mcpReq.signal, `view:${typeof extra.mcpReq.id}:${extra.mcpReq.id}`);
   const result = JSON.parse(text);
   return { content: [{ type: 'text', text }],
     ...(result && typeof result === 'object' && !Array.isArray(result) ? { structuredContent: result } : {}),
@@ -57,7 +69,7 @@ app.oncalltool = async (params, extra) => {
 };
 
 const toolBridge = new AgentToolBridge({
-  policy: config.requestPolicy, retrySafeTools: config.retrySafeTools,
+  policy: config.requestPolicy, retrySafeTools: config.retrySafeTools, inspector,
   callTool: (params, context) => app.callServerTool(params, {
     signal: context.signal, onprogress: context.progress,
     // Lifecycle owns the budgets; prevent the SDK default from expiring first.
@@ -65,11 +77,35 @@ const toolBridge = new AgentToolBridge({
   }),
   send: state => view?.dispatchMessageEvent(state),
 });
-window.addEventListener('pagehide', () => { webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.destroy(); });
-app.onteardown = () => { webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.render(); view?.destroy(); return {}; };
+const stopPanel = inspector ? mountInspector(inspector, {
+  policy: config.requestPolicy,
+  capabilities: () => app.getHostCapabilities(),
+  tools: async () => [
+    ...(app.getHostCapabilities()?.serverTools ? config.tools || [] : []),
+    ...(await view?.modelContext?.getTools() || []).map(tool => ({ name: tool.name, inputSchema: tool.inputSchema, target: 'view' as const })),
+  ],
+  call: (tool, input) => {
+    const requestId = `inspector-${++inspectorSequence}`;
+    if (tool.target === 'server') toolBridge.receive({ type: 'mcpkit:call-tool', requestId, name: tool.name, arguments: input });
+    else void executeViewTool(tool.name, input, undefined, requestId).catch(() => {});
+    return requestId;
+  },
+  cancel: requestId => { toolBridge.lifecycle.cancel(requestId); liveRequests.cancel(requestId); },
+}) : undefined;
+function closeView() {
+  if (closed) return;
+  closed = true;
+  domEvents.abort(); viewportObserver.disconnect(); window.removeEventListener('resize', resize);
+  webTools.close(); toolBridge.cancelAll('View closed'); liveRequests.cancelAll('View closed'); hostProvider.disconnect();
+  view?.render(); view?.destroy();
+  stopDiagnostics?.(); stopPanel?.();
+}
+window.addEventListener('pagehide', closeView);
+app.onteardown = () => { closeView(); return {}; };
 app.ontoolcancelled = params => {
   hostProvider.cancelled(params.reason);
   toolBridge.cancelAll(params.reason || 'Host cancelled');
+  liveRequests.cancelAll(params.reason || 'Host cancelled');
   document.body.dataset.requestState = 'cancelled';
 };
 let mode: 'inline' | 'fullscreen' = 'inline';
@@ -81,6 +117,9 @@ let pendingResult: Parameters<NonNullable<typeof app.ontoolresult>>[0] | undefin
 function deliverToolResult() {
   if (!view || !pendingResult) return;
   const result = pendingResult; pendingResult = undefined;
+  inspector?.record('agent.tool-result', { structuredContent: result.structuredContent, uiOnly: result._meta?.uiOnly,
+    state: result.isError ? 'error' : 'ready', request: result._meta?.request },
+    (result._meta?.request as { requestId?: string } | undefined)?.requestId ?? null);
   view.dispatchMessageEvent({ type: 'mcpkit:tool-result', structuredContent: result.structuredContent,
     tool: (result._meta?.aiui as { tool?: string } | undefined)?.tool,
     input: (result._meta?.aiui as { query?: Record<string, unknown> } | undefined)?.query,
@@ -100,6 +139,8 @@ function openPage() {
   }
   if (serialized === openedQuery) { deliverToolResult(); return; }
   toolBridge.cancelAll('Page replaced');
+  liveRequests.cancelAll('Page replaced');
+  inspector?.record('agent.open', { page: initialPage, query });
   view.openBundle({ appId: config.name, files, initialPage, query,
     hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   openedQuery = serialized;
@@ -170,10 +211,17 @@ async function wasmBytes(): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
+let startupStage: 'host' | 'bundle' | 'wasm' | 'agent' = 'host';
 async function main() {
   await app.connect(new PostMessageTransport(window.parent, window.parent));
+  if (closed) return;
+  inspector?.record('host.connected', { capabilities: app.getHostCapabilities() });
   applyMode(app.getHostContext()?.displayMode || 'inline');
+  startupStage = 'bundle';
+  files = decodeBundle(__INK_FILES__);
+  startupStage = 'wasm';
   const binary = await wasmBytes();
+  if (closed) return;
   const box = canvas.getBoundingClientRect();
   view = await createInkView({
     width: Math.max(1, Math.round(box.width)),
@@ -183,18 +231,38 @@ async function main() {
     wasm: { moduleOrPath: binary },
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
+      const data = message.data as Record<string, unknown> | null;
+      if (data && data.type === 'mcpkit:inspect') {
+        if (['binding', 'user-event', 'link'].includes(String(data.kind))) inspector?.record(`agent.${data.kind}`, {
+          name: data.name, relatedRequestId: data.relatedRequestId, visibility: data.visibility === 'public' ? 'public' : 'private',
+          value: data.visibility === 'public' ? data.value : '[PRIVATE UI STATE OMITTED]',
+        }, typeof data.requestId === 'string' ? data.requestId : null);
+        return;
+      }
       toolBridge.receive(message.data);
       window.dispatchEvent(new CustomEvent('mcpkit:message', { detail: message.data }));
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });
+  if (closed) { view.destroy(); return; }
+  startupStage = 'agent';
   await view.setAgentProvider(hostProvider);
+  if (closed) return;
   view.modelContext?.addEventListener('toolchange', () => {
     app.sendToolListChanged().catch(() => {});
     void webTools.sync().catch(() => { document.body.dataset.webmcp = 'error'; });
   });
   view.bindDomEvents({ canvas });
+  if (inspector) {
+    for (const type of ['pointerdown', 'click', 'keydown']) canvas.addEventListener(type, () => inspector.record('agent.user-event', { type, target: 'canvas', detail: 'No key, text or private Page state collected' }), { signal: domEvents.signal });
+    inspector.record('runtime.ready', { page: initialPage });
+  }
   openPage();
 }
 
-main().catch(error => { console.error('Ink startup failed:', error); });
+main().catch(error => {
+  inspector?.record(`diagnostic.${startupStage}`, { error, action: startupStage === 'host' ? 'Open this resource in an MCP Apps host and check its handshake/capabilities.'
+    : startupStage === 'wasm' ? 'Check WASM compilation permissions in host CSP, WebAssembly support, gzip decompression and the packaged Ink version.'
+    : 'Check bundled app.json/pages, asset paths, host resource CSP and the Ink runtime version.' });
+  console.error('Ink startup failed:', error);
+});

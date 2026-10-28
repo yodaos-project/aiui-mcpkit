@@ -36,6 +36,7 @@ plugin/
 | `page` | `--page` | `app.json` 中的第一个页面，不带 `.ink` |
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | 仅 ESM | [生命周期默认值](../guides/tool-lifecycle.zh-CN.md) |
+| `inspector` | `--inspector` | `false`；`true` 或 `{ maxEvents?, redactKeys? }` 启用[开发面板](../guides/inspector.zh-CN.md) |
 | `retrySafeTools` | 仅 ESM | `[]` |
 | `applications` | 仅 ESM | 命名共享 UI 路由：`Record<string, { page: string }>`。工具通过 `application` 绑定；原 View 保留 App，新 View 独立。 |
 | `handlers` | 仅 ESM | 业务工具默认使用 `<source>/mcp-server/handlers.ts` |

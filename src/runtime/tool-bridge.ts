@@ -1,4 +1,5 @@
 import { RequestLifecycle, RequestLifecycleError, type RequestContext, type RequestPolicy, type RequestSnapshot } from './lifecycle.js';
+import type { Inspector } from './inspector.js';
 
 export interface AgentToolRequest {
   type: 'mcpkit:call-tool';
@@ -10,6 +11,7 @@ export interface ToolBridgeOptions {
   policy?: Partial<RequestPolicy>;
   /** Trusted, build-time allowlist. Agent messages cannot enable retries. */
   retrySafeTools?: readonly string[];
+  inspector?: Inspector;
   callTool(params: { name: string; arguments?: Record<string, unknown> }, context: RequestContext): Promise<unknown>;
   send(snapshot: RequestSnapshot & { type: 'mcpkit:tool-state' }): void;
 }
@@ -18,10 +20,21 @@ export class AgentToolBridge {
   readonly lifecycle: RequestLifecycle;
   private readonly usedIds = new Set<string>();
   constructor(private readonly options: ToolBridgeOptions) { this.lifecycle = new RequestLifecycle(options.policy); }
+  private send(snapshot: RequestSnapshot): void {
+    this.options.inspector?.record('tool.state', snapshot, snapshot.requestId);
+    const result = snapshot.result as { _meta?: { request?: RequestSnapshot } } | undefined;
+    const server = result?._meta?.request;
+    if (server?.requestId) this.options.inspector?.record('tool.server-link', {
+      serverRequestId: server.requestId, policy: server.policy, state: server.state, attempt: server.attempt,
+    }, snapshot.requestId);
+    this.options.send({ type: 'mcpkit:tool-state', ...snapshot });
+    this.options.inspector?.record('agent.delivery', { type: 'mcpkit:tool-state', state: snapshot.state }, snapshot.requestId);
+  }
   receive(message: unknown): boolean {
     if (!message || typeof message !== 'object') return false;
     const data = message as Record<string, unknown>;
     if (data.type === 'mcpkit:cancel-tool' && typeof data.requestId === 'string') {
+      this.options.inspector?.record('tool.cancel', {}, data.requestId);
       this.lifecycle.cancel(data.requestId);
       return true;
     }
@@ -30,9 +43,10 @@ export class AgentToolBridge {
     // Reusing an ID cannot create a second operation or replace its state.
     if (this.usedIds.has(data.requestId)) return true;
     this.usedIds.add(data.requestId);
+    this.options.inspector?.record('tool.input', { name: data.name, arguments: data.arguments }, data.requestId);
     if (typeof data.name !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(data.name) ||
         (data.arguments !== undefined && (!data.arguments || typeof data.arguments !== 'object' || Array.isArray(data.arguments)))) {
-      this.options.send({ type: 'mcpkit:tool-state', requestId: data.requestId, state: 'error', attempt: 0,
+      this.send({ requestId: data.requestId, state: 'error', attempt: 0,
         policy: { ...this.lifecycle.policy, maxRetries: 0 }, error: { code: 'invalid_request', message: 'Invalid tool name or arguments' } });
       return true;
     }
@@ -49,7 +63,7 @@ export class AgentToolBridge {
       requestId: request.requestId,
       retrySafe: this.options.retrySafeTools?.includes(request.name),
       shouldRetry: error => error instanceof RequestLifecycleError && error.code === 'request_timeout',
-      onChange: snapshot => this.options.send({ type: 'mcpkit:tool-state', ...snapshot }),
+      onChange: snapshot => this.send(snapshot),
     });
     void handle.result.catch(() => {});
     return true;

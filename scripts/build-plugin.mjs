@@ -8,6 +8,7 @@ async function main() {
     title: { type: 'string' }, description: { type: 'string' },
     tool: { type: 'string' }, page: { type: 'string' },
     version: { type: 'string' }, help: { type: 'boolean' },
+    inspector: { type: 'boolean' },
   } });
   if (values.help) {
     console.log(`Usage: node scripts/build-plugin.mjs [source] --name <plugin-name> [options]
@@ -18,7 +19,8 @@ async function main() {
   --description <text>   Plugin and fallback opener description
   --tool <name>          Fallback opener without page schemas (default: open_app)
   --page <path>          Initial page (default: first app.json pages entry)
-  --version <version>    Plugin and server version (default: 0.1.0)`);
+  --version <version>    Plugin and server version (default: 0.1.0)
+  --inspector            Embed the development Inspector (disabled by default)`);
     return;
   }
   if (positionals.length > 1) throw new Error('Expected at most one source directory.');
@@ -27,6 +29,7 @@ async function main() {
     source: positionals[0] ?? '.', name: values.name, outputDir: values.out,
     title: values.title, description: values.description,
     tool: values.tool, page: values.page, version: values.version,
+    inspector: values.inspector,
   });
   console.log(`Built plugin ${result.name} ${result.build.id} in ${result.outputDir}`);
   console.log(`Assets: ${result.assets.files.length} files, ${result.assets.totalBytes} source bytes; View HTML: ${result.assets.viewBytes} bytes`);

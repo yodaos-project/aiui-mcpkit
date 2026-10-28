@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
+import { Inspector } from '@yodaos-pkg/aiui-mcpkit';
 const code = (
   await build({
     entryPoints: ['src/runtime/host-provider.ts'],
@@ -20,6 +21,7 @@ function fixture(
     updateModelContext: { text: {}, structuredContent: {} },
     message: { text: {} },
   },
+  inspector,
 ) {
   const calls = [],
     notifications = [];
@@ -58,7 +60,7 @@ function fixture(
       ],
     }),
   };
-  const provider = createMcpHostProvider(app);
+  const provider = createMcpHostProvider(app, inspector);
   let snapshot;
   provider.input({ partial: 'D' }, true);
   provider.input({ sku: 'DEMO' });
@@ -104,6 +106,35 @@ test('MCP adapter negotiates precise operations and buffers only public invocati
   assert.ok(f.notifications.every((value) => value.invocationId === null));
   f.provider.contextChanged({ locale: 'en-US', privateToken: 'hidden' });
   assert.deepEqual(f.notifications.at(-1), { locale: 'en-US' });
+});
+
+test('Inspector records only actual context writes, acknowledgement, refusal and release', async () => {
+  const inspector = new Inspector();
+  const f = fixture(undefined, inspector);
+  let acknowledge;
+  f.app.updateModelContext = value => {
+    f.calls.push(['context', value]);
+    return new Promise(resolve => { acknowledge = resolve; });
+  };
+  const a = f.request('conversation.updateContext', { structuredContent: { sku: 'A' } });
+  await new Promise(resolve => setImmediate(resolve));
+  const b = f.request('conversation.updateContext', { structuredContent: { sku: 'B' } });
+  const c = f.request('conversation.updateContext', { structuredContent: { sku: 'C' } });
+  assert.equal(inspector.snapshot().filter(event => event.kind === 'model-context.sent').length, 1);
+  acknowledge({}); await a; await b;
+  await new Promise(resolve => setImmediate(resolve));
+  const writes = inspector.snapshot().filter(event => event.kind === 'model-context.sent');
+  assert.deepEqual(writes.map(event => event.data.payload.structuredContent.sku), ['A', 'C']);
+  assert.ok(inspector.snapshot().some(event => event.kind === 'model-context.skipped'));
+  acknowledge({}); await c;
+  assert.ok(inspector.snapshot().filter(event => event.kind === 'model-context.acknowledged').every(event => event.data.modelConsumptionVerified === false));
+  f.app.updateModelContext = async () => ({ isError: true });
+  await assert.rejects(f.request('conversation.updateContext', { structuredContent: { sku: 'refused' } }), { name: 'NotAllowedError' });
+  assert.ok(inspector.snapshot().some(event => event.kind === 'model-context.failed'));
+  f.app.updateModelContext = async () => ({});
+  await f.provider.release({ session: 'session', realm: 'realm' });
+  assert.deepEqual(inspector.snapshot().filter(event => event.kind === 'model-context.sent').at(-1).data.payload, { content: [], structuredContent: {} });
+  assert.ok(inspector.snapshot().filter(event => event.kind.startsWith('host.') && ['input', 'partialInput'].includes(event.kind.split('.')[1])).every(event => event.requestId === null));
 });
 test('publication, clear and explicit messages have distinct effects and host refusal rejects', async () => {
   const f = fixture();

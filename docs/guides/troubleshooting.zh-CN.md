@@ -2,6 +2,8 @@
 
 [English](troubleshooting.md) | 简体中文 · [文档目录](../README.zh-CN.md)
 
+需要实时跟踪请求时，通过 `buildPlugin({ ..., inspector: true })` 或辅助脚本 `--inspector` 启用 [Inspector](inspector.zh-CN.md)。它真实调用工具、展示生效的生命周期设置、区分实际发送的模型上下文与私有 UI 状态，并导出脱敏诊断，涵盖浏览器、WASM、CSP 和资源失败。
+
 按 **构建 → 服务启动 → 工具发现 → 工具调用 → 界面渲染 → 页面主动调用** 的顺序定位。前一步成功不代表后一步成功。以当前客户端真实工具列表和日志为准，不要仅凭 README 命令执行成功就认为工具已可用。
 
 ## 常见问题

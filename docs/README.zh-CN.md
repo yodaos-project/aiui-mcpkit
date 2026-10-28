@@ -22,6 +22,7 @@
 | [多工具共享 App](guides/shared-agent.zh-CN.md) | 多工具更新、导航保留与实例隔离 |
 | [运行时集成与 Worker](guides/runtime-integration.zh-CN.md) | 运行时契约、无界面执行、迁移与部署 |
 | [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 加载、进度、取消、超时与重试 |
+| [Inspector](guides/inspector.zh-CN.md) | 调用工具、关联请求与绑定、检查上下文并导出脱敏诊断 |
 | [公开元数据](guides/metadata.zh-CN.md) | 合并规则、自定义资源与协议检查 |
 | [ESM 构建接入](guides/esm-build.zh-CN.md) | 在自己的 Node 项目中使用 MCPKit |
 | [预览验证与截图](guides/preview-verification.zh-CN.md) | 运行时、画面和业务就绪检查；ESM API 和 CLI |
