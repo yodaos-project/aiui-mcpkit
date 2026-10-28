@@ -42,6 +42,7 @@
     "dist/index.mjs",
     "dist/*.d.ts",
     "dist/tools.mjs",
+    "dist/state.mjs",
     "dist/runtime"
   ],
   "exports": {
@@ -52,6 +53,10 @@
     "./tools": {
       "types": "./dist/runtime/business-tools.d.ts",
       "import": "./dist/tools.mjs"
+    },
+    "./state": {
+      "types": "./dist/runtime/state.d.ts",
+      "import": "./dist/state.mjs"
     }
   },
   "types": "./dist/index.d.ts",

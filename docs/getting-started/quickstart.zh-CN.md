@@ -46,7 +46,7 @@ open_counter({ "initialCount": 5, "label": "Demo" })
 open_countdown({ "start": 8, "step": 2 })
 ```
 
-`open_counter` 打开 Counter 页面，初始值为 5，标题为 “Demo”；点击 **+ ADD ONE** 后变成 6。两个参数均可选，省略 `initialCount` 时恢复已保存的计数。`open_countdown` 打开独立的 Countdown 页面，初始值为 8，每次点击减 2，最低为 0。`start` 必填，`step` 在页面逻辑中默认为 1。缺失 `start`、负数初始计数或非正数步长会被 MCP 服务端拒绝。
+`open_counter` 打开 Counter 页面，初始值为 5，标题为 “Demo”；点击 **+ ADD ONE** 后变成 6。两个参数均可选，省略 `initialCount` 时从零开始。Counter 状态仅保留于当前 View。共享目录示例展示通过具有明确作用域的[恢复适配器](../guides/state-restoration.zh-CN.md)与 App 消息协议接入跨 View 恢复。`open_countdown` 打开独立的 Countdown 页面，初始值为 8，每次点击减 2，最低为 0。`start` 必填，`step` 在页面逻辑中默认为 1。缺失 `start`、负数初始计数或非正数步长会被 MCP 服务端拒绝。
 
 两个工具均在各自页面的 `<script def>` 中声明，通过 `onLoad(query)` 接收参数。浏览器测试使用真实 Ink WASM 验证页面选择、初始状态和按钮交互。如果之前从 `ink-counter-local` 安装 Counter，请按上面的命令注册共享 marketplace 并重新安装。后续使用 `update:examples` 同步已安装的两个插件及其服务端，再重载宿主刷新工具列表。
 

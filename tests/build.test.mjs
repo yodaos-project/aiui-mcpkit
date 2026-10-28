@@ -63,6 +63,9 @@ test('ESM API packages an agent outside the package checkout', async () => {
     const invalidOutput = join(project, 'invalid');
     await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: invalidOutput, requestPolicy: { totalTimeoutMs: 0 } }), /totalTimeoutMs/);
     await assert.rejects(access(invalidOutput));
+    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: invalidOutput, restoration: { adapter: '' } }), /browser module/);
+    await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', outputDir: invalidOutput, restoration: { adapter: join(invalidOutput, 'adapter.js') } }), /outside the output/);
+    await assert.rejects(access(invalidOutput));
     await assert.rejects(buildPlugin({ source: ink, name: 'my-dashboard', page: 'missing', outputDir: invalidOutput }), /Initial page not found/);
     await assert.rejects(access(invalidOutput));
     assert.equal(await readFile(join(ink, 'pages/home.ink'), 'utf8'), '<page><text>Developer dashboard</text></page>');

@@ -19,6 +19,7 @@ export type { MetadataOptions, PublicMetadata, JsonValue, UiResource, ProtocolIn
 export * from './runtime/business-tools.js';
 export * from './runtime/lifecycle.js';
 export * from './runtime/tool-bridge.js';
+export * from './runtime/state.js';
 export type { PageTool } from './runtime/page-tools.js';
 export * from './preview.js';
 
@@ -42,6 +43,8 @@ export interface BuildPluginOptions extends MetadataOptions {
   worker?: { name: string };
   /** Shared UI registrations. Calls delivered to an existing View preserve its App. New Views remain independent. */
   applications?: Record<string, { page: string }>;
+  /** Optional public browser module exporting createRestoration(context). No host persistence is assumed. */
+  restoration?: { adapter: string };
   /** Generated handler/input/output declarations. Defaults to <outputDir>/tools.d.ts. */
   typesFile?: string;
   title?: string;
@@ -157,6 +160,9 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const handlersPath = hasBusinessTools && !options.worker ? resolve(options.handlers ?? join(source, 'mcp-server/handlers.ts')) : undefined;
   if (handlersPath && nested(out, handlersPath)) throw new Error('Business handlers must be outside the output directory.');
   const typesFile = resolve(options.typesFile ?? join(out, 'tools.d.ts'));
+  if (options.restoration && (typeof options.restoration.adapter !== 'string' || !options.restoration.adapter)) throw new Error('restoration.adapter must name a browser module.');
+  const restorationAdapter = options.restoration ? resolve(options.restoration.adapter) : undefined;
+  if (restorationAdapter && nested(out, restorationAdapter)) throw new Error('Restoration adapters must be outside the output directory.');
   if (!typesFile.endsWith('.d.ts')) throw new Error('typesFile must end with .d.ts.');
   const config = { requestPolicy, retrySafeTools, name: options.name, title, description, tool: tools[0].name, tools, protocol, page, waitForToolInput, version: options.version ?? '0.1.0' };
   const runtime = new URL('./runtime/', import.meta.url);
@@ -201,10 +207,15 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const view = await build({
     entryPoints: [fileURLToPath(new URL('view.ts', runtime))],
     bundle: true, write: false, metafile: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
+    plugins: [{ name: 'restoration-adapter', setup(plugin) {
+      plugin.onResolve({ filter: /^mcpkit:restoration-adapter$/ }, () => restorationAdapter ? { path: restorationAdapter } : { path: 'no-restoration', namespace: 'mcpkit' });
+      plugin.onLoad({ filter: /^no-restoration$/, namespace: 'mcpkit' }, () => ({ contents: 'export const createRestoration = async () => undefined;', loader: 'js' }));
+      plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit\/state$/ }, () => ({ path: fileURLToPath(new URL('state.ts', runtime)) }));
+    } }],
     define: {
       __BUILD_INFO__: '__mcpkitBuildInfo',
       __WASM_GZIP_BASE64__: JSON.stringify(gzipSync(wasm, { level: 9 }).toString('base64')),
-      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools, sharedPages: Object.values(applications).map(app => app.page) }),
+      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools, sharedPages: Object.values(applications).map(app => app.page), pages, restoration: !!options.restoration }),
     },
   });
   const excluded = [out, typesFile];

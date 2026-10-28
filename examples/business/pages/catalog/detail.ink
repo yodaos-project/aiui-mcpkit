@@ -1,13 +1,13 @@
 <script setup>
-import wx from 'wx';
 export default {
  data: { detailName: '', detailPrice: 0, selectedName: 'None', status: '' },
  onShow() { getApp().attach(this, 'detail'); },
  onHide() { getApp().detach(this); },
  onUnload() { getApp().detach(this); },
  onMessage(event) { getApp().receive(event.data); },
+ updateDraft(event) { getApp().updateDraft(event.detail.value); },
  select() { getApp().run('select_catalog_product', {sku:getApp().catalog.detail.sku}).catch(error=>this.setData({status:error.message})); },
- back() { wx.navigateBack(); },
+ back() { getApp().backCatalog(); },
 };
 </script>
 <page><view class="screen"><view class="shell">
@@ -25,14 +25,15 @@ export default {
  <text class="eyebrow">YOUR SELECTION</text>
  <text class="selection-name">{{selectedName}}</text>
  <text class="selection-meta" ink:if="{{selectedSku}}">{{selectedSku}} · CNY {{selectedPrice}}</text>
- <text class="selection-help">Explore at your own pace.</text>
+ <text class="selection-help" ink:if="{{!restorationActive}}">Explore at your own pace.</text>
+ <view class="draft" ink:if="{{restorationActive}}"><text class="eyebrow">PRIVATE NOTE</text><input class="draft-input" value="{{draft}}" placeholder="Add a note for later" maxLength="1000" bindinput="updateDraft" /><text class="save-status">{{saveStatus}}</text></view>
 </view>
  </view>
  <view class="footer"><text>DEMO CATALOG</text><text>No purchase is made.</text></view>
 <text class="status" ink:if="{{status}}">{{status}}</text>
 </view></view></page>
 <style>
-view, button { box-sizing:border-box; }
+view, button, input { box-sizing:border-box; }
 
 .screen { width:100%; min-height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; color:#40ff5e; background-color:#000; }
 .shell { width:100%; max-width:1040px; display:flex; flex-direction:column; gap:12px; }
@@ -51,6 +52,9 @@ view, button { box-sizing:border-box; }
 .control { flex:1; min-height:34px; padding:8px 12px; font-size:11px; border-radius:6px; border:1px solid rgba(64,255,94,0.35); background-color:#000; color:#40ff5e; }
 .primary { background-color:#40ff5e; color:#000; border-color:#40ff5e; font-weight:600; }
 .footer { display:none; }
+.draft { display:flex; flex-direction:column; gap:8px; }
+.draft-input { width:100%; height:36px; padding:0; font-size:12px; color:#40ff5e; background-color:#000; }
+.save-status { font-size:10px; color:rgba(64,255,94,0.6); }
 .status { font-size:11px; color:#40ff5e; }
 @media (target: _blank) {
  .screen { padding:40px; }

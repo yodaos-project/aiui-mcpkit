@@ -6,11 +6,13 @@ import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
 import { browserWebRegistry, mirrorWebTools, type WebRegistry } from './webmcp.js';
 import type { BuildIdentity } from './build-info.js';
+import { createRestoration } from 'mcpkit:restoration-adapter';
+import { createSnapshotSession, SnapshotError, type SnapshotPayload } from './state.js';
 
 declare const __BUILD_INFO__: BuildIdentity;
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, BundleEntry>;
-declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[] };
+declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[]; pages: string[]; restoration: boolean };
 const config = __APP_CONFIG__;
 document.body.dataset.mcpkitBuildId = __BUILD_INFO__.id;
 document.body.dataset.mcpkitVersion = __BUILD_INFO__.version;
@@ -21,6 +23,49 @@ const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
 const app = new App({ name: config.title, version: config.version }, { availableDisplayModes: ['inline', 'fullscreen'], tools: { listChanged: true } }, { autoResize: false });
 let view: InkView | undefined;
 const hostProvider = createMcpHostProvider(app);
+let snapshotSession: ReturnType<typeof createSnapshotSession> | undefined;
+let restoredState: SnapshotPayload | undefined;
+let restoreId: string | undefined;
+let restoreReady = true;
+let restoreAccepted = false;
+let restoreTimer: ReturnType<typeof setTimeout> | undefined;
+let destroyed = false;
+let closing = false;
+let restorationAbort: AbortController | undefined;
+let pendingStateRestore: Record<string, unknown> | undefined;
+let saveSequence = 0;
+function stateStatus(status: string, error?: unknown) {
+  document.body.dataset.restoration = status;
+  const code = error instanceof SnapshotError ? error.code : error ? 'STORAGE_ERROR' : undefined;
+  if (code) document.body.dataset.restorationError = code;
+  else delete document.body.dataset.restorationError;
+  view?.dispatchMessageEvent({ type: 'mcpkit:state-status', restoreId, status, ...(code ? { code } : {}) });
+}
+function receiveStateMessage(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Record<string, unknown>;
+  if (typeof message.type !== 'string' || !message.type.startsWith('mcpkit:state-')) return false;
+  // Never log snapshots or forward them into model context/tool input buffers.
+  if (message.type === 'mcpkit:state-connect') {
+    if (!destroyed && pendingStateRestore) {
+      const restoration = pendingStateRestore; pendingStateRestore = undefined;
+      view?.dispatchMessageEvent(restoration);
+    }
+    return true;
+  }
+  if (!snapshotSession || message.restoreId !== restoreId || destroyed) return true;
+  if (message.type === 'mcpkit:state-ready' && !restoreReady) {
+    restoreReady = true; restoreAccepted = true; pendingStateRestore = undefined; clearTimeout(restoreTimer); stateStatus('ready'); deliverToolResult();
+  } else if (message.type === 'mcpkit:state-save' && restoreReady && restoreAccepted) {
+    const owner = restoreId;
+    const sequence = ++saveSequence;
+    stateStatus('saving');
+    void snapshotSession.save({ page: message.page as string, data: message.data as SnapshotPayload['data'] }).then(() => {
+      if (!destroyed && owner === restoreId && sequence === saveSequence) stateStatus('saved');
+    }, error => { if (!destroyed && owner === restoreId && sequence === saveSequence) stateStatus('error', error); });
+  }
+  return true;
+}
 const browserRegistry = browserWebRegistry(
   (document as Document & { modelContext?: WebRegistry }).modelContext,
   (navigator as Navigator & { modelContext?: Parameters<typeof browserWebRegistry>[1] }).modelContext);
@@ -45,6 +90,7 @@ app.onlisttools = async () => ({
   })),
 });
 app.oncalltool = async (params, extra) => {
+  if (closing || destroyed) throw new Error('Ink App is closing');
   const owner = view;
   if (!owner?.modelContext) throw new Error('Ink App tools are unavailable');
   const tool = (await owner.modelContext.getTools()).find(tool => tool.name === params.name);
@@ -65,8 +111,13 @@ const toolBridge = new AgentToolBridge({
   }),
   send: state => view?.dispatchMessageEvent(state),
 });
-window.addEventListener('pagehide', () => { webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.destroy(); });
-app.onteardown = () => { webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.render(); view?.destroy(); return {}; };
+function destroyView() { destroyed = true; clearTimeout(restoreTimer); restorationAbort?.abort(); webTools.close(); toolBridge.cancelAll('View closed'); hostProvider.disconnect(); view?.render(); view?.destroy(); }
+window.addEventListener('pagehide', () => { void snapshotSession?.close(); destroyView(); });
+app.onteardown = async () => {
+  closing = true; webTools.close(); toolBridge.cancelAll('View closed');
+  try { await snapshotSession?.close(); } finally { destroyView(); }
+  return {};
+};
 app.ontoolcancelled = params => {
   hostProvider.cancelled(params.reason);
   toolBridge.cancelAll(params.reason || 'Host cancelled');
@@ -79,7 +130,7 @@ let query: Record<string, unknown> | undefined = config.waitForToolInput ? undef
 let openedQuery: string | undefined;
 let pendingResult: Parameters<NonNullable<typeof app.ontoolresult>>[0] | undefined;
 function deliverToolResult() {
-  if (!view || !pendingResult) return;
+  if (!view || !pendingResult || !restoreReady) return;
   const result = pendingResult; pendingResult = undefined;
   view.dispatchMessageEvent({ type: 'mcpkit:tool-result', structuredContent: result.structuredContent,
     tool: (result._meta?.aiui as { tool?: string } | undefined)?.tool,
@@ -100,7 +151,17 @@ function openPage() {
   }
   if (serialized === openedQuery) { deliverToolResult(); return; }
   toolBridge.cancelAll('Page replaced');
-  view.openBundle({ appId: config.name, files, initialPage, query,
+  const restored = openedQuery === undefined ? restoredState : undefined;
+  clearTimeout(restoreTimer);
+  restoreReady = !snapshotSession;
+  restoreAccepted = false;
+  restoreId = crypto.randomUUID();
+  pendingStateRestore = config.restoration ? { type: 'mcpkit:restore-state', restoreId, supported: !!snapshotSession, ...(restored ? { snapshot: restored } : {}) } : undefined;
+  if (snapshotSession) restoreTimer = setTimeout(() => {
+    restoreReady = true; pendingStateRestore = undefined;
+    stateStatus('error', new SnapshotError('RESTORE_NOT_HANDLED', 'App did not acknowledge restoration.')); deliverToolResult();
+  }, 5000);
+  view.openBundle({ appId: config.name, files, initialPage: restored?.page ?? initialPage, query,
     hostOptions: { initialTarget: mode === 'fullscreen' ? '_blank' : '_current' } });
   openedQuery = serialized;
   resize();
@@ -173,7 +234,26 @@ async function wasmBytes(): Promise<Uint8Array> {
 async function main() {
   await app.connect(new PostMessageTransport(window.parent, window.parent));
   applyMode(app.getHostContext()?.displayMode || 'inline');
+  stateStatus('unavailable');
+  if (config.restoration) {
+    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
+    restorationAbort = controller;
+    try {
+      const binding = await Promise.race([createRestoration({ applicationId: config.name, initialPage, signal: controller.signal }), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { controller.abort(); reject(new SnapshotError('TIMEOUT', 'Restoration adapter timed out.')); }, 5000);
+      })]);
+      clearTimeout(timer);
+      if (binding && !destroyed) {
+        snapshotSession = createSnapshotSession(binding, { applicationId: config.name, pages: config.pages });
+        restoredState = await snapshotSession.restore();
+        stateStatus(restoredState ? 'restored' : 'empty');
+      }
+    } catch (error) { controller.abort(); snapshotSession = undefined; stateStatus('rejected', error); }
+    finally { clearTimeout(timer); }
+  }
+  if (destroyed) return;
   const binary = await wasmBytes();
+  if (destroyed) return;
   const box = canvas.getBoundingClientRect();
   view = await createInkView({
     width: Math.max(1, Math.round(box.width)),
@@ -183,11 +263,13 @@ async function main() {
     wasm: { moduleOrPath: binary },
     onContentSizeChanged: () => resize(),
     onMessage: (message) => {
+      if (receiveStateMessage(message.data)) return;
       toolBridge.receive(message.data);
       window.dispatchEvent(new CustomEvent('mcpkit:message', { detail: message.data }));
       console.debug('Ink message:', JSON.stringify(message.data));
     },
   });
+  if (destroyed) { view.destroy(); return; }
   await view.setAgentProvider(hostProvider);
   view.modelContext?.addEventListener('toolchange', () => {
     app.sendToolListChanged().catch(() => {});

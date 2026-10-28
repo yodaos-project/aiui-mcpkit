@@ -46,7 +46,7 @@ open_counter({ "initialCount": 5, "label": "Demo" })
 open_countdown({ "start": 8, "step": 2 })
 ```
 
-`open_counter` opens the Counter page at 5 with the label “Demo”; clicking **+ ADD ONE** changes it to 6. Both parameters are optional, and omitting `initialCount` restores the saved count. `open_countdown` opens a separate Countdown page at 8; each click subtracts 2 until zero. `start` is required and `step` defaults to 1 in Page logic. Missing `start`, negative initial counts, and nonpositive steps are rejected by the MCP server.
+`open_counter` opens the Counter page at 5 with the label “Demo”; clicking **+ ADD ONE** changes it to 6. Both parameters are optional, and omitting `initialCount` starts at zero. Counter state lasts for the current View. The shared catalog demonstrates cross-View recovery through an explicitly scoped [restoration adapter](../guides/state-restoration.md) and App message protocol. `open_countdown` opens a separate Countdown page at 8; each click subtracts 2 until zero. `start` is required and `step` defaults to 1 in Page logic. Missing `start`, negative initial counts, and nonpositive steps are rejected by the MCP server.
 
 Both tools are declared in their pages' `<script def>` blocks, with parameters received by `onLoad(query)`. The browser tests verify page selection, initial state, and interaction using real Ink WASM. If you installed Counter from the older `ink-counter-local` catalog, register the shared catalog above and reinstall it there. For subsequent changes, `update:examples` updates both installed plugins, including their servers; reload the host to refresh its tool list.
 
