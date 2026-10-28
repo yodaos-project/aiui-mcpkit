@@ -91,7 +91,35 @@ Initial results arrive as `{ type: 'mcpkit:tool-result', structuredContent, uiOn
 
 Worker source is bundled with the app, including the browser View: do not put credentials in it. The supplier label is public demo data returned as UI metadata. UI-only data is excluded from model-visible results, but remains accessible to the host/user. The selection page explicitly projects selected fields into context.
 
-MCPKit retains its optional Node handler adapter for existing integrations. Business Demo uses the Worker adapter and requires no separate handler directory.
+## Node handlers and validation
+
+Node handlers execute in the generated MCP server process and can use Node.js APIs, environment variables and external services. This adapter is selected when `worker` is omitted. For Worker execution, see [Worker configuration](runtime-integration.md#run-business-tools-in-a-worker).
+
+A page opener without `schema.output` needs no handler. A business tool with `schema.output` requires an execution implementation, even when no UI is displayed. Its name, description and input/output schemas come from registered `.ink` pages.
+
+For the Node adapter, export `handlers` from `<source>/mcp-server/handlers.ts`, or select another module with `buildPlugin({ ..., handlers: '/absolute/path/to/handlers.ts' })`. Use generated types:
+
+```ts
+import type { BusinessHandlers } from '../.mcpkit/tools.js';
+
+export const handlers = {
+  check_stock: async ({ sku }, { signal, progress }) => {
+    signal.throwIfAborted();
+    progress({ progress: 1, total: 1 });
+    return { content: [], structuredContent: { sku, available: 100 } };
+  },
+} satisfies BusinessHandlers;
+```
+
+This fragment assumes `check_stock` is the only business tool; implement every generated `BusinessHandlers` member. Keep computation, queries and service calls in `mcp-server/`. The generated framework owns MCP registration/transport, validation, cancellation/progress forwarding and result packaging; handlers need no MCP SDK imports. Server modules, their dependencies and credentials stay outside UI assets. `_meta.uiOnly` is display data accessible to the host/user, not secret storage.
+
+| When | Checks and failure behavior |
+| --- | --- |
+| Build, before output creation/replacement | Validate page contracts and resolve the selected handler module with the bundler's normal extension/index rules. An unresolved module reports its path and affected business tool names. Bundle imports without executing application code. Existing artifacts and declarations survive failure. |
+| Server startup, before connecting or discovery | Evaluate the bundled module and require an own function for each business tool in its exported `handlers` map. Missing maps/members, inherited members and non-functions fail with `Missing business handler: <tool>`. This dynamic check is intentionally deferred until startup. |
+| Invocation | Validate inputs before execution and successful results before returning them. Invalid results and execution failures return errors; a business tool never silently becomes a page opener. |
+
+Worker builds require a manifest entry matching `worker.name` and cannot also select `handlers`. Worker executable availability, initialization and operation lookup are checked on invocation, when the host starts; a successful build or tool list does not prove Worker readiness. A missing host/operation fails the call without falling back to Node execution or fabricated success.
 
 ---
 

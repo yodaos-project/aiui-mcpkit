@@ -49,13 +49,15 @@ cargo build -p ink-script --bin ink-worker
 
 仓库的 [Business Demo](../../examples/business/workers/business.js) 全部通过 `ModelContext.defineAction()` 实现工具，无需单独的 Handler 模块。生成的 `worker-app/` 需要随服务一同部署。
 
-## Worker 契约与迁移
+## Worker 执行契约
 
-具名操作接收 `(input, { requestId, signal, reportProgress, configuration })`，显式返回可异步完成的 JSON 结果。页面业务工具返回 `{ content, structuredContent, uiMetadata? }`，适配器校验输出，并将 `uiMetadata` 转为现有的 UI-only 结果字段。
+在 manifest 声明的 Worker 中，通过 `ModelContext.defineAction({ name: '<工具名>', execute })` 方法或自有 `operations['<工具名>']` 函数实现每个页面业务工具。名称必须对应注册页面的 `tool`，schema 校验和响应封装由生成的 MCP 适配器负责。完整代码见 [Worker 示例](business-tools.zh-CN.md#实现-action)。
+
+具名操作接收 `(input, { requestId, signal, reportProgress, configuration })`，显式返回可异步完成的 JSON 结果。页面业务工具返回 `{ content, structuredContent, uiMetadata? }`，适配器校验输出，并将 `uiMetadata` 转为 `_meta.uiOnly`。进度通过 `reportProgress({ value, total?, message? })` 上报。
 
 注册的 `ModelContext.defineAction()` 回调接收执行 `signal`，不提供仅属于 operation 的 `configuration` 和 `reportProgress`。显式业务失败可返回 `{ isError: true, businessError: { code, message }, uiMetadata? }`，由 MCPKit 转换为标准业务错误；未预期的异常保持私有。Worker 源码也会进入 View 资源，不应在源码中嵌入私有配置。
 
-Worker 在真实 Ink 模块加载器和执行环境中运行，支持定时器和 Promise，不创建 Page 或渲染器。当前路径不提供 Node API、`process.env` 和 `fetch`，适合纯计算；依赖网络的 Node handler 迁移需要单独的能力支持。将业务模块迁入 Worker 时，应先检查这些依赖，并通过私有 `configuration` 替代直接读取环境变量。
+Worker 在真实 Ink 模块加载器和执行环境中运行，支持定时器和 Promise，不创建 Page 或渲染器。当前路径不提供 Node API、`process.env` 和 `fetch`；需要 Node 依赖或网络访问的业务逻辑使用 [Node Handler](business-tools.zh-CN.md#node-handler-与校验时机)。Worker 私有配置通过 operation 上下文中不可变的 `configuration` 读取。
 
 同一执行会话的调用共享 Worker 状态，关闭时释放；它与 UI `open` 触发的 Worker generation 独立。取消按请求处理，并依赖业务实现协作。
 
@@ -72,6 +74,8 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
 浏览器测试宿主确认接收，不代表生产模型消费了上下文；后者需要独立记录。
 
 运行 `npm ci` 即可安装已发布的 Web 运行时，不再需要本地构建或链接 Ink Web SDK。宿主服务浏览器测试为必跑项；Business Demo 调用和原生 Worker 测试需通过 PATH 或 `INK_WORKER_BIN` 找到 `ink-worker`。消息、上下文、声明式 Action 和动态注册示例见 [Agent 会话与实时工具](agent-session.zh-CN.md)。依赖固定完整版本号，避免浮动 dist-tag 选中较旧的运行时。
+
+验证基线为 Node.js 22.21.1 和上述固定版本的 SDK，部署要求 Node.js 22+。原生部署另需实现 JSON Lines 调用契约的 Ink `ink-worker` 可执行文件；npm SDK 不会安装它。生成的完整 `worker-app/`、服务、UI 和 manifest 需一起部署。仓库 CI 使用 `INK_WORKER_BIN="$PWD/scripts/ink-worker-wasm.mjs" npm test`，通过公开 SDK 的真实 QuickJS/WASM 宿主执行，无需私有 Ink 源码，也不在 Node 中求值 Worker 模块。原生桌面执行另见[验收记录](../validation/candidate-selection-2026-10-28.md)。两条路径都不向 Worker 代码提供 Node 网络 API。Handler 构建期、启动期和调用期的检查见[业务工具](business-tools.zh-CN.md#node-handler-与校验时机)。
 
 ## 对话卡片
 

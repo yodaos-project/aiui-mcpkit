@@ -1,13 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, readFile, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { CallToolResultSchema, ProgressNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
 
+const exec = promisify(execFile);
 const schema = { type: 'object', properties: { value: { type: 'integer' } }, required: ['value'], additionalProperties: false };
 const definitions = ['double', 'app', 'expected_error', 'crash', 'bad_output', 'slow', 'progress', 'bad_content', 'cyclic', 'wire_output', 'bad_details'].map(name => ({
   name, title: name, description: `Run ${name}`, page: name, inputSchema: schema, outputSchema: schema,
@@ -62,6 +65,68 @@ async function waitFile(path) {
   for (let i = 0; i < 100; i++) { try { return await readFile(path, 'utf8'); } catch { await new Promise(resolve => setTimeout(resolve, 20)); } }
   throw new Error(`Missing file: ${path}`);
 }
+
+test('page openers need no handler module, even when handlers is configured', async () => {
+  const f = await fixture();
+  const client = new Client({ name: 'page-only-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
+  try {
+    await writeDeclarations(f.source, [{ ...definitions[0], outputSchema: undefined }]);
+    await rm(f.handlers);
+    const result = await buildPlugin({ ...f.options, handlers: join(f.source, 'missing.ts') });
+    await client.connect(transport(result, f.project));
+    assert.deepEqual((await client.listTools()).tools.map(tool => tool.name), ['double']);
+    const response = await client.callTool({ name: 'double', arguments: { value: 3 } });
+    assert.equal(response.isError, undefined);
+    assert.equal(response.content[0].text, 'double opened.');
+    assert.equal(response.structuredContent, undefined);
+  } finally { await client.close(); await rm(f.project, { recursive: true, force: true }); }
+});
+
+test('missing handler modules identify business tools before creating or replacing output', async () => {
+  const f = await fixture();
+  try {
+    const built = await buildPlugin(f.options);
+    const artifacts = Object.values(built.files);
+    const previous = await Promise.all(artifacts.map(path => readFile(path)));
+    await rm(f.handlers);
+    for (const handlers of [undefined, join(f.source, 'missing.ts'), join(f.source, 'mcp-server')]) {
+      for (const outputDir of [join(f.project, 'invalid'), built.outputDir]) {
+        await assert.rejects(buildPlugin({ ...f.options, handlers, outputDir }), error => {
+          assert.match(error.message, /Cannot resolve business handlers module:/);
+          assert.ok(error.message.includes(handlers ?? f.handlers));
+          for (const tool of definitions) assert.ok(error.message.includes(tool.name), tool.name);
+          assert.match(error.message, /Provide a handlers module or configure worker.name/);
+          return true;
+        });
+      }
+    }
+    await assert.rejects(access(join(f.project, 'invalid')));
+    assert.deepEqual(await Promise.all(artifacts.map(path => readFile(path))), previous);
+  } finally { await rm(f.project, { recursive: true, force: true }); }
+});
+
+test('missing and non-function handlers fail at startup without executing application code during build', async () => {
+  const f = await fixture();
+  try {
+    await writeDeclarations(f.source, [definitions[0]]);
+    const evaluated = join(f.project, 'module-evaluated');
+    for (const handlers of ['{}', 'undefined', '{ double: null }', '{ double: 42 }', 'Object.create({ double() {} })']) {
+      await rm(evaluated, { force: true });
+      await writeFile(f.handlers, `import { writeFileSync } from 'node:fs';
+writeFileSync(${JSON.stringify(evaluated)}, 'evaluated');
+export const handlers = ${handlers};`);
+      const built = await buildPlugin(f.options);
+      await assert.rejects(access(evaluated), 'build must not evaluate handler modules to inspect exports');
+      await assert.rejects(exec(process.execPath, [built.files.server], { cwd: tmpdir(), timeout: 5000 }), error => {
+        assert.equal(error.code, 1);
+        assert.match(error.stderr, /Missing business handler: double/);
+        assert.equal(error.stdout, '', 'startup failure must not advertise tools or return a page-opening success');
+        return true;
+      });
+      assert.equal(await readFile(evaluated, 'utf8'), 'evaluated', 'handler modules are evaluated at server startup');
+    }
+  } finally { await rm(f.project, { recursive: true, force: true }); }
+});
 
 test('custom business tools advertise schemas, isolate server source, and return stable MCP results/errors', async () => {
   const f = await fixture(); const client = new Client({ name: 'business-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
@@ -181,11 +246,11 @@ test('page-owned business contracts are validated before output, and private dep
   } finally { await rm(f.project, { recursive: true, force: true }); }
 });
 
-test('root-package handler imports share the server error type without bundling the builder', async () => {
+test('extensionless handler modules and root-package imports preserve server error identity', async () => {
   const f = await fixture(); const client = new Client({ name: 'root-import', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
   try {
     await writeFile(f.handlers, handlerSource.replace('@yodaos-pkg/aiui-mcpkit/tools', '@yodaos-pkg/aiui-mcpkit'));
-    const result = await buildPlugin(f.options); await client.connect(transport(result, f.project)); await client.listTools();
+    const result = await buildPlugin({ ...f.options, handlers: f.handlers.replace(/\.ts$/, '') }); await client.connect(transport(result, f.project)); await client.listTools();
     const response = await client.callTool({ name: 'expected_error', arguments: { value: 1 } });
     assert.equal(response._meta.businessError.code, 'NOT_AVAILABLE');
     assert.ok(!(await readFile(result.files.server, 'utf8')).includes('esbuild/lib/main'));
