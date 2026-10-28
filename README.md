@@ -1,54 +1,119 @@
-# AIUI MCPKit
+<p align="center">
+  <picture>
+    <source media="(max-width: 600px)" srcset="docs/assets/readme-banner-compact.svg">
+    <img src="docs/assets/readme-banner.svg" width="1200" alt="AIUI MCPKit — AIUI agents to interactive MCP Apps">
+  </picture>
+</p>
 
-**Build interactive MCP Apps with JavaScript and AIUI.**
+<h3 align="center">Give your AI tools an interface.</h3>
 
-Give your AI tools an interface people can use: buttons, forms, calculations and live state inside an MCP Apps client. MCPKit turns your [AIUI agent](https://github.com/yodaos-project/AIUI) into a plugin, bundling its pages, the [Ink](https://github.com/jsar-project/ink) WebAssembly renderer and an MCP server.
+<p align="center">
+  Build interactive MCP Apps with JavaScript and AIUI.<br>
+  Ship your pages, Ink WebAssembly renderer and MCP server as one plugin.
+</p>
 
-[![CI](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/ci.yml)
-[![Benchmarks](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/benchmark.yml/badge.svg?branch=main)](https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/benchmark.yml)
-[![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](package.json)
+<p align="center">
+  <a href="https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/ci.yml"><img src="https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/benchmark.yml"><img src="https://github.com/yodaos-project/aiui-mcpkit/actions/workflows/benchmark.yml/badge.svg?branch=main" alt="Benchmarks"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&amp;logoColor=white" alt="Node.js 22+"></a>
+</p>
 
-[简体中文](README.zh-CN.md) · [Quickstart](#quickstart) · [Examples](#see-it-in-action) · [Documentation](docs/README.md) · [Contributing](#contributing)
+<p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a><br>
+  <a href="#quickstart">Quickstart</a> · <a href="#build-your-own">Build your own</a> · <a href="docs/README.md">Documentation</a> · <a href="#contributing">Contributing</a>
+</p>
 
-## See it in action
+## Tools people can use
 
-Four new examples, each with its own visual identity and a working interaction:
+Let the assistant return structured data while the user works with buttons, forms and live state. Build order calculators, product selectors and shared workspaces that connect UI actions to the conversation.
 
-| Travel Planner · Fieldnotes | Focus Studio |
-| --- | --- |
-| [![Blue editorial Kyoto itinerary with selectable days and saved stops](docs/assets/examples/travel.png)](examples/travel) | [![Warm coral focus timer with start, pause and reset](docs/assets/examples/focus.png)](examples/focus) |
-| Switch days, save a stop and explicitly share it with the assistant. | Open with a task and duration, then start, pause or reset the timer. |
+<table>
+  <tr>
+    <th width="50%" align="left">Travel Planner · Fieldnotes</th>
+    <th width="50%" align="left">Focus Studio</th>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top"><a href="docs/assets/examples/travel.png"><img src="docs/assets/examples/travel.png" width="480" alt="Blue Kyoto itinerary with day selection and saved stops"></a></td>
+    <td width="50%" align="center" valign="top"><a href="docs/assets/examples/focus.png"><img src="docs/assets/examples/focus.png" width="480" alt="Coral focus timer with start, pause and reset"></a></td>
+  </tr>
+  <tr>
+    <td valign="top">Switch days, save a stop and explicitly share it with the assistant.</td>
+    <td valign="top">Set a task and duration, then start, pause or reset the timer.</td>
+  </tr>
+  <tr>
+    <td><a href="examples/travel">Explore Travel Planner →</a></td>
+    <td><a href="examples/focus">Explore Focus Studio →</a></td>
+  </tr>
+</table>
 
-| Analytics Lab · Signal | Event Booking · The Making Room |
-| --- | --- |
-| [![Violet analytics dashboard with period filters, KPIs and a bar chart](docs/assets/examples/analytics.png)](examples/analytics) | [![Warm ceramic workshop reservation with session and seat selection](docs/assets/examples/events.png)](examples/events) |
-| Change the period to update both metrics and the chart. | Choose a session and seats, review the total and confirm a local demo. |
+<table>
+  <tr>
+    <th width="50%" align="left">Analytics Lab · Signal</th>
+    <th width="50%" align="left">Event Booking · The Making Room</th>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top"><a href="docs/assets/examples/analytics.png"><img src="docs/assets/examples/analytics.png" width="480" alt="Violet dashboard with period filters, KPIs and a bar chart"></a></td>
+    <td width="50%" align="center" valign="top"><a href="docs/assets/examples/events.png"><img src="docs/assets/examples/events.png" width="480" alt="Ceramic workshop reservation with session and seat selection"></a></td>
+  </tr>
+  <tr>
+    <td valign="top">Switch week/month to update the metrics and chart together.</td>
+    <td valign="top">Choose a session and seats, review the total and confirm a local demo.</td>
+  </tr>
+  <tr>
+    <td><a href="examples/analytics">Explore Analytics Lab →</a></td>
+    <td><a href="examples/events">Explore Event Booking →</a></td>
+  </tr>
+</table>
 
-| Interactive Counter | Business tools |
-| --- | --- |
-| [![Counter with live state, session statistics and recent actions](docs/assets/counter.png)](examples/counter) | [![Order quote with structured totals, stock data and calculate/cancel actions](docs/assets/business.png)](examples/business) |
-| Open a page with tool arguments, change state and expand the view. | Return a quote to the model, render stock data and call or cancel work from the UI. |
+<sub>Real Ink/WASM captures from the local MCP Apps browser harness. Travel, analytics, workshop and business data are demo fixtures. Workshop confirmation makes no real booking or payment; the timer runs while its View is open. Conversation sharing requires host support.</sub>
 
-*Real Ink/WASM output captured in the local MCP Apps browser harness. Travel, analytics, workshop and business data are demo fixtures. Workshop confirmation makes no real booking or payment; the timer runs while its view is open. Conversation sharing requires host support.*
+<details>
+<summary><strong>Also explore business results and shared Apps</strong></summary>
+
+<table>
+  <tr>
+    <th width="50%" align="left">Calculate and act</th>
+    <th width="50%" align="left">Search, inspect and select</th>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top"><a href="docs/assets/business.png"><img src="docs/assets/business.png" width="420" alt="Order quote showing CNY 40, stock and calculate/cancel controls"></a></td>
+    <td width="50%" align="center" valign="top"><a href="docs/assets/shared-agent-search.png"><img src="docs/assets/shared-agent-search.png" width="420" alt="Catalog showing a lamp search while preserving the selected travel bag"></a></td>
+  </tr>
+  <tr>
+    <td valign="top">Return a validated quote to the model. Let the user calculate again or cancel from the same interface.</td>
+    <td valign="top">Use multiple tools in one App. Preserve search, navigation and selection within each live View.</td>
+  </tr>
+  <tr>
+    <td><a href="docs/guides/business-tools.md">Build business tools →</a></td>
+    <td><a href="docs/guides/shared-agent.md">Build a shared App →</a></td>
+  </tr>
+</table>
+
+</details>
 
 https://github.com/user-attachments/assets/487a1771-ca2d-4b04-91f4-8a55f8f8eba1
 
 **[Watch the 33-second English showcase →](docs/assets/mcpkit-showcase.mp4)** · [Without background music](docs/assets/mcpkit-showcase-nobgm.mp4)
 
+<details>
+<summary>About the showcase and media credits</summary>
+
 From a Codex conversation to an independent view and back, with the same selection preserved. The English film also highlights desktop agents such as Codex and Claude Code, and AIUI on Rokid Glasses. The Codex/desktop shells are labelled illustrations, app interfaces are actual runtime captures, and the glasses use the official product image from the [AIUI site](https://open.rokid.com/aiui/?lang=en-US). Interactive desktop views depend on host capabilities. Music: [Cat Walk — Arulo](https://assets.mixkit.co/music/371/371.mp3) ([Mixkit license](https://mixkit.co/license/#musicFree)); sound effects: [Mixkit](https://mixkit.co/license/#sfxFree).
 
-## Why MCPKit?
+</details>
 
-- **Define the tool where you build the UI.** Page schemas generate tool registration, validated inputs and typed business contracts. Keep names, descriptions and schemas in your `.ink` pages.
-- **Let the model use your live UI state.** Expose App/Page methods with `ModelContext.defineAction()` or register tools dynamically. Calls execute against the running instance, with cancellation and tool-list updates.
-- **Connect UI actions to the conversation.** Send user messages, publish selected context, call host tools and read resources through `getApp().getAgent()`. Publish only the state you choose.
-- **Build business tools with TypeScript.** Generated types and runtime validation cover inputs and outputs. Structured results reach the model; UI-only metadata supports rendering. Credentials stay in server code.
-- **Run business logic without opening a view.** Use a manifest-declared Agent Worker through the real Ink runtime, or keep Node.js handlers for server integrations.
-- **Package and verify the whole plugin.** An ESM API generates the server, UI resources, manifests and declarations. [Preview verification](docs/guides/preview-verification.md) checks runtime, frame and business readiness before accepting screenshots. Progress, timeouts, cancellation, controlled retries and real WASM regression coverage are included.
+## Why build with MCPKit?
+
+- **Define pages and tools together.** Tool names and schemas live in `.ink` pages. Generate tool registration, runtime validation and TypeScript contracts from one source.
+- **Connect the assistant to live state.** Expose App/Page methods with `ModelContext.defineAction()`. Send messages and publish selected context through `getApp().getAgent()`.
+- **Run business logic beyond the View.** Use Ink Agent Workers or Node.js server handlers for calculations and integrations. Keep server credentials out of UI code.
+- **Build, ship and verify.** `buildPlugin()` bundles the server, UI, runtime and manifests. Check readiness with [preview verification](docs/guides/preview-verification.md) and build identity with [diagnostics](docs/guides/build-diagnostics.md).
 
 ## Quickstart
 
-You need **Node.js 22+**, Git and an MCP Apps client. Run these commands in your terminal:
+**You need:** Node.js **22+**, Git and an MCP Apps client with WASM support. Start with Counter; the business examples additionally need [`ink-worker`](docs/guides/business-tools.md).
+
+### 1. Build the examples
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
@@ -57,44 +122,80 @@ npm ci
 npm run build:examples
 ```
 
-This builds six independent plugins under `dist/examples/`:
+The build creates six independent plugins in `dist/examples/`. Counter and the four visual examples need no native Worker or external service. [Explore all examples →](examples/README.md)
 
-| Example | Tools | Try it |
-| --- | --- | --- |
-| [Counter](examples/counter) | `open_counter`, `open_countdown` | Start at 5 and add one, or count down from 8 in steps of 2. |
-| [Business demo](examples/business) | `quote_order`, `check_stock`, `find_products` | Run Worker actions for quotes, stock and candidate selection. |
-| [Travel Planner](examples/travel) | `open_trip` | Use `{ "day": 2 }`, save a stop, then share only that selection. |
-| [Focus Studio](examples/focus) | `open_focus` | Use `{ "minutes": 25, "task": "Write the next chapter" }`, then start or pause. |
-| [Analytics Lab](examples/analytics) | `open_analytics` | Use `{ "period": "month" }` or switch week/month in the dashboard. |
-| [Event Booking](examples/events) | `open_workshop` | Use `{ "seats": 2 }`, choose a session and review the demo reservation. |
+### 2. Install Counter
 
-For Codex Desktop, install with a Codex CLI that supports plugin commands:
+For Codex Desktop, use a Codex CLI with plugin commands:
 
 ```sh
 codex plugin marketplace add ./dist/examples
 codex plugin add ink-counter@aiui-mcpkit-examples
-codex plugin add business-demo@aiui-mcpkit-examples
+```
+
+Restart the host and confirm `open_counter` appears in the active session. For Claude Desktop, VS Code or direct stdio registration, follow [client setup](docs/guides/clients.md).
+
+### 3. Make it interactive
+
+Ask the assistant:
+
+```text
+Call open_counter with { "initialCount": 5, "label": "Demo" }.
+```
+
+Click **+ ADD ONE**. The count should change from **5 to 6**.
+
+[Counter source →](examples/counter/pages/counter/index.ink) · [Complete walkthrough →](docs/getting-started/quickstart.md)
+
+<details>
+<summary><strong>Try travel, focus, analytics and event booking</strong></summary>
+
+Install any subset after adding the marketplace above, then reload the host:
+
+```sh
 codex plugin add travel-planner@aiui-mcpkit-examples
 codex plugin add focus-studio@aiui-mcpkit-examples
 codex plugin add analytics-lab@aiui-mcpkit-examples
 codex plugin add event-booking@aiui-mcpkit-examples
 ```
 
-Restart the host and confirm the tools appear in the active session. Ask it to call `open_counter` with `{ "initialCount": 5, "label": "Demo" }`. Click **+ ADD ONE**: the count should change from **5 to 6**.
+| Call | Interaction |
+| :--- | :--- |
+| `open_trip({ "day": 2 })` | Switch days, save a stop and explicitly share the selection. |
+| `open_focus({ "minutes": 25, "task": "Write the next chapter" })` | Start, pause or reset the focus timer. |
+| `open_analytics({ "period": "month" })` | Switch reporting periods and update the chart. |
+| `open_workshop({ "seats": 2 })` | Choose a session and review a demo reservation. |
 
-Install any subset of the plugins above. To start a server directly, use `npm run start:examples -- travel` (also accepts `counter`, `business`, `focus`, `analytics`, `events`). The four new plugins need no native Worker or external service. Their open views expose read-only `trip_state`, `focus_state`, `analytics_state` and `workshop_state` actions through `ModelContext.defineAction()`; a supporting host can query exactly the state the user sees. [Example guide →](examples/README.md)
+Run a stdio server directly with `npm run start:examples -- travel`; the other IDs are `counter`, `business`, `focus`, `analytics` and `events`. Open Views expose read-only `trip_state`, `focus_state`, `analytics_state` and `workshop_state` actions through `ModelContext.defineAction()`. Querying them requires host routing for live View tools. [Example guide →](examples/README.md)
 
-The business demo also includes [a shared catalog App](docs/guides/shared-agent.md): search, inspect and select through tools while preserving navigation and isolating each View. A supporting host can opt into [scoped snapshot restoration](docs/guides/state-restoration.md) for selection, drafts and navigation after rebuilding a View.
+</details>
 
-Business Demo implements its tools with AgentWorker `ModelContext.defineAction()` methods. Configure `ink-worker` on the server process's PATH or through `INK_WORKER_BIN` ([setup](docs/guides/business-tools.md)), then call `quote_order` with `{ "quantity": 2 }`: expect **CNY 40**, remaining stock **98**, and working **CALCULATE** / **CANCEL** controls when host tool access is enabled.
+<details>
+<summary><strong>Next: try quotes, product selection and a shared catalog</strong></summary>
 
-Use [client setup](docs/guides/clients.md) for Claude Desktop, VS Code and direct stdio connections. The [complete walkthrough](docs/getting-started/quickstart.md) covers installation, tool discovery and expected results.
+Put `ink-worker` on the server process's PATH or set `INK_WORKER_BIN` using the [Worker setup guide](docs/guides/business-tools.md), then install:
+
+```sh
+codex plugin add business-demo@aiui-mcpkit-examples
+```
+
+Reload the host and confirm the tools are available in the active session.
+
+| Call | Expected result |
+| :--- | :--- |
+| `quote_order({ "quantity": 2 })` | **CNY 40**, remaining stock **98**; calculate/cancel controls work when host tool access is enabled. |
+| `find_products({ "query": "travel" })` | Product candidates with an explicit action to publish a selection and ask the assistant about it. |
+| `search_catalog({ "query": "travel" })` | A shared catalog App with search, details and selection; live App actions update the same instance. |
+
+The demo uses AgentWorker `ModelContext.defineAction()` methods. [Candidate selection](docs/guides/candidate-selection.md), [shared Apps](docs/guides/shared-agent.md) and opt-in [state restoration](docs/guides/state-restoration.md) each have a dedicated guide. Messaging, live-tool routing and restoration depend on host capabilities.
+
+</details>
 
 ## Build your own
 
-Create an agent with `app.json` and registered `.ink` pages using [your first Agent](docs/getting-started/first-agent.md). A page's `script def` supplies its tool metadata and input schema; add `schema.output` for business results. MCPKit generates the protocol plumbing.
+Create an AIUI agent with `app.json` and registered `.ink` pages. Add tool metadata and input schemas in each page's `script def`; add `schema.output` for business results.
 
-After `npm run build`, save this as `build-agent.mjs` at the checkout root. Put your agent source in `./agent/`:
+After building this checkout, save the following as `build-agent.mjs` at the repository root. Put your agent source in `./agent/`:
 
 ```js
 import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
@@ -108,13 +209,18 @@ const plugin = await buildPlugin({
 console.log(plugin.outputDir);
 ```
 
-Run `node build-agent.mjs`. The output contains `view.html`, `dist/server.mjs` and plugin/connection manifests. The generated server bundles its runtime dependencies; the deployment host needs Node.js 22+. Native Worker execution additionally needs `ink-worker`.
+Run `node build-agent.mjs` to generate `view.html`, `dist/server.mjs` and plugin/connection manifests. The deployment host needs Node.js 22+; native Worker execution also needs `ink-worker`.
 
-For a separate Node.js project, follow [ESM package integration](docs/guides/esm-build.md). Implement business execution with [AgentWorker actions](docs/guides/business-tools.md); see [runtime integration](docs/guides/runtime-integration.md#run-business-tools-in-a-worker) for the native host contract.
+| Your next step | Guide |
+| :--- | :--- |
+| Create the source files and your first button | [Your first Agent](docs/getting-started/first-agent.md) |
+| Turn page arguments into validated tools | [Page tools](docs/guides/page-tools.md) |
+| Add typed business operations | [Business tools](docs/guides/business-tools.md) |
+| Use MCPKit in a separate Node.js project | [ESM integration](docs/guides/esm-build.md) |
 
-## Give the assistant access to your agent
+### Let the assistant use live UI state
 
-Add methods like these to a Page's default export. A model can read the current selection, and a button bound to `askAssistant` can send an explicit user message:
+Add this method to a Page's default export to expose the current selection as an instance-bound tool:
 
 ```js
 export default {
@@ -127,47 +233,39 @@ export default {
       return { selectedSku: this.data.selectedSku };
     },
   }),
-  async askAssistant() {
-    await getApp().getAgent().conversation.sendMessage({
-      role: 'user',
-      content: [{ type: 'text', text: 'Describe product ' + this.data.selectedSku + '.' }],
-    });
-  },
 };
 ```
 
-Use `agent.provideContext()` for context that should accompany later model turns, and `getApp().modelContext.registerTool()` for tools whose availability changes at runtime. See [Agent sessions and live tools](docs/guides/agent-session.md) for complete pages, context updates and tool revocation.
+From a button handler, `getApp().getAgent().conversation.sendMessage()` can send a user message; `agent.provideContext()` publishes context for later turns. [Agent sessions](docs/guides/agent-session.md) covers complete pages, dynamic tools, context updates and revocation. The host must route View tools to its model and enable the relevant conversation capabilities.
 
 ## Client support
 
-MCPKit currently generates **local stdio servers**. Interactive rendering requires an MCP Apps host with WASM support; clients without Apps support receive tool data and an explicit UI-unavailable response.
+MCPKit generates **local stdio servers**. Interactive rendering needs an MCP Apps host with WASM support. Clients without Apps support receive tool data and an explicit UI-unavailable response.
 
-| Surface | Current verification |
-| --- | --- |
-| Ink rendering and MCP Apps bridge | Real WASM browser tests cover tool input/results, UI actions, modes, messages, context and cancellation. |
-| Codex Desktop | Counter inline UI has been observed; additional interactions and modes are covered in the browser harness. |
-| Claude Desktop / VS Code | Connection guides are available; project-specific UI verification remains open. |
-| Conversation and live tools | Host capabilities control messaging/context access. The host must route View tools to its model; actual model consumption needs separate verification. |
+| Surface | Verification |
+| :--- | :--- |
+| **Ink/WASM + MCP Apps bridge** | Real browser tests cover tool input/results, UI actions, display modes, messages, context and cancellation. |
+| **Codex Desktop** | Counter inline UI has been observed; other interactions and modes are covered in the browser harness. |
+| **Claude Desktop / VS Code** | Connection guides are available; this project's UI still needs verification in these clients. |
+| **Conversation + live tools** | Host capabilities and View-tool routing determine availability. Actual model consumption of context needs separate verification. |
 
-HTTPS deployment and conversation-card rendering remain separate work. See the [compatibility reference](docs/reference/compatibility.md) for protocol versions and capability boundaries, and [runtime integration](docs/guides/runtime-integration.md) for the pinned Ink SDK and Worker prerequisites.
+See [protocol compatibility](docs/reference/compatibility.md) and [runtime prerequisites](docs/guides/runtime-integration.md) for details. HTTPS deployment and conversation-card rendering remain separate work.
 
-## Documentation
+## Go deeper
 
-| You want to… | Read |
-| --- | --- |
-| Understand AIUI, Ink and MCPKit | [Overview](docs/getting-started/overview.md) |
-| Create pages and expose business operations | [Page tools](docs/guides/page-tools.md) · [Business tools](docs/guides/business-tools.md) |
-| Send messages, publish context or define live tools | [Agent sessions](docs/guides/agent-session.md) |
-| Execute headless business logic | [Runtime integration and Workers](docs/guides/runtime-integration.md) |
-| Integrate a build pipeline or customize metadata | [Build API](docs/reference/build-api.md) · [Metadata](docs/guides/metadata.md) |
-| Update an installation or debug a failure | [Development](docs/guides/development.md) · [Troubleshooting](docs/guides/troubleshooting.md) |
-| Measure rendering, packaging and server costs | [Benchmarks](docs/reference/benchmarks.md) |
+| Build | Connect | Verify |
+| :--- | :--- | :--- |
+| [AIUI, Ink and MCPKit](docs/getting-started/overview.md) | [Client setup](docs/guides/clients.md) | [Preview verification](docs/guides/preview-verification.md) |
+| [Build API](docs/reference/build-api.md) | [Agent sessions](docs/guides/agent-session.md) | [Build diagnostics](docs/guides/build-diagnostics.md) |
+| [Plugin metadata](docs/guides/metadata.md) | [Runtime and Workers](docs/guides/runtime-integration.md) | [Benchmarks](docs/reference/benchmarks.md) |
+| [Shared Apps](docs/guides/shared-agent.md) | [State restoration](docs/guides/state-restoration.md) | [Troubleshooting](docs/guides/troubleshooting.md) |
+| [Example collection](examples/README.md) | [Development loop](docs/guides/development.md) | [Contributing](docs/contributing.md) |
 
-[Browse all guides and references →](docs/README.md)
+[Browse all documentation →](docs/README.md)
 
 ## Contributing
 
-Client test reports, runnable examples, documentation improvements and runtime fixes are welcome. [Open an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) with the client version and reproduction steps, or send a focused pull request.
+Bring a runnable example, a client test report or a focused fix. [Open an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) with your client version and reproduction steps, or send a pull request.
 
 ```sh
 npm run build:examples
@@ -176,6 +274,10 @@ npm run typecheck
 npm test
 ```
 
-See [contributing](docs/contributing.md) for native Worker tests and benchmark checks. Benchmarks record methodology and measurement limits; they complement functional tests.
+See [contributing](docs/contributing.md) for Worker test setup and benchmark checks.
 
-Built on [AIUI](https://github.com/yodaos-project/AIUI), [Ink](https://github.com/jsar-project/ink) and the [MCP Apps SDK](https://github.com/modelcontextprotocol/ext-apps).
+---
+
+<p align="center">
+  Built on <a href="https://github.com/yodaos-project/AIUI">AIUI</a> · <a href="https://github.com/jsar-project/ink">Ink</a> · <a href="https://github.com/modelcontextprotocol/ext-apps">MCP Apps SDK</a>
+</p>
