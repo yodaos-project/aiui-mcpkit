@@ -1,118 +1,98 @@
-# Typed business tools
+# Business tools in Agent Workers
 
 English | [简体中文](business-tools.zh-CN.md) · [Documentation index](../README.md)
 
-**Goal:** expose a typed server operation whose result can be used by both the AI and the UI. Read [page tools](page-tools.md) first. The snippets below demonstrate the contract and handler; use the repository's complete [business example](../../examples/business) when you want a runnable UI with buttons and result rendering.
+The [Business Demo](../../examples/business) implements `quote_order`, `check_stock` and `find_products` as `ModelContext.defineAction()` methods in [workers/business.js](../../examples/business/workers/business.js). Pages display results and publish selected context. MCPKit generates the protocol server; the example needs no handwritten server handlers.
 
-## Start with a working project
+## Declare and build the Worker
 
-1. Build and install `business-demo` using [the quickstart](../getting-started/quickstart.md).
-2. Open [`app.json`](../../examples/business/app.json) to see its registered order and stock pages.
-3. Open [`pages/order/index.ink`](../../examples/business/pages/order/index.ink): `schema.data` defines inputs and `schema.output` defines the quote result.
-4. Open [`mcp-server/handlers.ts`](../../examples/business/mcp-server/handlers.ts): the `handlers` object implements exactly those tool names.
-5. Change a public display label first, run `npm run update:examples`, reload the host and open a new quote card.
-6. Then change handler logic, rebuild again, and check both the structured tool result and rendered page.
+Register the Worker in `app.json.agentWorkers`:
 
-For your own project, register each business page in `app.json.pages`, add a handler for each page with `schema.output`, set `typesFile` as below, and build before typechecking. The TypeScript import `../.mcpkit/tools.js` resolves the generated `.d.ts`; you do not write a JavaScript implementation of that type module. Use `import type` so it disappears from bundled code.
-
-Declare business tools directly in the `.ink` pages registered by `app.json.pages`. Their `script def` supplies `schema.data` for inputs and `schema.output` for business outputs. The builder generates MCP registration metadata and TypeScript types from these definitions, without a separate `contracts.ts` or duplicate schemas. Tools without `schema.output` retain the page-opening behavior.
-
-```html
-<!-- pages/order/index.ink -->
-<script type="application/json" def>
-{
-  "tool": "quote_order",
-  "navigationBarTitleText": "Order quote",
-  "description": "Calculate an order quote.",
-  "schema": {
-    "data": {
-      "type": "object", "properties": { "quantity": { "type": "integer", "minimum": 1 } },
-      "required": ["quantity"], "additionalProperties": false
-    },
-    "output": {
-      "type": "object", "properties": { "total": { "type": "number" } },
-      "required": ["total"], "additionalProperties": false
-    }
-  }
-}
-</script>
+```json
+{ "name": "business", "script": "workers/business.js", "trigger": { "type": "open" }, "lifetime": "foreground" }
 ```
 
-```ts
-// mcp-server/handlers.ts
-import { BusinessToolError } from '@yodaos-pkg/aiui-mcpkit/tools';
-import type { BusinessHandlers } from '../.mcpkit/tools.js';
-
-export const handlers: BusinessHandlers = {
-  async quote_order(input, { signal, progress }) {
-    if (input.quantity > 100) throw new BusinessToolError('OUT_OF_STOCK', 'Choose at most 100 items.');
-    signal.throwIfAborted();
-    progress({ progress: 1, total: 1, message: 'Quote calculated' });
-    return {
-      content: [{ type: 'text', text: `Quote: ${input.quantity * 20}` }],
-      structuredContent: { total: input.quantity * 20 },
-      uiOnly: { stockRemaining: 100 - input.quantity },
-    };
-  },
-};
-```
-
-The builder reads `mcp-server/handlers.ts` in the project root by default; `handlers` can select another module. It bundles handlers without executing them at build time. Set `typesFile` to keep generated declarations in the project’s `.mcpkit/` directory:
+Build with the same name:
 
 ```js
 await buildPlugin({
-  source: './order-agent', name: 'order-agent',
-  outputDir: './order-agent/dist/plugin',
-  typesFile: './order-agent/.mcpkit/tools.d.ts',
+  source: './agent', name: 'business-demo',
+  outputDir: './dist/business-demo',
+  worker: { name: 'business' },
+  typesFile: './agent/.mcpkit/tools.d.ts',
 });
 ```
 
-Build before running TypeScript checks. Generated `ToolInputs`, `ToolOutputs` and `BusinessHandlers` check tool names, arguments and structured outputs; rebuild after changing a page schema. The generator handles nested objects, arrays, enums, unions and local `$ref`; schema features it cannot express use `unknown`, while runtime JSON Schema validation remains authoritative. Tool names must be unique, and business tools require object input and output schemas. Schemas are checked at build time, advertised unchanged through MCP tools/list, and validated on every call. Missing handlers fail server startup before connection. Business tools in `result.tools` include `outputSchema`, and `result.files.types` points to the generated declarations.
+The repository's [example builder](../../scripts/build-examples.mjs) selects this adapter. Registered pages still declare tool names, descriptions, input `schema.data` and successful output `schema.output` for public MCP contracts and page routing. The Worker implements the corresponding names. See [page tools](page-tools.md).
 
-| Handler field | MCP response | Visibility |
+## Implement actions
+
+This fragment shows the pattern; the linked Worker contains all three implementations:
+
+```js
+export default {
+  available: 100,
+  checkStock: ModelContext.defineAction({
+    name: 'check_stock', description: 'Check demo stock',
+    execute(input, { signal }) {
+      signal.throwIfAborted();
+      if (input.sku !== 'DEMO') return {
+        isError: true,
+        businessError: { code: 'UNKNOWN_SKU', message: 'Use demo SKU DEMO.' },
+        uiMetadata: { knownSku: 'DEMO' },
+      };
+      return {
+        content: [{ type: 'text', text: '100 demo items available.' }],
+        structuredContent: { sku: input.sku, available: this.available },
+      };
+    },
+  }),
+};
+```
+
+Ink binds `this` to the Worker instance. Actions receive an execution `signal`; the asynchronous quote clears its timer on cancellation. The Worker registry is independent of the UI and can run before a View opens. No Node imports, `process.env`, Page or renderer are used.
+
+| Worker result | MCP result | Visibility |
 | --- | --- | --- |
-| `content` | `content` | Model-visible summary/content blocks |
-| `structuredContent` | `structuredContent` | Model-visible data validated against `outputSchema`, also available for rendering |
-| `uiOnly` | `_meta.uiOnly` | UI-only data; excluded from model context |
+| `content` | `content` | Model-visible content |
+| `structuredContent` | `structuredContent` | Validated successful data, also delivered to UI |
+| `uiMetadata` | `_meta.uiOnly` | UI-only display data |
+| `isError: true` and `businessError: { code, message }` | `isError`, `_meta.businessError`, standard error text | Explicit business failure; no successful output |
 
-Ink pages receive the initial model-invoked result in `onMessage(event)` as `{ type: 'mcpkit:tool-result', structuredContent, uiOnly, isError, error, request }`, including when the result arrives before WASM startup. Agent-initiated calls use the [request lifecycle](tool-lifecycle.md) protocol; successful `mcpkit:tool-state` messages contain the complete result in `result`. For initial-result rendering, read `event.data.structuredContent` and `event.data.uiOnly`. UI-only data is accessible to the client and must never contain credentials.
+Explicit failures may include UI-only details in `uiMetadata`. Malformed failure envelopes and unexpected Worker exceptions produce generic `INTERNAL_ERROR` results, without publishing exception messages or stacks. Input/output schemas are enforced by the generated server. Generated `ToolInputs`, `ToolOutputs` and `BusinessHandlers` remain available for integrations; runtime validation applies to the JavaScript Worker.
 
-Business failures return `isError: true`, text content `CODE: message`, and `_meta.businessError: { code, message }`. They omit `structuredContent` so clients do not validate an error against a successful output schema. `BusinessToolError(code, message, details?)` exposes its explicit code/message; optional details go to `_meta.uiOnly`. Built-in codes are `INVALID_INPUT`, `INVALID_OUTPUT`, `INTERNAL_ERROR`, `CANCELLED`, `REQUEST_TIMEOUT` and `TOTAL_TIMEOUT`. Invalid inputs do not run a handler; invalid outputs never produce success. Unexpected exceptions return the generic `INTERNAL_ERROR` message, including in lifecycle metadata, without leaking exception text or stacks. Business errors end the request in `error` and never retry by default.
+The native host's separate `operations` interface provides `requestId`, `configuration` and `reportProgress`. These operation-only fields are not available in `ModelContext.defineAction()` callback context. This example uses declared actions throughout. See [runtime integration](runtime-integration.md).
 
-Keep handlers and configuration in the project’s `mcp-server/` directory. The builder excludes `mcp-server/`, `dist/`, `.mcpkit/`, `.git/`, `node_modules/`, `.env` files and transitive server imports from UI assets; remaining assets are public UI content. Handler code is bundled only into `dist/server.mjs`, and environment variables are read at server runtime. Handler modules can import runtime helpers from the root package or `/tools`; packaging APIs such as `buildPlugin` belong in the build script.
+## Run and deploy
 
-Try the complete [business example](../../examples/business):
+Build the native host from the Ink repository:
+
+```sh
+cargo build -p ink-script --bin ink-worker
+```
+
+Put `ink-worker` on the MCP server process's PATH or configure that process's `INK_WORKER_BIN` with an absolute executable path. Desktop environments can differ from your terminal. Deploy the generated `worker-app/` alongside `view.html`, `dist/server.mjs` and manifests. `update:examples` synchronizes all these artifacts.
+
+For repository development or CI without a native executable, point `INK_WORKER_BIN` at the absolute path to `scripts/ink-worker-wasm.mjs` after `npm ci`. This generic host runs the actions in the published SDK's real Ink QuickJS/WASM runtime. It is separate from the native host used for the recorded desktop acceptance.
+
+From the MCPKit repository:
 
 ```sh
 npm run build:examples
-npm run start:examples -- business
+INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
+INK_WORKER_BIN=/absolute/path/to/ink-worker npm run start:examples -- business
 ```
 
-Register that server with an MCP Apps client. Call `quote_order` with `{ "quantity": 2 }` (optionally `"coupon": "DEMO10"`), or `check_stock` with `{ "sku": "DEMO" }`. The quote page shows structured totals and UI-only stock data; **CALCULATE** calls the real handler and **CANCEL** interrupts it. The tools open their respective quote and stock pages registered in `app.json.pages`. The fixture uses deterministic demo data and places no orders. `npm run typecheck` checks the typed example and rejects intentionally incorrect input/output assignments; MCP and real Ink WASM browser tests verify discovery, contracts, errors, server-code isolation, rendering, invocation and cancellation.
+Call `quote_order({ "quantity": 2, "coupon": "DEMO10" })` for CNY 36 and stock 98; `check_stock({ "sku": "DEMO" })` for stock 100; or `find_products({ "query": "travel" })` for two candidates. See [candidate selection](candidate-selection.md) for the model-context loop. Unknown coupons return `INVALID_COUPON`, unknown SKUs return `UNKNOWN_SKU`, and schema-invalid inputs never run the Worker. **CALCULATE** and **CANCEL** call/cancel the same Worker action. No orders are placed.
 
-## Render the two result paths correctly
+## UI results and privacy
 
-The initial AI-invoked result and a later page-initiated result have different envelopes. Add this method to your page's `export default` object; adapt the displayed fields to your output schema:
+Initial results arrive as `{ type: 'mcpkit:tool-result', structuredContent, uiOnly, isError, error, request }` in `onMessage(event)`. Later `mcpkit:tool-state` successes carry the full response in `result`. The [order page](../../examples/business/pages/order/index.ink) handles both envelopes and correlates requests. See [messages](../reference/messages.md) and [lifecycle](tool-lifecycle.md).
 
-```js
-onMessage(event) {
-  const message = event.data;
-  if (message.type === 'mcpkit:tool-result') {
-    this.setData({ total: message.structuredContent?.total ?? 0 });
-  } else if (message.type === 'mcpkit:tool-state' && message.state === 'ready') {
-    this.setData({ total: message.result.structuredContent?.total ?? 0 });
-  }
-}
-```
+Worker source is bundled with the app, including the browser View: do not put credentials in it. The supplier label is public demo data returned as UI metadata. UI-only data is excluded from model-visible results, but remains accessible to the host/user. The selection page explicitly projects selected fields into context.
 
-This is a rendering fragment, not a complete page. The complete business page also correlates IDs, stops loading on error/cancellation and displays failure messages. See [messages](../reference/messages.md) and [request lifecycle](tool-lifecycle.md).
-
-## Where configuration belongs
-
-Keep credentials on the server and load them from environment variables in handlers. `uiOnly` means omitted from model context, not secret from the host/user. Metadata, schema descriptions and UI assets are public. Do not send tokens through any of them.
-
-For remote work, pass the handler's `signal` into `fetch(url, { signal })` or another API that actually cancels work. Sending a cancellation message alone cannot undo an already completed side effect. Keep diagnostics off stdio's stdout; use stderr for server logs because stdout carries MCP protocol messages.
+MCPKit retains its optional Node handler adapter for existing integrations. Business Demo uses the Worker adapter and requires no separate handler directory.
 
 ---
 
-[Documentation index](../README.md) · Previous: [Page tools](page-tools.md) · Next: [Request lifecycle](tool-lifecycle.md)
+[Documentation index](../README.md)

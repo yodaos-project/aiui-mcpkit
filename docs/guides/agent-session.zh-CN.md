@@ -17,6 +17,8 @@ MCPKit 使用已发布的 Ink SDK `0.20.0-daily.20261027171530`。运行 `npm ci
 
 生成的 View 在 MCP Apps 握手完成后绑定 provider。不支持的操作抛出 `NotSupportedError`；宿主明确拒绝消息时抛出 `NotAllowedError`。
 
+完整的工具结果 → UI 选择 → 上下文示例见[候选选择](candidate-selection.zh-CN.md)。该示例的用户消息不携带本次选择编号，便于独立验证模型是否读取上下文。
+
 ## 发送消息，并提供读取当前选择的工具
 
 用下面完整的 `.ink` 文件替换[第一个 Agent](../getting-started/first-agent.zh-CN.md)中的页面，保留 `app.json.pages` 中对应路由。本例沿用兜底的 `open_app` 入口。按钮显式发布上下文，再发送用户消息；`get_selection` 工具读取同一个 Page 实例。

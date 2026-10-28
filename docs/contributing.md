@@ -20,10 +20,10 @@ Before submitting a code change:
 npm run build:examples
 npx playwright install chromium
 npm run typecheck
-npm test
+INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
 ```
 
-Browser tests use the actual agent runtime in an MCP Apps `AppBridge` harness, covering input, state continuity, display modes, and a no-network CSP. You can select an existing Chromium through `CHROMIUM_PATH`; `/usr/bin/chromium` is also supported when available. Keep the English and Chinese READMEs aligned when updating documentation.
+For a native host, follow [business-tool setup](guides/business-tools.md). To run the complete suite using only published npm dependencies, use `INK_WORKER_BIN="$PWD/scripts/ink-worker-wasm.mjs" npm test`. CI selects this generic host, which executes the same Worker actions in the published SDK's real Ink QuickJS/WASM runtime; it needs no private source checkout. Browser tests use the actual agent runtime in an MCP Apps `AppBridge` harness, covering input, state continuity, display modes, and a no-network CSP. You can select an existing Chromium through `CHROMIUM_PATH`; `/usr/bin/chromium` is also supported when available. Keep the English and Chinese READMEs aligned when updating documentation.
 
 [Browse the source](https://github.com/yodaos-project/aiui-mcpkit) · [Report an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) · [Explore AIUI](https://github.com/yodaos-project/AIUI)
 

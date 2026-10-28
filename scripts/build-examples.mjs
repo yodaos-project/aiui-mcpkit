@@ -10,6 +10,7 @@ for (const example of examples) {
   const result = await buildPlugin({ source: join(root, 'examples', example.id), name: example.name,
     outputDir: join(output, example.id),
     typesFile: join(root, 'examples', example.id, '.mcpkit/tools.d.ts'),
+    ...(example.worker ? { worker: example.worker } : {}),
   });
   // The examples are installed through the shared catalog, not individual catalogs.
   await rm(join(result.outputDir, '.agents'), { recursive: true, force: true });

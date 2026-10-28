@@ -14,6 +14,7 @@ This guide uses a local checkout so you can build the library and follow every e
 | MCP client | Call tools; an Apps-capable host displays UI | See [client setup](../guides/clients.md) |
 | Codex CLI with plugin commands | Only the Codex plugin installation route | `codex plugin --help` |
 | Chromium through Playwright | Only browser tests and benchmarks | Install when following [contributing](../contributing.md) |
+| Native `ink-worker` | Business Demo and its integration tests | Build/configure using [business tools](../guides/business-tools.md) |
 
 Install Node from [Node.js](https://nodejs.org/en/download) and Git from [Git](https://git-scm.com/downloads). Reopen the terminal after installation if a command is not found. Desktop apps may inherit a different `PATH`; use an absolute Node executable path when needed.
 

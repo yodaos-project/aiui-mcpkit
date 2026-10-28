@@ -47,9 +47,13 @@ cargo build -p ink-script --bin ink-worker
 
 `INK_WORKER_CONFIGURATION` 可指定私有的运行时 JSON 配置文件，配置仅通过操作上下文中不可变的 `configuration` 提供，不会嵌入 View HTML。
 
+仓库的 [Business Demo](../../examples/business/workers/business.js) 全部通过 `ModelContext.defineAction()` 实现工具，无需单独的 Handler 模块。生成的 `worker-app/` 需要随服务一同部署。
+
 ## Worker 契约与迁移
 
 具名操作接收 `(input, { requestId, signal, reportProgress, configuration })`，显式返回可异步完成的 JSON 结果。页面业务工具返回 `{ content, structuredContent, uiMetadata? }`，适配器校验输出，并将 `uiMetadata` 转为现有的 UI-only 结果字段。
+
+注册的 `ModelContext.defineAction()` 回调接收执行 `signal`，不提供仅属于 operation 的 `configuration` 和 `reportProgress`。显式业务失败可返回 `{ isError: true, businessError: { code, message }, uiMetadata? }`，由 MCPKit 转换为标准业务错误；未预期的异常保持私有。Worker 源码也会进入 View 资源，不应在源码中嵌入私有配置。
 
 Worker 在真实 Ink 模块加载器和执行环境中运行，支持定时器和 Promise，不创建 Page 或渲染器。当前路径不提供 Node API、`process.env` 和 `fetch`，适合纯计算；依赖网络的 Node handler 迁移需要单独的能力支持。将业务模块迁入 Worker 时，应先检查这些依赖，并通过私有 `configuration` 替代直接读取环境变量。
 
@@ -67,7 +71,7 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
 
 浏览器测试宿主确认接收，不代表生产模型消费了上下文；后者需要独立记录。
 
-运行 `npm ci` 即可安装已发布运行时，不再需要本地构建或链接 Ink Web SDK。宿主服务浏览器测试为必跑项；原生 Worker 测试另需 `INK_WORKER_BIN`。消息、上下文、声明式 Action 和动态注册示例见 [Agent 会话与实时工具](agent-session.zh-CN.md)。依赖固定完整版本号，避免浮动 dist-tag 选中较旧的运行时。
+运行 `npm ci` 即可安装已发布的 Web 运行时，不再需要本地构建或链接 Ink Web SDK。宿主服务浏览器测试为必跑项；Business Demo 调用和原生 Worker 测试需通过 PATH 或 `INK_WORKER_BIN` 找到 `ink-worker`。消息、上下文、声明式 Action 和动态注册示例见 [Agent 会话与实时工具](agent-session.zh-CN.md)。依赖固定完整版本号，避免浮动 dist-tag 选中较旧的运行时。
 
 ## 对话卡片
 

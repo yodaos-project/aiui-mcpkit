@@ -2,11 +2,39 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { mkdtemp, mkdir, writeFile, copyFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
 
 const mimeType = 'text/html;profile=mcp-app';
 const uiCapabilities = { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: [mimeType] } } };
 function transport(example) {
   return new StdioClientTransport({ command: process.execPath, args: ['dist/server.mjs'], cwd: `${process.cwd()}/dist/examples/${example}` });
+}
+
+// Progress is an operation-context capability; declared Action callbacks receive
+// only a signal. Keep cross-era progress coverage in an Ink operation fixture.
+async function businessOperationFixture() {
+  const root = await mkdtemp(join(tmpdir(), 'mcpkit-protocol-worker-'));
+  try {
+    await mkdir(join(root, 'workers'));
+    await writeFile(join(root, 'app.json'), JSON.stringify({pages:['order','stock'],agentWorkers:[{name:'business',script:'workers/business.js',trigger:{type:'open'},lifetime:'foreground'}]}));
+    await copyFile('examples/business/pages/order/index.ink', join(root, 'order.ink'));
+    await copyFile('examples/business/pages/stock/index.ink', join(root, 'stock.ink'));
+    await writeFile(join(root, 'workers/business.js'), `export default {operations:{
+      async quote_order(input, context) {
+        if(input.coupon) return {isError:true,businessError:{code:'INVALID_COUPON',message:'Unknown demo coupon.'}};
+        context.reportProgress({value:0,total:1,message:'Calculating quote'});
+        await new Promise(resolve=>setTimeout(resolve,500));
+        context.signal.throwIfAborted();
+        return {content:[],structuredContent:{quantity:input.quantity,unitPrice:20,total:input.quantity*20,currency:'CNY'},uiMetadata:{stockRemaining:100-input.quantity}};
+      },
+      check_stock(input) {return {content:[],structuredContent:{sku:input.sku,available:100}};}
+    }};`);
+    const built = await buildPlugin({source:root,name:'protocol-worker',outputDir:join(root,'out'),worker:{name:'business'}});
+    return {transport:new StdioClientTransport({command:process.execPath,args:[built.files.server],env:{INK_WORKER_BIN:process.env.INK_WORKER_BIN || 'ink-worker'}}),cleanup:()=>rm(root,{recursive:true,force:true})};
+  } catch(error) {await rm(root,{recursive:true,force:true});throw error;}
 }
 
 for (const era of ['legacy', 'modern']) {
@@ -64,12 +92,13 @@ for (const era of ['legacy', 'modern']) {
 }
 
 for (const era of ['legacy', 'modern']) {
-  test(`${era} business results, progress notification and cancellation`, async () => {
+  test(`${era} Worker operation results, progress notification and cancellation`, async () => {
+    const fixture = await businessOperationFixture();
     const client = new Client({ name: 'business-protocol-test', version: '1' }, {
       versionNegotiation: { mode: era === 'modern' ? { pin: '2026-07-28' } : 'legacy' },
     });
     try {
-      await client.connect(transport('business'));
+      await client.connect(fixture.transport);
       await client.listTools();
       const progress = [];
       client.setNotificationHandler('notifications/progress', notification => progress.push(notification.params));
@@ -92,7 +121,7 @@ for (const era of ['legacy', 'modern']) {
       await assert.rejects(cancelled, /Cancel test/);
       // A cancelled call must leave the connection usable.
       assert.equal((await client.callTool({ name: 'check_stock', arguments: { sku: 'DEMO' } })).structuredContent.available, 100);
-    } finally { await client.close(); }
+    } finally { await client.close(); await fixture.cleanup(); }
   });
 }
 

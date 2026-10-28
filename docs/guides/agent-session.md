@@ -17,6 +17,8 @@ MCPKit uses the published Ink SDK `0.20.0-daily.20261027171530`. Run `npm ci` an
 
 The generated View binds the provider after the MCP Apps handshake. Unsupported operations reject with `NotSupportedError`; explicit host refusal of a message rejects with `NotAllowedError`.
 
+For a runnable tool-to-UI-to-context example with a selection reference absent from the user message, see [Candidate selection](candidate-selection.md).
+
 ## Send a message and expose the current selection
 
 Replace the page from [your first Agent](../getting-started/first-agent.md) with this complete `.ink` file, preserving its route in `app.json.pages`. This example keeps the fallback `open_app` entrypoint. The button explicitly publishes a context entry and sends a user message. The `get_selection` tool reads the existing Page instance.

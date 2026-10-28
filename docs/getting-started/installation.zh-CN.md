@@ -14,6 +14,7 @@
 | MCP 客户端 | 调用工具；显示界面还需支持 Apps | 见[客户端接入](../guides/clients.zh-CN.md) |
 | 支持插件命令的 Codex CLI | 仅 Codex 插件安装路径需要 | `codex plugin --help` |
 | Playwright 的 Chromium | 仅浏览器测试和 benchmark 需要 | 按[贡献指南](../contributing.zh-CN.md)安装 |
+| 原生 `ink-worker` | Business Demo 及其集成测试 | 按[业务工具](../guides/business-tools.zh-CN.md)构建和配置 |
 
 从 [Node.js](https://nodejs.org/en/download) 和 [Git](https://git-scm.com/downloads) 安装对应工具。安装后仍提示找不到命令时，重新打开终端。桌面应用的 `PATH` 可能与终端不同，必要时使用 Node 可执行文件的绝对路径。
 
