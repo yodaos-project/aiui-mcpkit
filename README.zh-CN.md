@@ -31,7 +31,7 @@
 
 *截图来自本地 MCP Apps 浏览器测试宿主，使用真实 Ink/WASM 运行时。旅行、数据分析、预约与业务数据均为演示数据；预约确认不会真实订位或付款，计时器在 View 打开期间运行。向对话分享内容需要宿主支持。*
 
-[![观看 MCPKit 宣传短片](docs/assets/showcase-poster.jpg)](docs/assets/mcpkit-showcase.mp4)
+https://github.com/user-attachments/assets/487a1771-ca2d-4b04-91f4-8a55f8f8eba1
 
 **[观看 33 秒英文宣传短片 →](docs/assets/mcpkit-showcase.mp4)** · [无背景音乐版](docs/assets/mcpkit-showcase-nobgm.mp4)
 

@@ -31,7 +31,7 @@ Four new examples, each with its own visual identity and a working interaction:
 
 *Real Ink/WASM output captured in the local MCP Apps browser harness. Travel, analytics, workshop and business data are demo fixtures. Workshop confirmation makes no real booking or payment; the timer runs while its view is open. Conversation sharing requires host support.*
 
-[![Watch the MCPKit showcase](docs/assets/showcase-poster.jpg)](docs/assets/mcpkit-showcase.mp4)
+https://github.com/user-attachments/assets/487a1771-ca2d-4b04-91f4-8a55f8f8eba1
 
 **[Watch the 33-second English showcase →](docs/assets/mcpkit-showcase.mp4)** · [Without background music](docs/assets/mcpkit-showcase-nobgm.mp4)
 
