@@ -2,6 +2,7 @@ import type { ClientCapabilities, Tool, Resource } from '@modelcontextprotocol/s
 import { getUiCapability, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import type { PageTool } from './page-tools.js';
 import type { RequestPolicy } from './lifecycle.js';
+import type { BuildIdentity } from './build-info.js';
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 /** Public protocol metadata. Never put credentials or server configuration here. */
@@ -200,10 +201,10 @@ export function connectionConfig(name: string) {
     mcpServers: { [name]: { type: 'stdio' as const, command: 'node', args: ['${PLUGIN_ROOT}/dist/server.mjs'], cwd: '${PLUGIN_ROOT}' } } };
 }
 /** Shares serialization with runtime handlers; returns fresh, public JSON only. */
-export function inspectProtocol(model: ProtocolModel, clientCapabilities?: ClientCapabilities): ProtocolInspection {
+export function inspectProtocol(model: ProtocolModel, clientCapabilities?: ClientCapabilities, build?: BuildIdentity): ProtocolInspection {
   const ui = supportsView(clientCapabilities);
   const tools: Tool[] = model.tools.map(tool => {
-    const meta = merge(model.toolMetadata[tool.name], { requestPolicy: model.requestPolicy as unknown as PublicMetadata, mcpkit: { ui: ui ? 'available' : 'unavailable' } });
+    const meta = merge(model.toolMetadata[tool.name], { requestPolicy: model.requestPolicy as unknown as PublicMetadata, mcpkit: { ui: ui ? 'available' : 'unavailable', ...(build ? { build: { ...build } } : {}) } });
     if (ui) {
       meta.ui = { ...meta.ui as PublicMetadata, resourceUri: tool.resourceUri };
       meta['ui/resourceUri'] = tool.resourceUri;
@@ -213,5 +214,6 @@ export function inspectProtocol(model: ProtocolModel, clientCapabilities?: Clien
     return { name: tool.name, title: tool.outputSchema ? tool.title : `Open ${tool.title}`, description: tool.description,
       inputSchema: tool.inputSchema as Tool['inputSchema'], ...(tool.outputSchema ? { outputSchema: tool.outputSchema as Tool['outputSchema'] } : {}), _meta: meta };
   });
-  return JSON.parse(JSON.stringify({ tools, resources: model.resources.map(({ page, html, ...resource }) => resource), connection: connectionConfig(model.name) }));
+  return JSON.parse(JSON.stringify({ tools, resources: model.resources.map(({ page, html, ...resource }) => ({ ...resource,
+    _meta: { ...resource._meta, ...(build ? { mcpkit: { build } } : {}) } })), connection: connectionConfig(model.name) }));
 }

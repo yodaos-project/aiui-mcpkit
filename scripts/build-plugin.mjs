@@ -28,7 +28,7 @@ async function main() {
     title: values.title, description: values.description,
     tool: values.tool, page: values.page, version: values.version,
   });
-  console.log(`Built plugin ${result.name} in ${result.outputDir}`);
+  console.log(`Built plugin ${result.name} ${result.build.id} in ${result.outputDir}`);
   console.log(`Assets: ${result.assets.files.length} files, ${result.assets.totalBytes} source bytes; View HTML: ${result.assets.viewBytes} bytes`);
   for (const file of result.assets.files.filter(file => file.encoding === 'base64')) console.log(`  ${file.path}: ${file.bytes} bytes (${file.mimeType})`);
   for (const diagnostic of result.assets.diagnostics) console.warn(`[${diagnostic.code}] ${diagnostic.message}`);

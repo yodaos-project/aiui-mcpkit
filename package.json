@@ -27,12 +27,13 @@
     "prepack": "npm run build",
     "build:examples": "npm run build && node scripts/build-examples.mjs",
     "update:examples": "npm run build:examples && node scripts/update-examples.mjs",
+    "diagnose:examples": "node scripts/diagnose-examples.mjs",
     "start:examples": "node scripts/start-examples.mjs"
   },
   "description": "Build MCP App plugins from AIUI Agents.",
   "files": [
     "dist/index.mjs",
-    "dist/index.d.ts",
+    "dist/*.d.ts",
     "dist/tools.mjs",
     "dist/runtime"
   ],

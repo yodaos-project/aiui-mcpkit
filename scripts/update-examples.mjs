@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { examplesDirectory, marketplaceName, selectExamples } from './examples.mjs';
+import { inspectBuild } from '@yodaos-pkg/aiui-mcpkit';
 
 async function main() {
   const { values } = parseArgs({ options: { example: { type: 'string' }, 'plugin-dir': { type: 'string' } } });
@@ -13,6 +14,8 @@ async function main() {
   for (const example of selectExamples(values.example)) {
     const directories = example.worker ? ['worker-app'] : [];
     const source = join(examplesDirectory, example.id);
+    const inspection = await inspectBuild(source, true);
+    if (inspection.integrity !== 'ok' || inspection.source !== 'current') throw new Error(`Rebuild ${example.name} before updating: build artifacts or source are stale/unavailable.`);
     const manifest = JSON.parse(await readFile(join(source, 'plugin.json'), 'utf8'));
     const cache = values['plugin-dir'] && !values.example ? join(resolve(values['plugin-dir']), example.name)
       : join(codexHome, 'plugins/cache', marketplaceName, example.name);
@@ -32,7 +35,7 @@ async function main() {
         if (target && !target.isDirectory()) throw new Error(`Expected directory: ${join(directory, name)}`);
       }
       installed.push(directory);
-      updates.push({ source, directory, files, directories });
+      updates.push({ source, directory, files, directories, build: inspection.build });
     }
     if (!installed.length) {
       if (values.example) throw new Error(`${example.name} is not installed. Install it first: codex plugin add ${example.name}@${marketplaceName}`);
@@ -40,7 +43,7 @@ async function main() {
     }
   }
   if (!updates.length) throw new Error(`No examples are installed from ${marketplaceName}. Register dist/examples and install an example first.`);
-  for (const { source, directory, files, directories } of updates) {
+  for (const { source, directory, files, directories, build } of updates) {
     for (const name of directories) {
       const target = join(directory, name);
       const temporary = `${target}.${randomUUID()}.tmp`;
@@ -57,13 +60,14 @@ async function main() {
       }
       await rm(backup, { recursive: true, force: true });
     }
-    for (const file of files) {
+    // Write the manifest last: partial updates remain detectable by byte hashes.
+    for (const file of [...files, 'build.json']) {
       const target = join(directory, file);
       const temporary = `${target}.${randomUUID()}.tmp`;
       try { await copyFile(join(source, file), temporary); await rename(temporary, target); }
       finally { await rm(temporary, { force: true }); }
     }
-    console.log(`Updated UI, server, manifests${directories.length ? ', and Worker app' : ''} in ${directory}`);
+    console.log(`Updated build ${build.id}, UI, server, manifests${directories.length ? ', and Worker app' : ''} in ${directory}`);
   }
   console.log('Reload the MCP server/desktop host and open a new card to use the updated examples.');
 }

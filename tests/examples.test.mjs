@@ -75,7 +75,7 @@ test('product search returns validated candidates and keeps supplier metadata UI
 
 test('update:examples updates UI, server, Worker app and manifests for installed plugins', async () => {
   const cache = await mkdtemp(join(tmpdir(), 'mcpkit-example-cache-'));
-  const files = ['view.html', 'dist/server.mjs', 'plugin.json', 'mcp.json'];
+  const files = ['view.html', 'dist/server.mjs', 'plugin.json', 'mcp.json', 'build.json'];
   try {
     for (const [id, name] of [['counter', 'ink-counter'], ['business', 'business-demo']]) {
       const source = join(root, 'dist/examples', id);
@@ -94,6 +94,10 @@ test('update:examples updates UI, server, Worker app and manifests for installed
     }
     assert.equal(await readFile(join(cache, 'business-demo/local/worker-app/workers/business.js'), 'utf8'), await readFile(join(root, 'dist/examples/business/worker-app/workers/business.js'), 'utf8'));
     await assert.rejects(access(join(cache, 'business-demo/local/worker-app/obsolete.js')));
+    const { build } = JSON.parse(await readFile(join(root, 'dist/examples/counter/build.json'), 'utf8'));
+    const diagnosed = await exec(process.execPath, ['scripts/diagnose-examples.mjs', '--example', 'counter',
+      '--plugin-dir', join(cache, 'ink-counter/local'), '--server-build', build.id, '--view-build', build.id, '--new-card']);
+    assert.deepEqual(JSON.parse(diagnosed.stdout).findings.map(finding => finding.code), ['CURRENT']);
     await writeFile(join(cache, 'business-demo/local/plugin.json'), JSON.stringify({ name: 'wrong-plugin' }));
     await writeFile(join(cache, 'ink-counter/local/view.html'), 'preserve on validation failure');
     await assert.rejects(exec(process.execPath, ['scripts/update-examples.mjs', '--plugin-dir', cache]), /Unexpected plugin/);

@@ -5,11 +5,16 @@ import type { RequestPolicy } from './lifecycle.js';
 import { createInkView, type InkView } from '@yodaos-pkg/ink';
 import { decodeBundle, type BundleEntry } from './bundle.js';
 import { browserWebRegistry, mirrorWebTools, type WebRegistry } from './webmcp.js';
+import type { BuildIdentity } from './build-info.js';
 
+declare const __BUILD_INFO__: BuildIdentity;
 declare const __WASM_GZIP_BASE64__: string;
 declare const __INK_FILES__: Record<string, BundleEntry>;
 declare const __APP_CONFIG__: { name: string; version: string; title: string; page: string; waitForToolInput: boolean; requestPolicy: RequestPolicy; retrySafeTools: string[]; sharedPages: string[] };
 const config = __APP_CONFIG__;
+document.body.dataset.mcpkitBuildId = __BUILD_INFO__.id;
+document.body.dataset.mcpkitVersion = __BUILD_INFO__.version;
+document.body.dataset.mcpkitBuildState = 'unknown';
 const files = decodeBundle(__INK_FILES__);
 
 const canvas = document.querySelector<HTMLCanvasElement>('#ink')!;
@@ -111,6 +116,14 @@ app.ontoolresult = (result) => {
   if (config.sharedPages.includes(initialPage) && invocation?.page !== initialPage) return;
   // Host notifications have no correlation ID: accept only the current launch query.
   if (invocation?.query && query !== undefined && JSON.stringify(invocation.query) !== JSON.stringify(query)) return;
+  const serverBuild = (result._meta?.mcpkit as { build?: BuildIdentity } | undefined)?.build;
+  if (serverBuild) {
+    document.body.dataset.mcpkitServerBuildId = serverBuild.id;
+    document.body.dataset.mcpkitBuildState = serverBuild.id === __BUILD_INFO__.id ? 'current' : 'mismatch';
+  } else {
+    delete document.body.dataset.mcpkitServerBuildId;
+    document.body.dataset.mcpkitBuildState = 'unknown';
+  }
   try { hostProvider.result(result); } catch { console.debug('Ink host result content modality is unavailable'); }
   document.body.dataset.requestState = result.isError ? 'error' : 'ready';
   if (result.structuredContent !== undefined || result._meta?.uiOnly !== undefined || result._meta?.businessError !== undefined) pendingResult = result;
