@@ -12,6 +12,7 @@
 
 ```text
 plugin/
+├── build.json                        # Build identity, local provenance and artifact hashes
 ├── plugin.json                       # Plugin name and display metadata
 ├── mcp.json                          # Plugin-host stdio configuration
 ├── view.html                         # Agent interface and embedded runtime
@@ -68,6 +69,7 @@ UI 宿主需要允许编译 WebAssembly，并支持最终 HTML 资源大小。�
 | 成员 | 含义 |
 | --- | --- |
 | `name`、`title`、`version` | 最终插件标识和展示信息。 |
+| `build` | 公开 `BuildIdentity`：`schemaVersion`、内容决定的 `id`、插件 `name` 和发布 `version`。 |
 | `tool` | 第一个注册工具的名称，不一定是 `open_app`。 |
 | `page` | 选定的初始页面路径，各页面工具仍保留各自路径。 |
 | `tools` | 工具与页面映射，包含 `name`、`title`、`description`、`page`、`inputSchema`、最终 `resourceUri` 和业务工具可选 `outputSchema`。 |
@@ -77,6 +79,7 @@ UI 宿主需要允许编译 WebAssembly，并支持最终 HTML 资源大小。�
 | `inspectProtocol(capabilities?)` | 最终工具列表项、资源列表项和连接配置的全新 JSON 快照，默认不带 Apps 能力。 |
 | `assets` | `AssetReport`：各文件的公开路径、字节大小、编码/MIME 提示、源码总字节数、最终 HTML 字节数和诊断。 |
 | `files.view` | `view.html` 的绝对路径。 |
+| `files.build` | `build.json` 的绝对路径，见[构建诊断](../guides/build-diagnostics.zh-CN.md)。 |
 | `files.server` | `dist/server.mjs` 的绝对路径。 |
 | `files.plugin`、`files.mcp` | 插件清单与客户端配置的绝对路径。 |
 | `files.marketplace` | `.agents/plugins/marketplace.json` 的绝对路径。 |
@@ -124,6 +127,7 @@ PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取
 | `RequestLifecycle`、`RequestLifecycleError`、`resolveRequestPolicy` | 为异步任务添加超时、取消和重试策略。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `AgentToolBridge` | 使用相同生命周期把页面请求关联到宿主工具调用。 | [请求生命周期](../guides/tool-lifecycle.zh-CN.md) |
 | `BuildPluginOptions`、`BuildPluginResult`、`PageTool` | 构建输入、结果和工具映射。 | 本篇参考 |
+| `inspectBuild`、`diagnosePlugin`、`BuildIdentity`、`BuildManifest`、`BuildInspection`、`DiagnoseOptions` | 只读检查源码与文件，并比较已观察到的服务和视图 ID。 | [构建诊断](../guides/build-diagnostics.zh-CN.md) |
 | `JsonValue`、`PublicMetadata`、`UiResource`、`MetadataOptions`、`ProtocolInspection` | 元数据、资源和检查配置的类型。 | [公开元数据](../guides/metadata.zh-CN.md) |
 
 完整 handler/context 和生命周期接口见 [`business-tools.ts`](../../src/runtime/business-tools.ts)、[`lifecycle.ts`](../../src/runtime/lifecycle.ts) 和 [`tool-bridge.ts`](../../src/runtime/tool-bridge.ts)。构建包时会生成对应 `.d.ts`。

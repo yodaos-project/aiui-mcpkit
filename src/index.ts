@@ -10,6 +10,9 @@ import { toolTypes } from './tool-types.js';
 import { prepareProtocol, inspectProtocol, connectionConfig, type MetadataOptions, type ProtocolInspection } from './runtime/metadata.js';
 import { packageAsset, validateAssetLimits, type AssetLimits, type AssetReport } from './assets.js';
 import type { BundleEntry } from './runtime/bundle.js';
+import { sha256, sourceSnapshot, type BuildManifest } from './diagnostics.js';
+export { inspectBuild, diagnosePlugin } from './diagnostics.js';
+export type { BuildIdentity, BuildManifest, BuildInspection, DiagnoseOptions } from './diagnostics.js';
 export type { AssetLimits, AssetInfo, AssetReport, BuildDiagnostic } from './assets.js';
 import type { ClientCapabilities } from '@modelcontextprotocol/server';
 export type { MetadataOptions, PublicMetadata, JsonValue, UiResource, ProtocolInspection } from './runtime/metadata.js';
@@ -52,6 +55,8 @@ export interface BuildPluginOptions extends MetadataOptions {
 
 /** Paths and identity of the completed plugin build. */
 export interface BuildPluginResult {
+  /** Content-derived identity; independent of output directory and build time. */
+  build: BuildManifest['build'];
   /** Public asset sizes, encodings, final HTML size, and advisory host diagnostics. */
   assets: AssetReport;
   name: string;
@@ -67,6 +72,7 @@ export interface BuildPluginResult {
   /** Final tools/list, resources/list and connection configuration for these client capabilities. Defaults to no Apps support. */
   inspectProtocol(clientCapabilities?: ClientCapabilities): ProtocolInspection;
   files: {
+    build: string;
     view: string;
     server: string;
     plugin: string;
@@ -166,7 +172,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
       plugin.onLoad({ filter: /^worker-handlers$/, namespace: 'mcpkit' }, () => ({ contents: `import { createWorkerHandlers } from ${JSON.stringify(fileURLToPath(new URL('worker-tools.ts', runtime)))}; export const handlers = createWorkerHandlers(${JSON.stringify(options.worker!.name)}, ${JSON.stringify(tools.filter(tool => tool.outputSchema).map(tool => tool.name))});`, loader: 'ts', resolveDir: fileURLToPath(runtime) }));
       plugin.onLoad({ filter: /^empty-handlers$/, namespace: 'mcpkit' }, () => ({ contents: 'export const handlers = {};', loader: 'js' }));
     } }],
-    define: { __APP_CONFIG__: JSON.stringify(config) },
+    define: { __APP_CONFIG__: JSON.stringify(config), __BUILD_INFO__: '__mcpkitBuildInfo' },
   });
   const serverFiles = new Set<string>();
   for (const input of Object.keys(server.metafile!.inputs)) {
@@ -175,7 +181,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   }
   const packagedFiles: Record<string, BundleEntry> = Object.create(null);
   async function walk(dir: string) {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
+    for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
       const next = join(dir, entry.name);
       const path = relative(source, next).replaceAll('\\', '/');
       if (nested(out, next) || next === typesFile || path === 'mcp-server' || path === 'dist' || path === '.mcpkit' || path === '.git' || path === 'node_modules' || entry.name === '.env' || entry.name.startsWith('.env.')) continue;
@@ -193,15 +199,30 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   const wasm = await readFile(join(dirname(require.resolve('@yodaos-pkg/ink/package.json')), 'pkg/ink_web_bg.wasm'));
   const view = await build({
     entryPoints: [fileURLToPath(new URL('view.ts', runtime))],
-    bundle: true, write: false, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
+    bundle: true, write: false, metafile: true, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
     define: {
+      __BUILD_INFO__: '__mcpkitBuildInfo',
       __WASM_GZIP_BASE64__: JSON.stringify(gzipSync(wasm, { level: 9 }).toString('base64')),
       __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools, sharedPages: Object.values(applications).map(app => app.page) }),
     },
   });
+  const excluded = [out, typesFile];
+  const sourceFiles = await sourceSnapshot(source, excluded);
+  const inputs: Record<string, string> = {};
+  const inputPaths = [fileURLToPath(import.meta.url), join(dirname(require.resolve('@yodaos-pkg/ink/package.json')), 'pkg/ink_web_bg.wasm'),
+    ...Object.keys(server.metafile!.inputs), ...Object.keys(view.metafile!.inputs)];
+  for (const input of [...new Set(inputPaths)].sort()) {
+    if (input.startsWith('<define:') || input.startsWith('mcpkit:')) continue;
+    const path = await realpath(resolve(input));
+    inputs[path] = sha256(await readFile(path));
+  }
+  const identity = { schemaVersion: 1 as const, name: config.name, version: config.version,
+    id: sha256(JSON.stringify([config, Object.entries(sourceFiles).sort(), Object.values(inputs).sort(), server.outputFiles[0].text, view.outputFiles[0].text])) };
+  const buildDeclaration = `const __mcpkitBuildInfo = ${JSON.stringify(identity)};\n`;
+  const buildMarker = `<meta name="mcpkit-build-id" content="${identity.id}">`;
   const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-  const script = view.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
+  const script = (buildDeclaration + view.outputFiles[0].text).replace(/<\/script/gi, '<\\/script');
+  const html = `<!doctype html><html><head><meta charset="utf-8">${buildMarker}<meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
 *{box-sizing:border-box}html,body{margin:0;padding:0;background:#000}#shell{width:100%;height:220px}body[data-mode=fullscreen] #shell{height:100vh}canvas{display:block;width:100%;height:100%;outline:none}
 </style></head><body data-page="${escapeHtml(page)}"><div id="shell"><canvas id="ink" tabindex="0" aria-label="${escapeHtml(title)}"></canvas></div><script type="module">${script}</script></body></html>`;
   assets.viewBytes = Buffer.byteLength(html);
@@ -211,7 +232,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
   assets.diagnostics.push({ code: 'HOST_REQUIREMENT', message: `View HTML is ${assets.viewBytes} bytes. The host must support this resource size, inline scripts/styles, WASM compilation and data: images (SVG). CSP declarations do not override host restrictions or CORS.` });
   await mkdir(join(out, 'dist'), { recursive: true });
   await writeFile(join(out, 'view.html'), html);
-  await writeFile(join(out, 'dist/server.mjs'), server.outputFiles[0].contents);
+  await writeFile(join(out, 'dist/server.mjs'), buildDeclaration + server.outputFiles[0].text);
   if (options.worker) {
     await rm(join(out, 'worker-app'), { recursive: true, force: true });
     for (const [path, entry] of Object.entries(packagedFiles)) {
@@ -243,11 +264,22 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
       category: 'Developer Tools',
     }],
   }));
+  const artifacts: Record<string, string> = {};
+  for (const path of ['view.html', 'dist/server.mjs', 'plugin.json', 'mcp.json',
+    ...(options.worker ? Object.keys(packagedFiles).map(path => `worker-app/${path}`) : [])]) {
+    artifacts[path] = sha256(await readFile(join(out, path)));
+  }
+  const buildManifest: BuildManifest = { schemaVersion: 1, build: identity,
+    source: { directory: source, excluded, files: sourceFiles }, inputs, artifacts,
+    resources: protocol.resources.map(resource => resource.uri) };
+  await writeFile(join(out, 'build.json'), json(buildManifest));
   return {
+    build: structuredClone(identity),
     assets, name: config.name, title, version: config.version, tool: config.tool, tools: structuredClone(tools), page, outputDir: out,
     marketplaceName: `${config.name}-local`, requestPolicy,
-    inspectProtocol: capabilities => inspectProtocol(protocol, capabilities),
+    inspectProtocol: capabilities => inspectProtocol(protocol, capabilities, identity),
     files: {
+      build: join(out, 'build.json'),
       view: join(out, 'view.html'),
       server: join(out, 'dist/server.mjs'),
       plugin: join(out, 'plugin.json'),

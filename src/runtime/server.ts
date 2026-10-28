@@ -9,7 +9,9 @@ import { businessToolExecutor, businessToolFailure } from './business-tools.js';
 import { RequestLifecycle, type RequestPolicy } from './lifecycle.js';
 import { inputValidator, type PageTool } from './page-tools.js';
 import { inspectProtocol, supportsView, type ProtocolModel, type PublicMetadata } from './metadata.js';
+import { viewBuildId, type BuildIdentity } from './build-info.js';
 
+declare const __BUILD_INFO__: BuildIdentity;
 declare const __APP_CONFIG__: { name: string; version: string; title: string; tools: PageTool[]; protocol: ProtocolModel; requestPolicy: RequestPolicy };
 const config = __APP_CONFIG__;
 // Validate handler coverage before accepting a connection (including discovery).
@@ -44,7 +46,7 @@ function createServer() {
       },
     }, async (query: Record<string, unknown>, extra: ServerContext) => {
       const ui = supportsView(capabilities(extra));
-      const uiMeta = { mcpkit: { ui: ui ? 'available' : 'unavailable' } };
+      const uiMeta = { mcpkit: { ui: ui ? 'available' : 'unavailable', build: __BUILD_INFO__ } };
       const request = lifecycle.start<CallToolResult>(async context => execute ? execute(query, context) : ({
         content: [{ type: 'text' as const, text: ui ? `${tool.title} opened.` : `${tool.title}: interactive view unavailable because this client does not advertise MCP Apps support (${RESOURCE_MIME_TYPE}). Arguments: ${JSON.stringify(query)}.` }],
         _meta: { aiui: { page: tool.page, query } },
@@ -81,17 +83,19 @@ function createServer() {
 
   for (const resource of config.protocol.resources) {
     const { page, html, name, uri, ...metadata } = resource;
-    registerAppResource(server, name, uri, metadata, async () => ({ contents: [{
-      uri, mimeType: RESOURCE_MIME_TYPE,
-      text: html ?? (await readFile(htmlPath, 'utf8')).replace(/<body data-page="[^"]*">/,
-        `<body data-page="${page!.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}">`),
-      _meta: metadata._meta,
-    }] }));
+    registerAppResource(server, name, uri, metadata, async () => {
+      const text = html ?? (await readFile(htmlPath, 'utf8')).replace(/<body data-page="[^"]*">/,
+        `<body data-page="${page!.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}">`);
+      return { contents: [{
+        uri, mimeType: RESOURCE_MIME_TYPE,
+        text, _meta: { ...metadata._meta, mcpkit: { build: __BUILD_INFO__, viewBuildId: viewBuildId(text) } },
+      }] };
+    });
   }
 
   // Build inspection and live discovery use the same capability-aware serializer.
-  server.server.setRequestHandler('tools/list', async (_request, ctx) => ({ tools: inspectProtocol(config.protocol, capabilities(ctx)).tools }));
-  server.server.setRequestHandler('resources/list', async (_request, ctx) => ({ resources: inspectProtocol(config.protocol, capabilities(ctx)).resources }));
+  server.server.setRequestHandler('tools/list', async (_request, ctx) => ({ tools: inspectProtocol(config.protocol, capabilities(ctx), __BUILD_INFO__).tools }));
+  server.server.setRequestHandler('resources/list', async (_request, ctx) => ({ resources: inspectProtocol(config.protocol, capabilities(ctx), __BUILD_INFO__).resources }));
 
   return server;
 }

@@ -12,6 +12,7 @@ All relative paths resolve from the caller's current working directory, not the 
 
 ```text
 plugin/
+├── build.json                        # Build identity, local provenance and artifact hashes
 ├── plugin.json                       # Plugin name and display metadata
 ├── mcp.json                          # Plugin-host stdio configuration
 ├── view.html                         # Agent interface and embedded runtime
@@ -68,6 +69,7 @@ Automated tests cover packaging, MCP tool/resource responses, and the browser ru
 | Member | Meaning |
 | --- | --- |
 | `name`, `title`, `version` | Final plugin identity/display values. |
+| `build` | Public `BuildIdentity`: `schemaVersion`, content-derived `id`, plugin `name` and release `version`. |
 | `tool` | First registered tool name; not necessarily `open_app`. |
 | `page` | Selected initial page route. Individual page tools retain their own routes. |
 | `tools` | Tool-to-page mappings: `name`, `title`, `description`, `page`, `inputSchema`, final `resourceUri`, and optional business `outputSchema`. |
@@ -77,6 +79,7 @@ Automated tests cover packaging, MCP tool/resource responses, and the browser ru
 | `inspectProtocol(capabilities?)` | Fresh JSON snapshots of final tool/resource list items and the connection descriptor. Defaults to no Apps capabilities. |
 | `assets` | `AssetReport`: per-file public paths, byte sizes, encoding/MIME hints, total source bytes, final HTML bytes and advisory diagnostics. |
 | `files.view` | Absolute path to `view.html`. |
+| `files.build` | Absolute path to `build.json`; see [build diagnostics](../guides/build-diagnostics.md). |
 | `files.server` | Absolute path to `dist/server.mjs`. |
 | `files.plugin`, `files.mcp` | Absolute manifest and client configuration paths. |
 | `files.marketplace` | Absolute `.agents/plugins/marketplace.json` path. |
@@ -124,6 +127,7 @@ PNG/JPEG/GIF/WebP and TTF/OTF/WOFF/WOFF2 have recognized MIME hints; actual deco
 | `RequestLifecycle`, `RequestLifecycleError`, `resolveRequestPolicy` | Wrap async work in timeout, cancellation and retry policies. | [Lifecycle](../guides/tool-lifecycle.md) |
 | `AgentToolBridge` | Bridge correlated page requests to host tool calls using the same lifecycle. | [Lifecycle](../guides/tool-lifecycle.md) |
 | `BuildPluginOptions`, `BuildPluginResult`, `PageTool` | Build inputs/results and discovered mappings. | This reference |
+| `inspectBuild`, `diagnosePlugin`, `BuildIdentity`, `BuildManifest`, `BuildInspection`, `DiagnoseOptions` | Read-only file/source inspection and comparison with observed server/View IDs. | [Build diagnostics](../guides/build-diagnostics.md) |
 | `JsonValue`, `PublicMetadata`, `UiResource`, `MetadataOptions`, `ProtocolInspection` | Typed metadata, resource and inspection configuration. | [Metadata](../guides/metadata.md) |
 
 For the complete handler/context and lifecycle interfaces, see [`business-tools.ts`](../../src/runtime/business-tools.ts), [`lifecycle.ts`](../../src/runtime/lifecycle.ts) and [`tool-bridge.ts`](../../src/runtime/tool-bridge.ts). The package emits corresponding `.d.ts` files when built.

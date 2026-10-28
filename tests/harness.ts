@@ -20,6 +20,7 @@ function setMode(mode: 'inline' | 'fullscreen') {
   bridge.setHostContext({ displayMode: current as 'inline' | 'fullscreen', availableDisplayModes: capabilities as ('inline' | 'fullscreen')[] });
 }
 (window as any).__setMode = setMode;
+(window as any).__sendToolResult = (result: Parameters<typeof bridge.sendToolResult>[0]) => bridge.sendToolResult(result);
 void (async () => {
   await bridge.connect(new PostMessageTransport(frame.contentWindow!, frame.contentWindow!));
   (window as any).__bridgeReady = true;

@@ -21,7 +21,7 @@ Edit the [Counter page](../../examples/counter/pages/counter/index.ink), the [bu
 npm run update:examples
 ```
 
-This rebuilds both examples in the shared marketplace and updates `view.html`, `dist/server.mjs`, `plugin.json` and `mcp.json` for each installed plugin, plus Business Demo's `worker-app/`. Reload the MCP server or desktop host and open a **new card** to use the new interface and Worker actions. Existing cards retain their current view. Business calls require `ink-worker` on the server process's PATH or configured through `INK_WORKER_BIN`.
+This rebuilds both examples in the shared marketplace and updates `view.html`, `dist/server.mjs`, `plugin.json`, `mcp.json` and `build.json` for each installed plugin, plus Business Demo's `worker-app/`. Reload the MCP server or desktop host and open a **new card** to use the new interface and Worker actions. Existing cards retain their current view. Business calls require `ink-worker` on the server process's PATH or configured through `INK_WORKER_BIN`.
 
 The script uses `$CODEX_HOME` (default: `~/.codex`) and checks the matching version and `local` directories under `plugins/cache/aiui-mcpkit-examples`. Uninstalled examples are skipped; it fails if none are installed. To update one example at a custom installation path:
 
@@ -32,6 +32,8 @@ npm run update:examples -- --example business --plugin-dir /absolute/path/to/ins
 Without `--example`, `--plugin-dir` points to the marketplace cache directory containing `ink-counter/<version-or-local>` and `business-demo/<version-or-local>`. For directly configured MCP clients, rebuilding updates the registered generated server paths; reload those servers through the client.
 
 To start one stdio server from the terminal, use `npm run start:examples` (Counter by default) or `npm run start:examples -- business`. Each marketplace plugin keeps its own server.
+
+Use `npm run diagnose:examples -- --example counter --plugin-dir /absolute/path/to/installed/ink-counter` to compare source/build and installed bytes without changing them. For actual server/View IDs, cache diagnosis and URI upgrade rules, see [build diagnostics](build-diagnostics.md). The update helper does not restart servers or clear host caches.
 
 ---
 

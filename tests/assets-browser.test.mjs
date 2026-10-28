@@ -20,7 +20,8 @@ test('real Ink renders bundled binary image and font under declared CSP without 
     const result = await buildPlugin({ source: resolve('tests/fixtures/assets'), name: 'assets-browser', outputDir: root });
     await client.connect(new StdioClientTransport({ command: process.execPath, args: [result.files.server] }));
     const resource = (await client.readResource({ uri: 'ui://assets-browser/app.html' })).contents[0];
-    assert.deepEqual(resource._meta, result.inspectProtocol().resources[0]._meta);
+    assert.deepEqual(resource._meta, { ...result.inspectProtocol().resources[0]._meta,
+      mcpkit: { build: result.build, viewBuildId: result.build.id } });
     assert.deepEqual(resource._meta.ui.csp, { connectDomains: [], resourceDomains: ['blob:'] });
     assert.equal(resource.text, await readFile(result.files.view, 'utf8'));
     const domains = resource._meta.ui.csp;

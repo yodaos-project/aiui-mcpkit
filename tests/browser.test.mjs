@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import { build } from 'esbuild';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -28,6 +28,30 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 test.after(() => server.close());
+
+test('loaded View exposes its build and distinguishes newer server results without reloading the App', async () => {
+  const { build: identity } = JSON.parse(await readFile('dist/examples/counter/build.json', 'utf8'));
+  const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), headless: true, args: ['--no-sandbox'] });
+  try {
+    const page = await browser.newPage();
+    await page.goto(base);
+    const frame = page.frameLocator('iframe');
+    await frame.locator('body[data-ready="true"]').waitFor({ timeout: 15000 });
+    assert.equal(await frame.locator('meta[name=mcpkit-build-id]').getAttribute('content'), identity.id);
+    assert.equal(await frame.locator('body').getAttribute('data-mcpkit-build-id'), identity.id);
+    assert.equal(await frame.locator('body').getAttribute('data-mcpkit-build-state'), 'unknown');
+    for (const id of [identity.id, 'a'.repeat(64)]) {
+      await page.evaluate(build => window.__sendToolResult({ content: [], _meta: { mcpkit: { build } } }), { ...identity, id });
+      await expect(frame.locator('body')).toHaveAttribute('data-mcpkit-server-build-id', id);
+      assert.equal(await frame.locator('body').getAttribute('data-mcpkit-build-state'), id === identity.id ? 'current' : 'mismatch');
+      assert.equal(await frame.locator('body').getAttribute('data-mcpkit-build-id'), identity.id);
+      assert.equal(await frame.locator('body').getAttribute('data-ready'), 'true');
+    }
+    await page.evaluate(() => window.__sendToolResult({ content: [] }));
+    await expect(frame.locator('body')).toHaveAttribute('data-mcpkit-build-state', 'unknown');
+    assert.equal(await frame.locator('body').getAttribute('data-mcpkit-server-build-id'), null);
+  } finally { await browser.close(); }
+});
 
 for (const scenario of ['host-modes', 'inline-only', 'initial-fullscreen']) {
   test(`real Ink WASM render and mode handling: ${scenario}`, async () => {

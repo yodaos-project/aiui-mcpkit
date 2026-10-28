@@ -15,7 +15,7 @@ for (const example of examples) {
   });
   // The examples are installed through the shared catalog, not individual catalogs.
   await rm(join(result.outputDir, '.agents'), { recursive: true, force: true });
-  console.log(`Built ${example.id} in ${result.outputDir}`);
+  console.log(`Built ${example.id} ${result.build.id} in ${result.outputDir}`);
 }
 await mkdir(join(output, '.agents/plugins'), { recursive: true });
 await writeFile(join(output, '.agents/plugins/marketplace.json'), JSON.stringify({

@@ -84,8 +84,10 @@ test('author metadata, custom resources and build inspection match live protocol
           assert.deepEqual((await client.listTools()).tools, expected.tools);
           assert.deepEqual((await client.listResources()).resources, expected.resources);
           const response = await client.readResource({ uri: custom.uri });
-          assert.deepEqual(response.contents[0], { uri: custom.uri, mimeType: custom.mimeType, text: options.uiResources[0].html, _meta: custom._meta });
-          assert.deepEqual((await client.readResource({ uri: generated.uri })).contents[0]._meta, generated._meta);
+          assert.deepEqual(response.contents[0], { uri: custom.uri, mimeType: custom.mimeType, text: options.uiResources[0].html,
+            _meta: { ...custom._meta, mcpkit: { build: result.build, viewBuildId: null } } });
+          assert.deepEqual((await client.readResource({ uri: generated.uri })).contents[0]._meta,
+            { ...generated._meta, mcpkit: { build: result.build, viewBuildId: result.build.id } });
           const call = await client.callTool({ name: 'open_app', arguments: {} });
           assert.equal(call._meta.mcpkit.ui, ui ? 'available' : 'unavailable');
           assert.deepEqual(expected.tools[0]._meta['example/vendor'], inspected.tools[0]._meta['example/vendor']);
@@ -182,7 +184,8 @@ test('narrow CSP rejects invalid origins and conflicting configuration before ou
     try {
       await client.connect(new StdioClientTransport({ command: process.execPath, args: [result.files.server] }));
       assert.deepEqual((await client.listResources()).resources[0]._meta, expected);
-      assert.deepEqual((await client.readResource({ uri: 'ui://metadata-test/app.html' })).contents[0]._meta, expected);
+      assert.deepEqual((await client.readResource({ uri: 'ui://metadata-test/app.html' })).contents[0]._meta,
+        { ...expected, mcpkit: { build: result.build, viewBuildId: result.build.id } });
     } finally { await client.close(); }
   } finally { await rm(f.root, { recursive: true, force: true }); }
 });

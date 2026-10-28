@@ -22,7 +22,7 @@
 | 参数缺失或类型错误被拒绝 | 查看实际输入 schema。`open_countdown` 需要正整数 `start`；数字字符串不等于整数。 |
 | 返回工具数据但没有界面 | 客户端可能没有 Apps 或 MIME 能力。检查[兼容性](../reference/compatibility.zh-CN.md)、WASM 权限及资源大小限制。 |
 | 直接打开 `view.html` 没有可用界面 | 需要 Apps 宿主提供初始化和工具通知，单独 HTML 没有这些通道。 |
-| 重新构建后没有变化 | 更新已安装副本、重载服务并打开新卡片，见[开发迭代](development.zh-CN.md)。 |
+| 重新构建后没有变化 | 比较源码、安装文件、实际服务响应和已加载文档的 ID 与字节，见[构建诊断](build-diagnostics.zh-CN.md)，再更新、重载并检查新卡片。 |
 | `update:examples` 找不到已安装插件 | 先安装仓库示例；直接注册的服务使用 `build:examples`；自己的 Agent 使用自己的构建与更新流程。 |
 | CALCULATE 没有反应或工具不可用 | 检查宿主 `serverTools`、工具权限、名称和唯一 ID；同时处理 `error` 和 `ready`，见[消息参考](../reference/messages.zh-CN.md)。 |
 | 错误或取消后一直加载 | 在 `ready`、`error`、`cancelled` 都停止加载，按 requestId 关联；进度不代表完成。 |

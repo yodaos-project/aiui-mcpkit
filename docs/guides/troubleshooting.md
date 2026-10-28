@@ -22,7 +22,7 @@ Work through failures in this order: **build → server startup → tool discove
 | Missing/incorrect argument rejected | Inspect the actual input schema. `open_countdown` needs positive integer `start`; numeric strings are not integers. |
 | Tool data arrives but no UI | The client may lack Apps capability/MIME support. Check [compatibility](../reference/compatibility.md), WASM permissions and resource size limits. |
 | Opening `view.html` gives no working page | Use an Apps host. Standalone HTML lacks host initialization and tool notifications. |
-| Rebuild appears to have no effect | Update the installed copy, reload the server and open a new card. Follow [development](development.md). |
+| Rebuild appears to have no effect | Compare build IDs and bytes across source, installation, actual server response and loaded document. Follow [build diagnostics](build-diagnostics.md), then update, reload and inspect a new card. |
 | `update:examples` finds no installed plugins | Install the bundled examples first. For direct servers, use `build:examples`. For your own Agent, use its build/update flow. |
 | CALCULATE does nothing or tool unavailable | Check host `serverTools`, tool permissions, request name and unique ID. Handle `error` as well as `ready`; see [messages](../reference/messages.md). |
 | UI stays loading after failure/cancel | Stop loading on `ready`, `error` and `cancelled`, and correlate by requestId. Progress alone is not completion. |
