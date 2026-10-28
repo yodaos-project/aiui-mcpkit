@@ -1,0 +1,125 @@
+import { Main, Music } from "./Main";
+import {
+  ConversationClaim,
+  InConversation,
+  OpenIndependently,
+  BackToConversation,
+  InterfaceRange,
+  ConversationFinale,
+  CrossPlatform,
+} from "./ConversationFilm";
+import { SHOTS, SFX, TOTAL } from "./timeline";
+export const WORKBENCH = {
+  name: "AIUI MCPKit / An idea. Now in view.",
+  fps: 30,
+  width: 1920,
+  height: 1080,
+  total: TOTAL,
+  background: "#101010",
+  revision: "2026-10-29-minimal-v5",
+  original: Main,
+  shots: [
+    {
+      id: "claim",
+      label: "Conversation, beyond text",
+      ...SHOTS.claim,
+      component: ConversationClaim,
+      props: {},
+      schema: [
+        {
+          type: "textarea",
+          key: "title",
+          label: "Title",
+          default: "An idea.\nNow in view.",
+        },
+      ],
+    },
+    {
+      id: "chat",
+      label: "Inside Codex conversation",
+      ...SHOTS.chat,
+      component: InConversation,
+      props: {},
+      schema: [],
+    },
+    {
+      id: "expand",
+      label: "Open independent view",
+      ...SHOTS.expand,
+      component: OpenIndependently,
+      props: {},
+      schema: [],
+    },
+    {
+      id: "back",
+      label: "Return with selection",
+      ...SHOTS.back,
+      component: BackToConversation,
+      props: {},
+      schema: [],
+    },
+    {
+      id: "range",
+      label: "One toolkit, many interfaces",
+      ...SHOTS.range,
+      component: InterfaceRange,
+      props: {},
+      schema: [
+        {
+          type: "textarea",
+          key: "title",
+          label: "Title",
+          default: "Small apps.\nBig possibilities.",
+        },
+      ],
+    },
+    {
+      id: "platforms",
+      label: "Codex / Claude Code / Rokid Glasses",
+      ...SHOTS.platforms,
+      component: CrossPlatform,
+      props: {},
+      schema: [],
+    },
+    {
+      id: "finale",
+      label: "Brand sign off",
+      ...SHOTS.finale,
+      component: ConversationFinale,
+      props: {},
+      schema: [
+        {
+          type: "textarea",
+          key: "tagline",
+          label: "Tagline",
+          default: "Your ideas.\nA wider world.",
+        },
+      ],
+    },
+  ],
+  overlays: [
+    {
+      id: "music",
+      label: "Music",
+      from: 0,
+      duration: TOTAL,
+      component: Music,
+      props: { volume: 0.5 },
+      schema: [
+        {
+          type: "slider",
+          key: "volume",
+          label: "Music volume",
+          default: 0.5,
+          min: 0,
+          max: 1,
+          step: 0.01,
+        },
+      ],
+    },
+  ],
+  transitions: [],
+  captions: [],
+  bgm: [],
+  sfx: SFX.map((cue) => ({ ...cue, src: `audio/${cue.src}` })),
+};

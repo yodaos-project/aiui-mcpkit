@@ -11,14 +11,20 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const exec = promisify(execFile);
 const root = process.cwd();
 
-test('unified example build creates one marketplace with both independently callable plugins', async () => {
+test('unified example build creates one marketplace with six independently callable plugins', async () => {
   const project = await mkdtemp(join(tmpdir(), 'mcpkit-examples-'));
   try {
     await exec(process.execPath, ['scripts/build-examples.mjs', '--out', project]);
     const marketplace = JSON.parse(await readFile(join(project, '.agents/plugins/marketplace.json'), 'utf8'));
     assert.equal(marketplace.name, 'aiui-mcpkit-examples');
-    assert.deepEqual(marketplace.plugins.map(plugin => [plugin.name, plugin.source.path]), [['ink-counter', './counter'], ['business-demo', './business']]);
-    for (const [index, expected] of [['open_counter', 'open_countdown'], ['quote_order', 'check_stock', 'find_products', 'search_catalog', 'inspect_catalog_product', 'select_catalog_product']].entries()) {
+    assert.deepEqual(marketplace.plugins.map(plugin => [plugin.name, plugin.source.path]), [
+      ['ink-counter', './counter'], ['business-demo', './business'], ['travel-planner', './travel'],
+      ['focus-studio', './focus'], ['analytics-lab', './analytics'], ['event-booking', './events'],
+    ]);
+    for (const [index, expected] of [
+      ['open_counter', 'open_countdown'], ['quote_order', 'check_stock', 'find_products', 'search_catalog', 'inspect_catalog_product', 'select_catalog_product'],
+      ['open_trip'], ['open_focus'], ['open_analytics'], ['open_workshop'],
+    ].entries()) {
       const directory = resolve(project, marketplace.plugins[index].source.path);
       const client = new Client({ name: 'examples-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
       try {
@@ -30,8 +36,11 @@ test('unified example build creates one marketplace with both independently call
   } finally { await rm(project, { recursive: true, force: true }); }
 });
 
-test('start:examples selects a stdio server and preserves the default Counter', async () => {
-  for (const [selector, names] of [[undefined, ['open_counter', 'open_countdown']], ['business', ['quote_order', 'check_stock', 'find_products', 'search_catalog', 'inspect_catalog_product', 'select_catalog_product']]]) {
+test('start:examples selects all six stdio servers and preserves the default Counter', async () => {
+  for (const [selector, names] of [
+    [undefined, ['open_counter', 'open_countdown']], ['business', ['quote_order', 'check_stock', 'find_products', 'search_catalog', 'inspect_catalog_product', 'select_catalog_product']],
+    ['travel', ['open_trip']], ['focus', ['open_focus']], ['analytics', ['open_analytics']], ['events', ['open_workshop']],
+  ]) {
     const client = new Client({ name: 'start-examples', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
     try {
       await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(root, 'scripts/start-examples.mjs'), ...(selector ? [selector] : [])], cwd: tmpdir() }));

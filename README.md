@@ -12,12 +12,30 @@ Give your AI tools an interface people can use: buttons, forms, calculations and
 
 ## See it in action
 
+Four new examples, each with its own visual identity and a working interaction:
+
+| Travel Planner · Fieldnotes | Focus Studio |
+| --- | --- |
+| [![Blue editorial Kyoto itinerary with selectable days and saved stops](docs/assets/examples/travel.png)](examples/travel) | [![Warm coral focus timer with start, pause and reset](docs/assets/examples/focus.png)](examples/focus) |
+| Switch days, save a stop and explicitly share it with the assistant. | Open with a task and duration, then start, pause or reset the timer. |
+
+| Analytics Lab · Signal | Event Booking · The Making Room |
+| --- | --- |
+| [![Violet analytics dashboard with period filters, KPIs and a bar chart](docs/assets/examples/analytics.png)](examples/analytics) | [![Warm ceramic workshop reservation with session and seat selection](docs/assets/examples/events.png)](examples/events) |
+| Change the period to update both metrics and the chart. | Choose a session and seats, review the total and confirm a local demo. |
+
 | Interactive Counter | Business tools |
 | --- | --- |
 | [![Counter with live state, session statistics and recent actions](docs/assets/counter.png)](examples/counter) | [![Order quote with structured totals, stock data and calculate/cancel actions](docs/assets/business.png)](examples/business) |
 | Open a page with tool arguments, change state and expand the view. | Return a quote to the model, render stock data and call or cancel work from the UI. |
 
-*Real Ink/WASM output captured in the local MCP Apps browser harness. The business example uses deterministic demo data.*
+*Real Ink/WASM output captured in the local MCP Apps browser harness. Travel, analytics, workshop and business data are demo fixtures. Workshop confirmation makes no real booking or payment; the timer runs while its view is open. Conversation sharing requires host support.*
+
+[![Watch the MCPKit showcase](docs/assets/showcase-poster.jpg)](docs/assets/mcpkit-showcase.mp4)
+
+**[Watch the 33-second English showcase →](docs/assets/mcpkit-showcase.mp4)** · [Without background music](docs/assets/mcpkit-showcase-nobgm.mp4) · [Video source and reproduction](videos/showcase/README.md)
+
+From a Codex conversation to an independent view and back, with the same selection preserved. The English film also highlights desktop agents such as Codex and Claude Code, and AIUI on Rokid Glasses. The Codex/desktop shells are labelled illustrations, app interfaces are actual runtime captures, and the glasses use the official product image from the [AIUI site](https://open.rokid.com/aiui/?lang=en-US). Interactive desktop views depend on host capabilities.
 
 ## Why MCPKit?
 
@@ -39,12 +57,16 @@ npm ci
 npm run build:examples
 ```
 
-This builds two independent plugins under `dist/examples/`:
+This builds six independent plugins under `dist/examples/`:
 
 | Example | Tools | Try it |
 | --- | --- | --- |
 | [Counter](examples/counter) | `open_counter`, `open_countdown` | Start at 5 and add one, or count down from 8 in steps of 2. |
 | [Business demo](examples/business) | `quote_order`, `check_stock`, `find_products` | Run Worker actions for quotes, stock and candidate selection. |
+| [Travel Planner](examples/travel) | `open_trip` | Use `{ "day": 2 }`, save a stop, then share only that selection. |
+| [Focus Studio](examples/focus) | `open_focus` | Use `{ "minutes": 25, "task": "Write the next chapter" }`, then start or pause. |
+| [Analytics Lab](examples/analytics) | `open_analytics` | Use `{ "period": "month" }` or switch week/month in the dashboard. |
+| [Event Booking](examples/events) | `open_workshop` | Use `{ "seats": 2 }`, choose a session and review the demo reservation. |
 
 For Codex Desktop, install with a Codex CLI that supports plugin commands:
 
@@ -52,9 +74,15 @@ For Codex Desktop, install with a Codex CLI that supports plugin commands:
 codex plugin marketplace add ./dist/examples
 codex plugin add ink-counter@aiui-mcpkit-examples
 codex plugin add business-demo@aiui-mcpkit-examples
+codex plugin add travel-planner@aiui-mcpkit-examples
+codex plugin add focus-studio@aiui-mcpkit-examples
+codex plugin add analytics-lab@aiui-mcpkit-examples
+codex plugin add event-booking@aiui-mcpkit-examples
 ```
 
 Restart the host and confirm the tools appear in the active session. Ask it to call `open_counter` with `{ "initialCount": 5, "label": "Demo" }`. Click **+ ADD ONE**: the count should change from **5 to 6**.
+
+Install any subset of the plugins above. To start a server directly, use `npm run start:examples -- travel` (also accepts `counter`, `business`, `focus`, `analytics`, `events`). The four new plugins need no native Worker or external service. Their open views expose read-only `trip_state`, `focus_state`, `analytics_state` and `workshop_state` actions through `ModelContext.defineAction()`; a supporting host can query exactly the state the user sees. [Example guide →](examples/README.md)
 
 The business demo also includes [a shared catalog App](docs/guides/shared-agent.md): search, inspect and select through tools while preserving navigation and isolating each View. A supporting host can opt into [scoped snapshot restoration](docs/guides/state-restoration.md) for selection, drafts and navigation after rebuilding a View.
 

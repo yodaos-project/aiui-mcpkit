@@ -12,12 +12,30 @@
 
 ## 看看实际效果
 
+新增四组示例，每组都有独立的视觉风格与可操作的交互：
+
+| 旅行规划 · Fieldnotes | 专注计时 · Focus Studio |
+| --- | --- |
+| [![蓝色编辑风格的京都行程，支持日期切换与地点收藏](docs/assets/examples/travel.png)](examples/travel) | [![珊瑚暖色专注计时器，支持开始、暂停与重置](docs/assets/examples/focus.png)](examples/focus) |
+| 切换日期、收藏地点，点击后只向助手分享选中的内容。 | 通过参数设置任务与时长，启动计时后随时暂停或重置。 |
+
+| 数据洞察 · Signal | 活动预约 · The Making Room |
+| --- | --- |
+| [![紫色数据看板，展示周期筛选、业务指标和柱状图](docs/assets/examples/analytics.png)](examples/analytics) | [![暖白陶艺工作坊预约，支持场次与人数选择](docs/assets/examples/events.png)](examples/events) |
+| 切换统计周期，指标和图表同步更新。 | 选择场次与人数、核对金额，再确认本地演示预约。 |
+
 | 可交互计数器 | 业务工具 |
 | --- | --- |
 | [![计数器展示实时状态、操作统计和最近记录](docs/assets/counter.png)](examples/counter) | [![报价页面展示结构化金额、库存以及计算和取消操作](docs/assets/business.png)](examples/business) |
 | 用工具参数打开页面，直接修改状态，并展开完整界面。 | 向模型返回报价，在界面展示库存，点击按钮调用或取消业务操作。 |
 
-*截图来自本地 MCP Apps 浏览器测试宿主，使用真实 Ink/WASM 运行时。业务示例使用确定性的演示数据。*
+*截图来自本地 MCP Apps 浏览器测试宿主，使用真实 Ink/WASM 运行时。旅行、数据分析、预约与业务数据均为演示数据；预约确认不会真实订位或付款，计时器在 View 打开期间运行。向对话分享内容需要宿主支持。*
+
+[![观看 MCPKit 宣传短片](docs/assets/showcase-poster.jpg)](docs/assets/mcpkit-showcase.mp4)
+
+**[观看 33 秒英文宣传短片 →](docs/assets/mcpkit-showcase.mp4)** · [无背景音乐版](docs/assets/mcpkit-showcase-nobgm.mp4) · [视频源码与复现方法](videos/showcase/README.zh-CN.md)
+
+从 Codex 对话内渲染，到独立视图继续操作，再携带选择返回对话。英文成片还展示 Codex、Claude Code 等电脑智能体客户端，以及 AIUI 在 Rokid Glasses 上的运行能力。客户端外壳明确标注为示意，应用画面来自真实运行时，眼镜素材使用 [AIUI 官网](https://open.rokid.com/aiui/?lang=en-US)的官方产品图；电脑端交互界面依赖宿主能力。
 
 ## 为什么选择 MCPKit？
 
@@ -39,12 +57,16 @@ npm ci
 npm run build:examples
 ```
 
-构建后，`dist/examples/` 下会生成两个独立插件：
+构建后，`dist/examples/` 下会生成六个独立插件：
 
 | 示例 | 工具 | 可以体验什么 |
 | --- | --- | --- |
 | [Counter](examples/counter) | `open_counter`、`open_countdown` | 从 5 开始加一，或从 8 开始每次减 2。 |
 | [业务示例](examples/business) | `quote_order`、`check_stock`、`find_products` | 通过 Worker Action 计算报价、查询库存和选择候选商品。 |
+| [旅行规划](examples/travel) | `open_trip` | 传入 `{ "day": 2 }`，收藏地点后按需向助手分享。 |
+| [专注计时](examples/focus) | `open_focus` | 传入 `{ "minutes": 25, "task": "Write the next chapter" }`，开始或暂停计时。 |
+| [数据洞察](examples/analytics) | `open_analytics` | 传入 `{ "period": "month" }`，或在看板内切换周/月。 |
+| [活动预约](examples/events) | `open_workshop` | 传入 `{ "seats": 2 }`，选择场次并核对演示预约。 |
 
 在 Codex Desktop 中体验时，使用支持插件命令的 Codex CLI 安装：
 
@@ -52,9 +74,15 @@ npm run build:examples
 codex plugin marketplace add ./dist/examples
 codex plugin add ink-counter@aiui-mcpkit-examples
 codex plugin add business-demo@aiui-mcpkit-examples
+codex plugin add travel-planner@aiui-mcpkit-examples
+codex plugin add focus-studio@aiui-mcpkit-examples
+codex plugin add analytics-lab@aiui-mcpkit-examples
+codex plugin add event-booking@aiui-mcpkit-examples
 ```
 
 重启宿主，确认工具出现在当前会话。让客户端以 `{ "initialCount": 5, "label": "Demo" }` 调用 `open_counter`，点击 **+ ADD ONE**，计数应从 **5 变为 6**。
+
+可以只安装上面需要的插件。直接启动服务端可使用 `npm run start:examples -- travel`，也支持 `counter`、`business`、`focus`、`analytics`、`events`。四个新插件无需原生 Worker 或外部服务；其打开的 View 通过 `ModelContext.defineAction()` 提供只读的 `trip_state`、`focus_state`、`analytics_state` 和 `workshop_state`，支持的宿主可以查询用户当前看到的状态。[示例指南 →](examples/README.zh-CN.md)
 
 业务示例还提供[多工具共享目录 App](docs/guides/shared-agent.zh-CN.md)：通过工具搜索、查看详情和选择商品，保留导航，并隔离每个 View 的状态。 支持的宿主还可显式接入[作用域快照恢复](docs/guides/state-restoration.zh-CN.md)，在重建 View 后还原选择、草稿和导航。
 

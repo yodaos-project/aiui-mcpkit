@@ -1,0 +1,27 @@
+{
+  "title": "Cat Walk",
+  "artist": "Arulo",
+  "sourceUrl": "https://assets.mixkit.co/music/371/371.mp3",
+  "output": "public/audio/cat-walk.wav",
+  "sourceBpmForBarCuts": 130,
+  "sourceSectionsSeconds": [
+    [
+      29.538461538,
+      44.307692308
+    ],
+    [
+      46.153846154,
+      59.076923077
+    ],
+    [
+      29.538461538,
+      35.076923077
+    ]
+  ],
+  "sectionBeats": [
+    32,
+    28,
+    12
+  ],
+  "purpose": "72-beat edit: remove sparse intro and four-beat drum break; reprise opening groove under brand hold. Sample-accurate PCM concat; no beat-adding or transient fabrication."
+}
