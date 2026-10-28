@@ -50,7 +50,7 @@ The catalog has a dedicated `_blank` layout: a centered workspace with larger pr
 
 Each View owns one App realm. The App holds navigation-related state, search results, inspected product and selection. Pages attach to it on show, detach on hide/unload, and refresh when returning from detail. Shared state is never stored in a module singleton, browser storage or the headless Worker. Worker methods return data without persisting a user's selection.
 
-New cards, Views, users and conversations do not join an existing instance automatically. Even if they use the same resource URI or server process, their UI state is independent. Closing a View destroys its App and cancels its live calls. This is in-memory persistence for the lifetime of a View; it does not restore state after reopening or implement account authentication.
+New cards, Views, users and conversations do not join an existing instance automatically. Even if they use the same resource URI or server process, their UI state is independent. Closing a View destroys its App and cancels its live calls. By default this is in-memory persistence for the lifetime of a View. For reconstruction in a supporting host, the catalog implements the opt-in [scoped snapshot protocol](state-restoration.md), including a private draft. It requires a trusted store adapter; it does not provide account authentication or assume desktop host persistence.
 
 ## Acceptance
 

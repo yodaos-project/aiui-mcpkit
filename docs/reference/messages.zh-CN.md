@@ -71,3 +71,7 @@ this.postMessage({ type: 'mcpkit:cancel-tool', requestId: 'quote-1' });
 [文档目录](../README.zh-CN.md) · 上一篇：[构建 API](build-api.zh-CN.md) · 下一篇：[协议兼容性](compatibility.zh-CN.md)
 
 共享 App 的结果事件还包含 `tool`（服务端工具名）及 `input`（已校验的参数）。通过 `applications` 注册命名 UI 路由，见[共享 App 归属与路由](../guides/shared-agent.zh-CN.md)。
+
+## 作用域恢复消息
+
+`mcpkit:state-connect`、`mcpkit:restore-state`、`mcpkit:state-ready`、`mcpkit:state-save`、`mcpkit:state-status` 构成可选的 App/View 握手，使用启动随机标识与宿主绑定的存储；快照在调试日志前被消费，不自动发布给模型。详见[消息字段、顺序与失败行为](../guides/state-restoration.zh-CN.md#先恢复再接收新结果)。

@@ -38,6 +38,7 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `requestPolicy` | ESM only | [Lifecycle defaults](../guides/tool-lifecycle.md) |
 | `retrySafeTools` | ESM only | `[]` |
 | `applications` | ESM only | Named shared UI routes: `Record<string, { page: string }>`. Bind tools with `application`; existing Views retain their App, new Views are independent. |
+| `restoration` | ESM only | Optional `{ adapter: string }` browser module exporting `createRestoration`. No store by default; see [scoped restoration](../guides/state-restoration.md). |
 | `handlers` | ESM only | `<source>/mcp-server/handlers.ts` for business tools |
 | `typesFile` | ESM only | `<outputDir>/tools.d.ts` |
 | `toolMetadata` | ESM only | `{}` |
@@ -130,6 +131,7 @@ PNG/JPEG/GIF/WebP and TTF/OTF/WOFF/WOFF2 have recognized MIME hints; actual deco
 | `verifyPlugin`, `VerifyPluginOptions`, `PreviewVerificationResult`, `PreviewCheck`, `PreviewDiagnostic`, `PreviewErrorCode`, `PreviewError` | Verify runtime/frame/business readiness and optionally capture a PNG. | [Preview verification](../guides/preview-verification.md) |
 | `inspectBuild`, `diagnosePlugin`, `BuildIdentity`, `BuildManifest`, `BuildInspection`, `DiagnoseOptions` | Read-only file/source inspection and comparison with observed server/View IDs. | [Build diagnostics](../guides/build-diagnostics.md) |
 | `JsonValue`, `PublicMetadata`, `UiResource`, `MetadataOptions`, `ProtocolInspection` | Typed metadata, resource and inspection configuration. | [Metadata](../guides/metadata.md) |
+| `SnapshotScope`, `SnapshotPayload`, `AgentSnapshot`, `SnapshotRecord`, `ScopedSnapshotStore`, `RestorationBinding`, `RestorationContext`, `RestorationAdapter`, `SnapshotJson`, `SnapshotError`, `createMemorySnapshotStore`, `createSnapshotSession` | Optional state contracts and scoped persistence helpers; browser-safe `/state` entry point. | [Restoration](../guides/state-restoration.md) |
 
 For the complete handler/context and lifecycle interfaces, see [`business-tools.ts`](../../src/runtime/business-tools.ts), [`lifecycle.ts`](../../src/runtime/lifecycle.ts) and [`tool-bridge.ts`](../../src/runtime/tool-bridge.ts). The package emits corresponding `.d.ts` files when built.
 

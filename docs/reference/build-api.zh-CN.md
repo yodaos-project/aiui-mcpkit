@@ -38,6 +38,7 @@ plugin/
 | `requestPolicy` | 仅 ESM | [生命周期默认值](../guides/tool-lifecycle.zh-CN.md) |
 | `retrySafeTools` | 仅 ESM | `[]` |
 | `applications` | 仅 ESM | 命名共享 UI 路由：`Record<string, { page: string }>`。工具通过 `application` 绑定；原 View 保留 App，新 View 独立。 |
+| `restoration` | 仅 ESM | 可选 `{ adapter: string }` 浏览器模块，导出 `createRestoration`。默认无存储，见[作用域恢复](../guides/state-restoration.zh-CN.md)。 |
 | `handlers` | 仅 ESM | 业务工具默认使用 `<source>/mcp-server/handlers.ts` |
 | `typesFile` | 仅 ESM | `<outputDir>/tools.d.ts` |
 | `toolMetadata` | 仅 ESM | `{}` |
@@ -130,6 +131,7 @@ PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取
 | `verifyPlugin`、`VerifyPluginOptions`、`PreviewVerificationResult`、`PreviewCheck`、`PreviewDiagnostic`、`PreviewErrorCode`、`PreviewError` | 验证运行时、画面和业务就绪状态，并可生成 PNG。 | [预览验证](../guides/preview-verification.zh-CN.md) |
 | `inspectBuild`、`diagnosePlugin`、`BuildIdentity`、`BuildManifest`、`BuildInspection`、`DiagnoseOptions` | 只读检查源码与文件，并比较已观察到的服务和视图 ID。 | [构建诊断](../guides/build-diagnostics.zh-CN.md) |
 | `JsonValue`、`PublicMetadata`、`UiResource`、`MetadataOptions`、`ProtocolInspection` | 元数据、资源和检查配置的类型。 | [公开元数据](../guides/metadata.zh-CN.md) |
+| `SnapshotScope`, `SnapshotPayload`, `AgentSnapshot`, `SnapshotRecord`, `ScopedSnapshotStore`, `RestorationBinding`, `RestorationContext`, `RestorationAdapter`, `SnapshotJson`, `SnapshotError`, `createMemorySnapshotStore`, `createSnapshotSession` | 可选状态契约与作用域存储工具，浏览器可使用 `/state` 入口。 | [状态恢复](../guides/state-restoration.zh-CN.md) |
 
 完整 handler/context 和生命周期接口见 [`business-tools.ts`](../../src/runtime/business-tools.ts)、[`lifecycle.ts`](../../src/runtime/lifecycle.ts) 和 [`tool-bridge.ts`](../../src/runtime/tool-bridge.ts)。构建包时会生成对应 `.d.ts`。
 

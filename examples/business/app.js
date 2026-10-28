@@ -5,18 +5,36 @@ export default {
   onLaunch() {
     this.catalog = { instanceId: 'catalog-' + Math.random().toString(36).slice(2), query: '', candidates: [], detail: null, selected: null, route: 'search', revision: 0 };
     this.searchRevision = 0;
+    this.privateDraft = '';
+    this.restorationActive = false;
+    this.restoredDetailRoot = false;
   },
   snapshot() { return JSON.parse(JSON.stringify(this.catalog)); },
-  attach(page, route) { this.catalogPage = page; this.catalog.route = route; this.renderCatalog(); },
+  attach(page, route) { this.catalogPage = page; this.catalog.route = route; this.renderCatalog(); this.persistCatalog(); page.postMessage({type:'mcpkit:state-connect'}); },
   detach(page) { if (this.catalogPage === page) this.catalogPage = null; },
+  backCatalog() {
+    // A reconstructed detail page is the root, with no previous Page to pop.
+    if (this.restoredDetailRoot) {
+      this.restoredDetailRoot = false;
+      wx.redirectTo({url:'/pages/catalog/index'});
+    } else wx.navigateBack();
+  },
   renderCatalog() {
     const state = this.catalog;
     this.catalogPage?.setData({ query: state.query, candidates: state.candidates,
       selectedName: state.selected ? state.selected.name : 'None',
       detailName: state.detail ? state.detail.name : '', detailPrice: state.detail ? state.detail.unitPrice : 0,
       detailSku: state.detail ? state.detail.sku : '', selectedSku: state.selected ? state.selected.sku : '',
-      selectedPrice: state.selected ? state.selected.unitPrice : 0, empty: state.candidates.length === 0, status: '' });
+      selectedPrice: state.selected ? state.selected.unitPrice : 0, empty: state.candidates.length === 0, status: '',
+      draft: this.privateDraft, restorationActive: this.restorationActive, saveStatus: this.saveStatus || '' });
   },
+  persistCatalog() {
+    if (!this.restorationActive || !this.catalogPage) return;
+    this.catalogPage.postMessage({ type:'mcpkit:state-save', restoreId:this.restorationId,
+      page:this.catalog.route === 'detail' ? 'pages/catalog/detail' : 'pages/catalog/index',
+      data:{catalog:this.snapshot(),draft:this.privateDraft} });
+  },
+  updateDraft(value) { this.privateDraft = value; this.catalogPage?.setData({draft:value}); this.persistCatalog(); },
   apply(tool, data, input) {
     if (tool === 'search_catalog' && Array.isArray(data.candidates)) {
       this.catalog.candidates = data.candidates; this.catalog.query = input.query;
@@ -25,9 +43,28 @@ export default {
       if (this.catalog.route !== 'detail') wx.navigateTo({ url: '/pages/catalog/detail' });
     } else if (tool === 'select_catalog_product' && data.selected) this.catalog.selected = data.selected;
     else return;
-    this.catalog.revision++; this.renderCatalog();
+    this.catalog.revision++; this.renderCatalog(); this.persistCatalog();
   },
   receive(message) {
+    if (message.type === 'mcpkit:restore-state') {
+      this.restorationId = message.restoreId;
+      this.restorationActive = message.supported;
+      if (message.snapshot) {
+        this.catalog = message.snapshot.data.catalog;
+        this.privateDraft = message.snapshot.data.draft;
+        this.restoredDetailRoot = this.catalog.route === 'detail';
+      }
+      this.renderCatalog();
+      this.catalogPage?.postMessage({type:'mcpkit:state-ready',restoreId:this.restorationId});
+      this.persistCatalog(); return;
+    }
+    if (message.type === 'mcpkit:state-status') {
+      if (message.restoreId === this.restorationId) {
+        this.saveStatus = message.status === 'saved' ? 'Saved for next time' : message.status === 'saving' ? 'Saving changes…' : message.status === 'error' ? 'Could not save changes' : '';
+        this.catalogPage?.setData({saveStatus:this.saveStatus});
+      }
+      return;
+    }
     if (message.type !== 'mcpkit:tool-result' || message.isError || !message.structuredContent) return;
     this.apply(message.tool, message.structuredContent, message.input || {});
   },
