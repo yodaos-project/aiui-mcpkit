@@ -36,6 +36,8 @@ export interface BuildPluginOptions extends MetadataOptions {
   handlers?: string;
   /** Execute schema.output tools in this manifest worker using an external ink-worker host. */
   worker?: { name: string };
+  /** Shared UI registrations. Calls delivered to an existing View preserve its App. New Views remain independent. */
+  applications?: Record<string, { page: string }>;
   /** Generated handler/input/output declarations. Defaults to <outputDir>/tools.d.ts. */
   typesFile?: string;
   title?: string;
@@ -116,6 +118,16 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     throw new Error('app.json pages must list relative page paths without the .ink extension.');
   }
   let tools = pageTools(files, [...new Set([...pages, page])], options.name);
+  const applications = options.applications ?? {};
+  if (!applications || typeof applications !== 'object' || Array.isArray(applications)) throw new Error('applications must be a registry.');
+  for (const [id, application] of Object.entries(applications)) {
+    if (!/^[a-z][a-z0-9-]*$/.test(id) || !application || !pages.includes(application.page)) throw new Error('applications must reference registered pages with lowercase identifiers.');
+  }
+  tools = tools.map(tool => {
+    if (tool.application === undefined) return tool;
+    if (!Object.hasOwn(applications, tool.application)) throw new Error(`Unknown application: ${tool.application}`);
+    return { ...tool, page: applications[tool.application].page, resourceUri: `ui://${options.name}/applications/${tool.application}.html` };
+  });
   const title = options.title ?? manifest.name ?? options.name;
   if (typeof title !== 'string' || !title) throw new Error('Agent title must be a nonempty string.');
   const description = options.description ?? `Open ${title}, an interactive AIUI Agent.`;
@@ -184,7 +196,7 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     bundle: true, write: false, minify: true, format: 'esm', platform: 'browser', target: 'es2022',
     define: {
       __WASM_GZIP_BASE64__: JSON.stringify(gzipSync(wasm, { level: 9 }).toString('base64')),
-      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools }),
+      __INK_FILES__: JSON.stringify(packagedFiles), __APP_CONFIG__: JSON.stringify({ name: config.name, title: config.title, version: config.version, page, waitForToolInput, requestPolicy, retrySafeTools, sharedPages: Object.values(applications).map(app => app.page) }),
     },
   });
   const escapeHtml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');

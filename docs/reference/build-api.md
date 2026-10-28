@@ -36,6 +36,7 @@ The server exposes an opener tool and a `ui://` HTML resource with MIME type `te
 | `version` | `--version` | `0.1.0` |
 | `requestPolicy` | ESM only | [Lifecycle defaults](../guides/tool-lifecycle.md) |
 | `retrySafeTools` | ESM only | `[]` |
+| `applications` | ESM only | Named shared UI routes: `Record<string, { page: string }>`. Bind tools with `application`; existing Views retain their App, new Views are independent. |
 | `handlers` | ESM only | `<source>/mcp-server/handlers.ts` for business tools |
 | `typesFile` | ESM only | `<outputDir>/tools.d.ts` |
 | `toolMetadata` | ESM only | `{}` |

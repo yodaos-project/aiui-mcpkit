@@ -1,3 +1,9 @@
+const products = [
+        { sku: 'TRAVEL-MUG', name: 'Travel mug', unitPrice: 89, currency: 'CNY' },
+        { sku: 'TRAVEL-BAG', name: 'Travel bag', unitPrice: 249, currency: 'CNY' },
+        { sku: 'DESK-LAMP', name: 'Desk lamp', unitPrice: 159, currency: 'CNY' },
+      ];
+
 // Runs in an Ink AgentWorker. Page schemas define the public MCP input/output contracts.
 const failure = (code, message, uiMetadata) => ({
   isError: true, businessError: { code, message }, ...(uiMetadata ? { uiMetadata } : {}),
@@ -39,11 +45,6 @@ export default {
     name: 'find_products', description: 'Find demo products for the user to choose',
     execute(input, { signal }) {
       signal.throwIfAborted();
-      const products = [
-        { sku: 'TRAVEL-MUG', name: 'Travel mug', unitPrice: 89, currency: 'CNY' },
-        { sku: 'TRAVEL-BAG', name: 'Travel bag', unitPrice: 249, currency: 'CNY' },
-        { sku: 'DESK-LAMP', name: 'Desk lamp', unitPrice: 159, currency: 'CNY' },
-      ];
       const query = input.query.trim().toLowerCase();
       const candidates = products.filter(product => `${product.sku} ${product.name}`.toLowerCase().includes(query));
       return {
@@ -52,6 +53,33 @@ export default {
         // Demo display metadata; Worker source is packaged with the app and contains no secrets.
         uiMetadata: { supplier: 'demo-supplier' },
       };
+    },
+  }),
+  searchCatalog: ModelContext.defineAction({
+    name: 'search_catalog', description: 'Search demo catalog',
+    execute(input, {signal}) {
+      signal.throwIfAborted();
+      const query = input.query.trim().toLowerCase();
+      const candidates = products.filter(product => `${product.sku} ${product.name}`.toLowerCase().includes(query));
+      return {content:[{type:'text',text:`${candidates.length} catalog products found.`}],structuredContent:{candidates}};
+    },
+  }),
+  inspectCatalog: ModelContext.defineAction({
+    name: 'inspect_catalog_product', description: 'Read demo product details',
+    execute(input, {signal}) {
+      signal.throwIfAborted();
+      const product = products.find(product => product.sku === input.sku);
+      if (!product) return failure('UNKNOWN_SKU', 'Unknown catalog SKU.');
+      return {content:[{type:'text',text:product.name}],structuredContent:{product}};
+    },
+  }),
+  selectCatalog: ModelContext.defineAction({
+    name: 'select_catalog_product', description: 'Validate a demo product selection; no purchase or shared mutation',
+    execute(input, {signal}) {
+      signal.throwIfAborted();
+      const selected = products.find(product => product.sku === input.sku);
+      if (!selected) return failure('UNKNOWN_SKU', 'Unknown catalog SKU.');
+      return {content:[{type:'text',text:'Selection validated. No purchase made.'}],structuredContent:{selected}};
     },
   }),
 };

@@ -21,12 +21,12 @@ test('Counter example exposes page tools, validates arguments, and serves their 
     assert.equal(result._meta.request.policy.maxRetries, 0);
     assert.equal(opener._meta.requestPolicy.totalTimeoutMs, 60000);
     const configured = await client.callTool({ name: 'open_counter', arguments: { initialCount: 5, label: 'Demo' } });
-    assert.deepEqual(configured._meta.aiui, { page: 'pages/counter/index', query: { initialCount: 5, label: 'Demo' } });
+    assert.deepEqual(configured._meta.aiui, { page: 'pages/counter/index', tool: 'open_counter', query: { initialCount: 5, label: 'Demo' } });
     const countdown = tools.tools.find(tool => tool.name === 'open_countdown');
     assert.equal(countdown._meta.ui.resourceUri, 'ui://ink-counter/open_countdown.html');
     assert.deepEqual(countdown.inputSchema.required, ['start']);
     const countdownResult = await client.callTool({ name: 'open_countdown', arguments: { start: 8, step: 2 } });
-    assert.deepEqual(countdownResult._meta.aiui, { page: 'pages/countdown/index', query: { start: 8, step: 2 } });
+    assert.deepEqual(countdownResult._meta.aiui, { page: 'pages/countdown/index', tool: 'open_countdown', query: { start: 8, step: 2 } });
     for (const [name, args] of [['open_counter', { initialCount: -1 }], ['open_counter', { initialCount: '5' }], ['open_countdown', {}], ['open_countdown', { start: 8, step: 0 }]]) {
       assert.equal((await client.callTool({ name, arguments: args })).isError, true);
     }

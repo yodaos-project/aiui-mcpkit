@@ -65,14 +65,14 @@ function createServer() {
         return { ...result,
           content: execute && !ui && !result.isError ? [...result.content, { type: 'text' as const,
             text: 'Interactive view unavailable: this client does not advertise MCP Apps support. Business data is returned above.' }] : result.content,
-          _meta: { ...result._meta, ...uiMeta, request: request.snapshot() } };
+          _meta: { ...result._meta, aiui: { page: tool.page, query, tool: tool.name }, ...uiMeta, request: request.snapshot() } };
       } catch (error) {
         if (business) {
           const failure = businessToolFailure(error);
           const snapshot = request.snapshot();
           // Unexpected exception messages may contain server credentials.
           if (snapshot.error) snapshot.error = { ...snapshot.error, message: String((failure._meta?.businessError as { message: string }).message) };
-          return { ...failure, _meta: { ...failure._meta, aiui: { page: tool.page, query }, ...uiMeta, request: snapshot } };
+          return { ...failure, _meta: { ...failure._meta, aiui: { page: tool.page, query, tool: tool.name }, ...uiMeta, request: snapshot } };
         }
         return { isError: true, content: [{ type: 'text' as const, text: request.snapshot().error!.message }], _meta: { ...uiMeta, request: request.snapshot() } };
       }

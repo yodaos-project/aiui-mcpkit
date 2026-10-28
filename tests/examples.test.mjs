@@ -18,7 +18,7 @@ test('unified example build creates one marketplace with both independently call
     const marketplace = JSON.parse(await readFile(join(project, '.agents/plugins/marketplace.json'), 'utf8'));
     assert.equal(marketplace.name, 'aiui-mcpkit-examples');
     assert.deepEqual(marketplace.plugins.map(plugin => [plugin.name, plugin.source.path]), [['ink-counter', './counter'], ['business-demo', './business']]);
-    for (const [index, expected] of [['open_counter', 'open_countdown'], ['quote_order', 'check_stock', 'find_products']].entries()) {
+    for (const [index, expected] of [['open_counter', 'open_countdown'], ['quote_order', 'check_stock', 'find_products', 'search_catalog', 'inspect_catalog_product', 'select_catalog_product']].entries()) {
       const directory = resolve(project, marketplace.plugins[index].source.path);
       const client = new Client({ name: 'examples-test', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
       try {
@@ -31,7 +31,7 @@ test('unified example build creates one marketplace with both independently call
 });
 
 test('start:examples selects a stdio server and preserves the default Counter', async () => {
-  for (const [selector, names] of [[undefined, ['open_counter', 'open_countdown']], ['business', ['quote_order', 'check_stock', 'find_products']]]) {
+  for (const [selector, names] of [[undefined, ['open_counter', 'open_countdown']], ['business', ['quote_order', 'check_stock', 'find_products', 'search_catalog', 'inspect_catalog_product', 'select_catalog_product']]]) {
     const client = new Client({ name: 'start-examples', version: '1' }, { capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } } } });
     try {
       await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(root, 'scripts/start-examples.mjs'), ...(selector ? [selector] : [])], cwd: tmpdir() }));

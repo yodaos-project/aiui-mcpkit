@@ -1,11 +1,20 @@
 {
   "name": "MCPKit Business Demo",
   "agentWorkers": [
-    { "name": "business", "script": "workers/business.js", "trigger": { "type": "open" }, "lifetime": "foreground" }
+    {
+      "name": "business",
+      "script": "workers/business.js",
+      "trigger": {
+        "type": "open"
+      },
+      "lifetime": "foreground"
+    }
   ],
   "pages": [
     "pages/order/index",
     "pages/stock/index",
-    "pages/selection/index"
+    "pages/selection/index",
+    "pages/catalog/index",
+    "pages/catalog/detail"
   ]
 }
