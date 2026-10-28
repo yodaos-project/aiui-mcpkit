@@ -91,7 +91,35 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker npm run start:examples -- business
 
 Worker 源码随应用打包，也进入浏览器 View，不能放置凭据。供应商标签是公开演示数据，以 UI 元数据返回。UI-only 数据排除在模型可见结果之外，但宿主及用户仍可访问。选择页面仅显式投影选中字段到上下文。
 
-MCPKit 为已有集成保留可选 Node Handler 适配器；Business Demo 使用 Worker 适配器，无需单独的 Handler 目录。
+## 现有 Node Handler 与校验时机
+
+在 [Ink #682](https://github.com/jsar-project/ink/issues/682) 提供无界面 Worker 调用能力前，`mcp-server/handlers.ts` 是临时的业务执行入口。MCPKit 为已有 Node 集成保留该可选适配器；Business Demo 已迁入 Worker。具体操作见[迁移步骤](runtime-integration.zh-CN.md#worker-契约与迁移)。
+
+没有 `schema.output` 的页面打开工具不需要 Handler。声明了 `schema.output` 的业务工具必须有执行实现，无论是否显示 UI。工具名、说明和输入/输出 schema 仍只来自注册的 `.ink` 页面，不要另建手写契约文件或注册列表。
+
+Node 适配器默认从 `<source>/mcp-server/handlers.ts` 读取导出的 `handlers`，也可通过 `buildPlugin({ ..., handlers: '/absolute/path/to/handlers.ts' })` 指定其他模块。使用生成类型：
+
+```ts
+import type { BusinessHandlers } from '../.mcpkit/tools.js';
+
+export const handlers = {
+  check_stock: async ({ sku }, { signal, progress }) => {
+    signal.throwIfAborted();
+    progress({ progress: 1, total: 1 });
+    return { content: [], structuredContent: { sku, available: 100 } };
+  },
+} satisfies BusinessHandlers;
+```
+
+该片段假设只有 `check_stock` 一个业务工具；实际应用需实现生成的全部 `BusinessHandlers` 成员。`mcp-server/` 只放计算、查询和服务调用。MCP 注册与传输、校验、取消/进度转发及结果封装由生成框架负责，Handler 无需导入 MCP SDK。服务端模块、传递依赖及凭据不进入 UI 资源。`_meta.uiOnly` 是宿主和用户可访问的展示数据，不能作为秘密存储。
+
+| 时机 | 检查与失败行为 |
+| --- | --- |
+| 构建期，创建或替换产物前 | 校验页面契约，按打包器既有的扩展名/index 规则解析所选 Handler 模块。模块无法解析时，错误包含路径及受影响的业务工具名。打包依赖，但不执行应用代码。失败保留已有产物和类型声明。 |
+| 服务启动期，连接或发现工具前 | 执行打包后的模块，检查导出 `handlers` 中每个业务工具是否为自有函数。映射/成员缺失、继承成员或非函数均报 `Missing business handler: <tool>`。这类动态检查明确留到启动期。 |
+| 调用期 | 执行前校验输入，返回成功结果前校验输出。无效结果与执行失败均返回错误，业务工具不会静默降级为页面打开工具。 |
+
+Worker 构建要求 `worker.name` 对应 manifest 条目，且不能同时配置 `handlers`。宿主可执行文件是否可用、初始化与操作查找在调用时启动宿主后检查；构建或工具列表成功不代表 Worker 已就绪。宿主或操作缺失会使调用失败，不回退到 Node 执行或伪造成功。
 
 ---
 

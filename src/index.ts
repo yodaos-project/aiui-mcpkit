@@ -179,8 +179,16 @@ export async function buildPlugin(options: BuildPluginOptions): Promise<BuildPlu
     plugins: [{ name: 'business-handlers', setup(plugin) {
       plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit$/ }, () => ({ path: fileURLToPath(new URL('server-api.ts', runtime)) }));
       plugin.onResolve({ filter: /^@yodaos-pkg\/aiui-mcpkit\/tools$/ }, () => ({ path: fileURLToPath(new URL('business-tools.ts', runtime)) }));
-      plugin.onResolve({ filter: /^mcpkit:business-handlers$/ }, () => options.worker ? { path: 'worker-handlers', namespace: 'mcpkit' } : handlersPath
-        ? { path: handlersPath } : { path: 'empty-handlers', namespace: 'mcpkit' });
+      plugin.onResolve({ filter: /^mcpkit:business-handlers$/ }, async () => {
+        if (options.worker) return { path: 'worker-handlers', namespace: 'mcpkit' };
+        if (!handlersPath) return { path: 'empty-handlers', namespace: 'mcpkit' };
+        const resolved = await plugin.resolve(handlersPath, { kind: 'import-statement', resolveDir: source });
+        if (resolved.errors.length) return { errors: [{
+          text: `Cannot resolve business handlers module: ${handlersPath}. Required by tools: ${tools.filter(tool => tool.outputSchema !== undefined).map(tool => tool.name).join(', ')}. Provide a handlers module or configure worker.name.`,
+          notes: resolved.errors.map(error => ({ text: error.text })),
+        }] };
+        return resolved;
+      });
       plugin.onLoad({ filter: /^worker-handlers$/, namespace: 'mcpkit' }, () => ({ contents: `import { createWorkerHandlers } from ${JSON.stringify(fileURLToPath(new URL('worker-tools.ts', runtime)))}; export const handlers = createWorkerHandlers(${JSON.stringify(options.worker!.name)}, ${JSON.stringify(tools.filter(tool => tool.outputSchema).map(tool => tool.name))});`, loader: 'ts', resolveDir: fileURLToPath(runtime) }));
       plugin.onLoad({ filter: /^empty-handlers$/, namespace: 'mcpkit' }, () => ({ contents: 'export const handlers = {};', loader: 'js' }));
     } }],

@@ -76,6 +76,14 @@ values are not embedded in View HTML.
 
 ## Worker contract and migration
 
+Headless invocation is delivered by [Ink #682](https://github.com/jsar-project/ink/issues/682). To migrate an existing Node handler module:
+
+1. Keep `app.json.pages`, `.ink` tool names and `schema.data`/`schema.output` unchanged. Page-only openers keep their ordinary behavior; the generated MCP adapter still owns protocol registration and validation.
+2. Audit imports, networking and configuration before moving code. Node-only packages, `node:*`, `process.env` and `fetch` are unavailable in this Worker path. Keep network-backed Node integrations on the optional handler adapter until the required runtime/host capabilities exist; do not copy them into Worker source and assume equivalent behavior.
+3. Move supported computation into `workers/business.js` and register it in `app.json.agentWorkers`, as shown in [business tools](business-tools.md#declare-and-build-the-worker). Use `ModelContext.defineAction({ name: '<existing-tool>', execute })`, or an own `operations['<existing-tool>']` function. Keep the original tool names and successful `content`/`structuredContent`; rename Node handler `uiOnly` to Worker `uiMetadata`. Use `signal` for cooperative cancellation; for operation progress, change `context.progress({ progress, total })` to `context.reportProgress({ value, total })`.
+4. Replace the `handlers` build option with `worker: { name: 'business' }`. Rebuild and regenerate types; only remove the old server module after every business tool has a Worker implementation. `worker` and `handlers` cannot be combined, and unavailable Worker execution never falls back to Node handlers. Private configuration belongs in the deployment file selected by `INK_WORKER_CONFIGURATION`, read through the operation context's immutable `configuration`; declared actions do not receive that extension.
+5. Deploy the complete generated `worker-app/`, server, UI and manifests together. Configure the host described below, invoke tools without opening a UI, and verify results, cancellation/progress and shutdown before switching clients. Existing MCP tool names, schemas, routes and client invocation arguments remain the contract.
+
 An operation receives `(input, { requestId, signal, reportProgress, configuration })`
 and explicitly returns an asynchronous JSON result. For page-backed business tools,
 return `{ content, structuredContent, uiMetadata? }`; the adapter validates output
@@ -114,6 +122,8 @@ Business Demo calls and native Worker tests require `ink-worker` on PATH or `INK
 [Agent sessions and live tools](agent-session.md) for message, context,
 declarative action and dynamic registration examples. The dependency uses its
 exact version so a moving dist-tag cannot select an older runtime.
+
+The validation baseline is Node.js 22.21.1 with the pinned SDK above; deployments require Node.js 22+. Native deployment additionally needs an Ink `ink-worker` build supporting #682 and the JSON Lines invocation contract; the npm SDK does not install that executable. Repository CI uses the published SDK's real QuickJS/WASM host via `INK_WORKER_BIN="$PWD/scripts/ink-worker-wasm.mjs" npm test`, without private Ink sources or evaluating Worker modules in Node. Native desktop execution is recorded separately in the [acceptance record](../validation/candidate-selection-2026-10-28.md). Neither path provides Node networking APIs to Worker code. Handler build/startup/invocation checks are listed in [business tools](business-tools.md#existing-node-handlers-and-validation).
 
 ## Conversation cards
 
