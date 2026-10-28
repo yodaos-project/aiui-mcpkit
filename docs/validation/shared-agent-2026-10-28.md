@@ -71,13 +71,9 @@ Observed values from the real calls:
 
 The final search contained only Desk lamp (`DESK-LAMP`, CNY 159); detail and selection remained Travel bag (`TRAVEL-BAG`, CNY 249). Navigation is asynchronous: the immediate inspect return preceded Page `onShow`; subsequent state calls and the screenshot confirmed the completed detail navigation.
 
-The other simultaneous catalog stayed on `travel`, revision 1, with both original candidates and `Selected: None`. Its screenshot supplies real desktop isolation evidence. This earlier card used the pre-WebMCP template, so its instance ID was not read through WebMCP. Exact distinct-ID isolation, teardown and fresh-conversation state were additionally checked by the local real Ink browser test. Separate authenticated user accounts were not exercised; the UI runtime stores state only in each independent App realm and does not implement account authentication or shared persistent storage.
+The other simultaneous catalog stayed on `travel`, revision 1, with both original candidates and `Selected: None`. This earlier card used the pre-WebMCP template, so its instance ID was not read through WebMCP. The repository screenshots now show the current layout; the old layout is not included in the document. Exact distinct-ID isolation, teardown and fresh-conversation state were additionally checked by the local real Ink browser test. Separate authenticated user accounts were not exercised; the UI runtime stores state only in each independent App realm and does not implement account authentication or shared persistent storage.
 
 The user manually expanded cards. The model performed the business operations through document-bound tools. Native Codex window automation was rejected by the computer-use tool, so no native button automation was used. Desktop screenshots capture the full visible App document; the backend does not support cropped captures.
-
-![Initial desktop layout before fullscreen adaptation](../assets/shared-agent-desktop-detail-before.png)
-
-![Other desktop instance remains unselected on travel](../assets/shared-agent-desktop-isolated.png)
 
 No purchase was made. No issue was closed and no GitHub changes were published during this acceptance step.
 
@@ -87,10 +83,25 @@ The shared catalog now uses a centered, bounded-width workspace in `_blank` mode
 
 The viewport test also uncovered a runtime sizing problem: Ink writes pixel widths onto the canvas and its parent. Measuring that canvas again retained its old width when the host grew or shrank. The View now measures the document viewport width and observes it, allowing `setViewport` to update the canvas. The regression checks actual canvas widths and preserved App state while switching between inline and fullscreen at **900×1034, 1280×800, 360×700 and 480×352**, on detail, filtered search and the full three-product catalog.
 
-The user expanded the updated card in the real desktop. Document-bound tools read instance `catalog-wim4ivenp2f`, inspected and selected `TRAVEL-BAG`, then searched `lamp`. The final model-readable state retained that instance ID, the detail route, the bag detail and selection, and contained only the lamp search result (revision 5). The refreshed screenshot below was captured from that actual desktop App; it is not the browser-harness image. The original desktop screenshot is retained above for comparison.
+The user expanded the updated card in the real desktop. Document-bound tools read instance `catalog-wim4ivenp2f`, inspected and selected `TRAVEL-BAG`, then searched `lamp`. The final model-readable state retained that instance ID, the detail route, the bag detail and selection, and contained only the lamp search result (revision 5). The refreshed screenshot below was captured from that actual desktop App; it is not the browser-harness image. The repository screenshots use the current fullscreen layout.
 
 ![Adapted real desktop fullscreen layout](../assets/shared-agent-desktop-detail.png)
 
 The narrow-layout screenshot below comes from the real Ink WASM browser harness at 360×700:
 
 ![Narrow fullscreen layout](../assets/shared-agent-detail-narrow.png)
+
+## Current-layout isolation screenshot
+
+The documentation now uses the current catalog design throughout; the obsolete pre-adaptation image was removed. The isolation image was recaptured from a newly opened real desktop App, rather than retaining the old compact layout.
+
+Read-only `catalog_state` calls confirmed both displayed instances simultaneously:
+
+| Instance | Query | Route | Selected | Revision |
+| --- | --- | --- | --- | --- |
+| `catalog-vcs2qa2s2kb` | travel | search | null | 1 |
+| `catalog-wim4ivenp2f` | lamp | detail | TRAVEL-BAG | 5 |
+
+The fresh instance displayed Travel mug and Travel bag in the designed product cards, with its selection panel showing `None`. The other instance retained the bag detail and selection. This supplies real desktop distinct-ID isolation evidence using the current UI. Both checks were read-only; the screenshots do not represent a purchase.
+
+![Current desktop catalog with an independent empty selection](../assets/shared-agent-desktop-isolated.png)
