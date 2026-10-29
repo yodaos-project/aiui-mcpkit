@@ -111,132 +111,36 @@ From a Codex conversation to an independent view and back, with the same selecti
 
 ## Quickstart
 
-**You need:** Node.js **22+**, Git and an MCP Apps client with WASM support. Start with Counter; the business examples additionally need [`ink-worker`](docs/guides/business-tools.md).
+Start in your browser with **Node.js 22+**, Git and a text editor. The first preview needs no AI account or API key.
 
-### 1. Build the examples
+Run in a terminal:
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
 cd aiui-mcpkit
 npm ci
-npm run build:examples
+npm run watch:examples -- counter
 ```
 
-The build creates six independent plugins in `dist/examples/`. Counter and the four visual examples need no native Worker or external service. [Explore all examples →](examples/README.md)
+Open the URL in the terminal's `preview` line and keep the command running. Counter starts at **0**; click **+ ADD ONE** to reach **1**. Save a source edit to rebuild and reload. Press **Ctrl+C** to stop.
 
-### 2. Install Counter
+[Complete first-run walkthrough →](docs/getting-started/quickstart.md) · [Environment setup →](docs/getting-started/installation.md)
 
-For Codex Desktop, use a Codex CLI with plugin commands:
-
-```sh
-codex plugin marketplace add ./dist/examples
-codex plugin add ink-counter@aiui-mcpkit-examples
-```
-
-Restart the host and confirm `open_counter` appears in the active session. For Claude Desktop, VS Code or direct stdio registration, follow [client setup](docs/guides/clients.md).
-
-### 3. Make it interactive
-
-Ask the assistant:
-
-```text
-Call open_counter with { "initialCount": 5, "label": "Demo" }.
-```
-
-Click **+ ADD ONE**. The count should change from **5 to 6**.
-
-[Counter source →](examples/counter/pages/counter/index.ink) · [Complete walkthrough →](docs/getting-started/quickstart.md)
-
-<details>
-<summary><strong>Try travel, focus, analytics and event booking</strong></summary>
-
-Install any subset after adding the marketplace above, then reload the host:
-
-```sh
-codex plugin add travel-planner@aiui-mcpkit-examples
-codex plugin add focus-studio@aiui-mcpkit-examples
-codex plugin add analytics-lab@aiui-mcpkit-examples
-codex plugin add event-booking@aiui-mcpkit-examples
-```
-
-| Call | Interaction |
-| :--- | :--- |
-| `open_trip({ "day": 2 })` | Switch days, save a stop and explicitly share the selection. |
-| `open_focus({ "minutes": 25, "task": "Write the next chapter" })` | Start, pause or reset the focus timer. |
-| `open_analytics({ "period": "month" })` | Switch reporting periods and update the chart. |
-| `open_workshop({ "seats": 2 })` | Choose a session and review a demo reservation. |
-
-Run a stdio server directly with `npm run start:examples -- travel`; the other IDs are `counter`, `business`, `focus`, `analytics` and `events`. Open Views expose read-only `trip_state`, `focus_state`, `analytics_state` and `workshop_state` actions through `ModelContext.defineAction()`. Querying them requires host routing for live View tools. [Example guide →](examples/README.md)
-
-</details>
-
-<details>
-<summary><strong>Next: try quotes, product selection and a shared catalog</strong></summary>
-
-Put `ink-worker` on the server process's PATH or set `INK_WORKER_BIN` using the [Worker setup guide](docs/guides/business-tools.md), then install:
-
-```sh
-codex plugin add business-demo@aiui-mcpkit-examples
-```
-
-Reload the host and confirm the tools are available in the active session.
-
-| Call | Expected result |
-| :--- | :--- |
-| `quote_order({ "quantity": 2 })` | **CNY 40**, remaining stock **98**; calculate/cancel controls work when host tool access is enabled. |
-| `find_products({ "query": "travel" })` | Product candidates with an explicit action to publish a selection and ask the assistant about it. |
-| `search_catalog({ "query": "travel" })` | A shared catalog App with search, details and selection; live App actions update the same instance. |
-
-The demo uses AgentWorker `ModelContext.defineAction()` methods. [Candidate selection](docs/guides/candidate-selection.md), [shared Apps](docs/guides/shared-agent.md) and opt-in [state restoration](docs/guides/state-restoration.md) each have a dedicated guide. Messaging, live-tool routing and restoration depend on host capabilities.
-
-</details>
+The preview uses real Ink/WASM and supplies launch input. It does not run an AI model or server business calls. When you are ready for an assistant, follow [client setup](docs/guides/clients.md).
 
 ## Build your own
 
-Create an AIUI agent with `app.json` and registered `.ink` pages. Add tool metadata and input schemas in each page's `script def`; add `schema.output` for business results.
+Learn one capability at a time, with a working result at every step:
 
-After building this checkout, save the following as `build-agent.mjs` at the repository root. Put your agent source in `./agent/`:
+1. **[Your first edit](docs/getting-started/edit-example.md)** — Change a button and see it reload
+2. **[Your first app](docs/getting-started/first-agent.md)** — Create your own two-file app
+3. **[Page tools](docs/guides/page-tools.md)** — Open it with validated tool arguments
+4. **[Connect a client](docs/guides/clients.md)** — Call it from an assistant
+5. **[Your first business tool](docs/guides/first-business-tool.md)** — Return a calculated result to the assistant and UI
 
-```js
-import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
+[Follow the full learning path →](docs/README.md)
 
-const plugin = await buildPlugin({
-  source: './agent',
-  name: 'my-agent',
-  outputDir: './dist/my-agent',
-});
-
-console.log(plugin.outputDir);
-```
-
-Run `node build-agent.mjs` to generate `view.html`, `dist/server.mjs` and plugin/connection manifests. The deployment host needs Node.js 22+; native Worker execution also needs `ink-worker`.
-
-| Your next step | Guide |
-| :--- | :--- |
-| Create the source files and your first button | [Your first Agent](docs/getting-started/first-agent.md) |
-| Turn page arguments into validated tools | [Page tools](docs/guides/page-tools.md) |
-| Add typed business operations | [Business tools](docs/guides/business-tools.md) |
-| Use MCPKit in a separate Node.js project | [ESM integration](docs/guides/esm-build.md) |
-
-### Let the assistant use live UI state
-
-Add this method to a Page's default export to expose the current selection as an instance-bound tool:
-
-```js
-export default {
-  data: { selectedSku: 'DEMO' },
-  getSelection: ModelContext.defineAction({
-    name: 'get_selection',
-    description: 'Read the product selected on this page',
-    annotations: { readOnlyHint: true },
-    execute() {
-      return { selectedSku: this.data.selectedSku };
-    },
-  }),
-};
-```
-
-From a button handler, `getApp().getAgent().conversation.sendMessage()` can send a user message; `agent.provideContext()` publishes context for later turns. [Agent sessions](docs/guides/agent-session.md) covers complete pages, dynamic tools, context updates and revocation. The host must route View tools to its model and enable the relevant conversation capabilities.
+Already building an integration? Use the [ESM guide](docs/guides/esm-build.md) and [Build API](docs/reference/build-api.md). The [example collection](examples/README.md) covers six plugins and their install commands.
 
 ## Client support
 

@@ -1,65 +1,65 @@
-# 完整文档与教程
+# MCPKit 渐进式学习路线
 
-[English](README.md) | 简体中文 · [文档目录](README.zh-CN.md)
+[English](README.md) | 简体中文 · [学习路线](README.zh-CN.md)
 
-这里是 AIUI MCPKit 的完整文档。第一次使用请按入门顺序阅读；遇到具体问题可直接进入主题指南或参考。所有教程基于本仓库实际 API，终端命令会注明执行目录。
+第一次开发 AI 应用？先从浏览器和一个按钮开始。基础 JavaScript 加上文本编辑器就能做出第一个界面，协议知识和 AI 账号可以用到时再了解。
 
-## 新手阅读顺序
+## 从这里开始
 
-1. [认识 MCPKit](getting-started/overview.zh-CN.md) — 概念、工作流程和能力边界。
-2. [准备环境](getting-started/installation.zh-CN.md) — 安装工具、获取源码、区分不同目录。
-3. [运行示例](getting-started/quickstart.zh-CN.md) — 安装 Counter 与业务示例，验证结果。
-4. [创建第一个 Agent](getting-started/first-agent.zh-CN.md) — 完整文件、构建安装、添加按钮。
+[运行第一个预览 →](getting-started/quickstart.zh-CN.md)
 
-## 主题指南
+你会在本地打开 Counter，点击按钮改变数字。Node.js、Git 或终端还没准备好？先看[准备环境](getting-started/installation.zh-CN.md)。想先理解项目用途？读[认识 MCPKit](getting-started/overview.zh-CN.md)。
 
-| 文档 | 内容 |
+## 沿着主线学习
+
+每篇只增加一种能力，并以能看到的结果结束。前三步都在浏览器完成，准备好后再连接助手。
+
+1. **[运行预览](getting-started/quickstart.zh-CN.md)** — 一个能点击的 Counter，无需安装客户端。
+2. **[修改按钮](getting-started/edit-example.zh-CN.md)** — 保存后就能在预览中看到的改动。
+3. **[创建自己的应用](getting-started/first-agent.zh-CN.md)** — 两个源文件，以及你自己的可用按钮。
+4. **[添加工具参数](guides/page-tools.zh-CN.md)** — 一个接受校验后参数、打开应用的命名工具。
+5. **[连接 AI 客户端](guides/clients.zh-CN.md)** — 助手能发现、调用的工具。
+6. **[返回业务结果](guides/first-business-tool.zh-CN.md)** — 一个服务端函数，把 CNY 40 同时返回给助手和界面。
+
+每完成一篇都可以停下来动手尝试。基础路线不要求先学习 Worker、协议元数据、状态恢复或自动化浏览器测试。
+
+## 按需求增加功能
+
+| 你现在想做什么 | 阅读哪篇 | 开始前已有的基础 |
+| --- | --- | --- |
+| 体验其他界面 | [示例集合](../examples/README.zh-CN.md) | 能运行本地预览 |
+| 提高修改效率、更新已安装应用 | [开发迭代](guides/development.zh-CN.md) | 已创建第一个应用 |
+| 点击按钮发送消息、分享选中状态 | [Agent 会话](guides/agent-session.zh-CN.md) | 已连接 Apps 客户端 |
+| 实现商品候选选择流程 | [候选选择](guides/candidate-selection.zh-CN.md) | 了解业务工具与 Agent 会话 |
+| 显示进度、错误与取消状态 | [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 已跑通业务调用 |
+| 在其他 Node.js 项目中使用 MCPKit | [ESM 接入](guides/esm-build.zh-CN.md) | 已有能构建的应用 |
+
+## 进阶指南：有具体需求时再读
+
+| 需求 | 对应指南 |
 | --- | --- |
-| [页面工具](guides/page-tools.zh-CN.md) | 输入 schema、页面路由与启动参数 |
-| [带类型的业务工具](guides/business-tools.zh-CN.md) | Handler、生成类型、结果和错误 |
-| [Agent 会话与实时工具](guides/agent-session.zh-CN.md) | 用户消息、显式上下文、App/Page Action 与动态工具 |
-| [候选选择](guides/candidate-selection.zh-CN.md) | 可运行的选择示例及协议、浏览器和模型分层验收 |
-| [多工具共享 App](guides/shared-agent.zh-CN.md) | 多工具更新、导航保留与实例隔离 |
-| [作用域状态恢复](guides/state-restoration.zh-CN.md) | 快照存储、生命周期、版本及恢复边界 |
-| [运行时集成与 Worker](guides/runtime-integration.zh-CN.md) | 运行时契约、无界面执行、配置与部署 |
-| [请求生命周期](guides/tool-lifecycle.zh-CN.md) | 加载、进度、取消、超时与重试 |
-| [Inspector](guides/inspector.zh-CN.md) | 调用工具、关联请求与绑定、检查上下文并导出脱敏诊断 |
-| [交互录制与回放](guides/interaction-replay.zh-CN.md) | 授权导出、确定性数据、工具 mock 和语义回归校验 |
-| [公开元数据](guides/metadata.zh-CN.md) | 合并规则、自定义资源与协议检查 |
-| [ESM 构建接入](guides/esm-build.zh-CN.md) | 在自己的 Node 项目中使用 MCPKit |
-| [预览验证与截图](guides/preview-verification.zh-CN.md) | 运行时、画面和业务就绪检查；ESM API 和 CLI |
-| [客户端接入](guides/clients.zh-CN.md) | Codex、Claude Desktop、VS Code 与 stdio |
-| [开发迭代](guides/development.zh-CN.md) | 监听重建、自动刷新本地预览、同步安装副本 |
-| [构建诊断](guides/build-diagnostics.zh-CN.md) | 比较源码、安装文件、服务和视图版本，以及稳定 URI 升级规则 |
-| [故障排查](guides/troubleshooting.zh-CN.md) | 定位构建、发现、调用和渲染问题 |
+| 多个工具更新同一个已打开的应用 | [共享 App](guides/shared-agent.zh-CN.md) |
+| View 销毁后恢复指定状态 | [作用域恢复](guides/state-restoration.zh-CN.md) |
+| 使用 Worker 执行方式，或部署其宿主 | [业务工具](guides/business-tools.zh-CN.md) · [运行时集成](guides/runtime-integration.zh-CN.md) |
+| 定制资源元数据、网络访问声明 | [元数据](guides/metadata.zh-CN.md) |
+| 检查请求或上下文发布过程 | [Inspector](guides/inspector.zh-CN.md) |
+| 截图并验证界面就绪状态 | [预览验证](guides/preview-verification.zh-CN.md) |
+| 将录制的交互变成回归检查 | [录制与回放](guides/interaction-replay.zh-CN.md) |
+| 查明实际运行的是哪个版本 | [构建诊断](guides/build-diagnostics.zh-CN.md) |
 
-## 参考手册
+## 需要时查参考手册
 
-| 文档 | 内容 |
-| --- | --- |
-| [构建 API](reference/build-api.zh-CN.md) | 全部选项、产物与公开导出 |
-| [页面消息](reference/messages.zh-CN.md) | 输入、结果格式与生命周期事件 |
-| [协议兼容性](reference/compatibility.zh-CN.md) | 版本、协商、验证情况与范围 |
-| [性能基准](reference/benchmarks.zh-CN.md) | 场景、指标、报告和 A/B 比较 |
+参考手册用于查字段和行为，不要求按顺序阅读。
 
-## 项目贡献
+- [构建 API](reference/build-api.zh-CN.md)：选项、文件、类型与导出。
+- [消息格式](reference/messages.zh-CN.md)：页面输入、结果与请求状态。
+- [兼容性](reference/compatibility.zh-CN.md)：协议版本、宿主要求和验证边界。
+- [性能基准](reference/benchmarks.zh-CN.md)：测量方法与报告。
 
-| 文档 | 内容 |
-| --- | --- |
-| [参与贡献](contributing.zh-CN.md) | 仓库检查与贡献约定 |
+## 遇到问题，或想参与贡献
 
-## 按目标找文档
+用[故障排查](guides/troubleshooting.zh-CN.md)定位最先失败的步骤。[参与贡献](contributing.zh-CN.md)介绍仓库检查和问题反馈方式。
 
-想快速看到界面：快速开始 → 客户端接入。想写自己的应用：第一个 Agent → 页面工具 → 业务工具 → 生命周期。想集成构建系统：ESM 接入 → 构建 API → 元数据。想测量或修改运行时：参与贡献 → 协议兼容性 → 性能基准。
-
-## 文档约定与来源
-
-代码块中 `/path/to/...` 和 `/absolute/path/...` 是需替换的路径；工具调用示例不是终端命令。`view.html` 需要 Apps 宿主。中英文文章使用一一对应文件和语言切换入口。
-
-目录组织参考 [mcp-use 文档](https://docs.mcp-use.com/llms.txt)的入门、主题指南、调试与 API 参考分层；内容依据 MCPKit 源码编写，mcp-use 的命令或服务能力不能直接用于本项目。兼容性说明区分协议支持、浏览器验证与实际桌面宿主验证。
+文档中的 **shell 代码块**在终端执行，**对话提示词**发给助手，**文件内容**会标出要创建或修改的路径。代码前会说明是完整文件还是集成片段。公开指南都有对应的中英文版本。
 
 [返回项目 README](../README.zh-CN.md)
-
----
-
-[文档目录](README.zh-CN.md)

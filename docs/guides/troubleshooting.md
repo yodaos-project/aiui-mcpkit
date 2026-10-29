@@ -1,10 +1,20 @@
 # Troubleshooting
 
-English | [简体中文](troubleshooting.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](troubleshooting.zh-CN.md) · [Learning path](../README.md)
 
-For live request tracing, enable the [Inspector](inspector.md) with `buildPlugin({ ..., inspector: true })` or the helper's `--inspector` flag. It calls real tools, shows effective lifecycle settings, distinguishes sent model context from private UI state, and exports redacted diagnostics, including browser/WASM/CSP/resource failures.
+Start with the earliest step that failed. You can usually diagnose the first preview from the terminal and browser, before using developer inspection tools.
 
-Work through failures in this order: **build → server startup → tool discovery → tool call → UI rendering → page-initiated call**. A successful earlier step does not prove the later step works. Use the current client's actual tool list and logs rather than assuming a README command made a tool available.
+## Find your stage
+
+| You reached | Check next |
+| --- | --- |
+| The command cannot run | Check Node 22+, npm, dependencies and the repository root. [Setup](../getting-started/installation.md) |
+| The watcher runs but no page opens | Copy the latest `preview` URL and keep the terminal running. [Quickstart](../getting-started/quickstart.md) |
+| The page opens but edits do not appear | Read build errors; distinguish source, preview output and installed copy. [Development](development.md) |
+| The client cannot find/call tools | Check its server configuration and active tool list. [Client setup](clients.md) |
+| A business or conversation action fails | Check its input, handler and required host capability. [First business tool](first-business-tool.md) |
+
+A browser preview and a stdio server are different entrypoints: the watcher prints a URL; a generated server normally waits for the client to start and call it.
 
 ## Common symptoms
 
@@ -23,16 +33,20 @@ Work through failures in this order: **build → server startup → tool discove
 | `open_app` disappeared | Adding `schema.data` creates page tools and replaces fallback discovery. Use the declared name or generated route name. |
 | Missing/incorrect argument rejected | Inspect the actual input schema. `open_countdown` needs positive integer `start`; numeric strings are not integers. |
 | Tool data arrives but no UI | The client may lack Apps capability/MIME support. Check [compatibility](../reference/compatibility.md), WASM permissions and resource size limits. |
-| Opening `view.html` gives no working page | Use an Apps host. Standalone HTML lacks host initialization and tool notifications. |
+| Opening `view.html` gives no working page | Use `npm run watch:examples -- counter` or an Apps host. Standalone HTML lacks host initialization and tool notifications. |
 | Rebuild appears to have no effect | Compare build IDs and bytes across source, installation, actual server response and loaded document. Follow [build diagnostics](build-diagnostics.md), then update, reload and inspect a new card. |
 | `update:examples` finds no installed plugins | Install the bundled examples first. For direct servers, use `build:examples`. For your own Agent, use its build/update flow. |
-| CALCULATE does nothing or tool unavailable | Check host `serverTools`, tool permissions, request name and unique ID. Handle `error` as well as `ready`; see [messages](../reference/messages.md). |
+| CALCULATE does nothing or tool unavailable | The ordinary browser watcher does not execute business calls. In a real host: The ordinary browser watcher does not execute business calls. In a real host: Check host `serverTools`, tool permissions, request name and unique ID. Handle `error` as well as `ready`; see [messages](../reference/messages.md). |
 | UI stays loading after failure/cancel | Stop loading on `ready`, `error` and `cancelled`, and correlate by requestId. Progress alone is not completion. |
 | `INVALID_OUTPUT` | Handler result does not match `schema.output`. Fix `structuredContent`, rebuild types/server and retest. |
 | Cancelling UI did not undo an operation | Pass `signal` to the real service call. Cancellation stops waiting/aborts work; it cannot roll back a completed action. |
 | Browser tests cannot launch Chromium | Run `npx playwright install chromium`; on Linux use `--with-deps` if system libraries are missing. Or set `CHROMIUM_PATH` to an existing executable. |
 | Benchmark fails on Windows | RSS measurement currently requires macOS/Linux. Run the benchmark in a supported environment. |
 | Benchmark A/B comparison rejects files | Match machine, methodology, fixture/host, tool versions and settings. See [benchmarks](../reference/benchmarks.md). |
+
+## Inspect a running request
+
+When the app already runs, the [Inspector](inspector.md) can show real calls, results and context publications. Enable it with `buildPlugin({ ..., inspector: true })` or `--inspector`, rebuild and reopen the View. Its redacted diagnostics also include browser/WASM/CSP/resource failures.
 
 ## Inspect metadata before debugging the host
 
@@ -54,4 +68,4 @@ Include OS, Node and client versions, MCPKit Git revision/package version, your 
 
 ---
 
-[Documentation index](../README.md) · Previous: [Development workflow](development.md) · Next: [Build API](../reference/build-api.md)
+[Learning path](../README.md)

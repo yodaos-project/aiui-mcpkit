@@ -1,6 +1,10 @@
 # 候选选择与模型上下文
 
-[English](candidate-selection.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](candidate-selection.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 助手返回候选项，用户需要决定把哪个选择带入下一轮对话。
+
+**开始前：** 先看[业务工具配置](business-tools.zh-CN.md)与 [Agent 会话](agent-session.zh-CN.md)。本篇使用 Worker 业务示例；只想练习界面时，可以先看[示例集合](../../examples/README.zh-CN.md)。
 
 [Business Demo](../../examples/business/app.json) 提供了完整的候选选择页。`find_products` 返回经过校验的候选商品，用户选择后点击 **ASK ABOUT SELECTION**，显式发布选择并发送用户消息。本例使用演示商品目录，不会购买商品，也不执行持久化业务写入。
 
@@ -58,4 +62,6 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker node --test tests/examples.test.mjs 
 
 ---
 
-[文档目录](../README.zh-CN.md) · [验收记录](../validation/candidate-selection-2026-10-28.md)
+[学习路线](../README.zh-CN.md) · [验收记录](../validation/candidate-selection-2026-10-28.md)
+
+**按需继续：** [让多个工具共用 App](shared-agent.zh-CN.md)。

@@ -1,30 +1,75 @@
 # Tool request lifecycle
 
-English | [简体中文](tool-lifecycle.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](tool-lifecycle.zh-CN.md) · [Learning path](../README.md)
 
-**Goal:** show loading/progress, handle errors and stop unfinished work. Read [business tools](business-tools.md) and [message formats](../reference/messages.md) first. The following page-method snippets are integration fragments; the [business page](../../examples/business/pages/order/index.ink) is a complete runnable implementation.
+**Use this when:** A business call takes time and the UI needs loading, errors, progress or cancellation.
+
+**Before you start:** Complete [a working business result](first-business-tool.md). The examples below are Page-method integration fragments; use [messages](../reference/messages.md) to look up envelope fields as you implement them.
+
+The following snippets add lifecycle behavior to Page methods. For a complete implementation, compare the [business page](../../examples/business/pages/order/index.ink).
 
 A good UI records an ID before dispatch, disables conflicting controls during `pending`, updates progress only for that ID, and clears loading on every terminal state. Generate IDs with a per-view increasing sequence, for example `quote-${++this.sequence}`, rather than reusing a fixed name. Check the host's active callable tools and `serverTools` capability before assuming a page can invoke an external operation.
 
-Agent pages can call tools exposed by their MCP Apps host through Ink messages. This requires the host's `serverTools` capability and tool access; MCPKit does not register external business tools itself. Each call must use a unique `requestId` for the lifetime of the view:
+## 1. Request a calculation from a button
+
+Use the app from [your first business tool](first-business-tool.md). The host must expose `calculate_total` to the View through its `serverTools` capability. The ordinary browser watcher does not provide that service.
+
+Add these **methods** inside the Page's existing default export. Preserve `data` and its other methods; the commas separate object members:
 
 ```js
-// Inside an Ink page:
-this.postMessage({
-  type: 'mcpkit:call-tool', requestId: 'weather-1',
-  name: 'get_weather', arguments: { city: 'Hangzhou' },
-});
-// To stop that request:
-this.postMessage({ type: 'mcpkit:cancel-tool', requestId: 'weather-1' });
-
-// Add this method to the page definition:
-onMessage(event) {
-  const request = event.data;
-  if (request.type !== 'mcpkit:tool-state') return;
-  // Track each ID separately; pending shows loading, all other states stop it.
-  this.setData({ weatherRequest: request });
-}
+requestQuote() {
+  this.quoteSequence = (this.quoteSequence || 0) + 1;
+  this.activeQuoteRequest = 'quote-' + this.quoteSequence;
+  this.postMessage({
+    type: 'mcpkit:call-tool',
+    requestId: this.activeQuoteRequest,
+    name: 'calculate_total',
+    arguments: { quantity: 2 },
+  });
+},
+cancelQuote() {
+  if (this.activeQuoteRequest) {
+    this.postMessage({
+      type: 'mcpkit:cancel-tool',
+      requestId: this.activeQuoteRequest,
+    });
+  }
+},
 ```
+
+Add these **components** inside its existing `<view>`:
+
+```html
+<view style="display: flex; flex-direction: row; gap: 8px">
+  <button bindtap="requestQuote">CALCULATE</button>
+  <button bindtap="cancelQuote">CANCEL</button>
+</view>
+```
+
+## 2. Handle initial and later results
+
+Replace the existing `onMessage()` method with this **method fragment**. It keeps the initial result handling and adds request state for the active call:
+
+```js
+onMessage(event) {
+  const message = event.data;
+  if (message.type === 'mcpkit:tool-result') {
+    if (message.isError) this.setData({ status: 'Error' });
+    else this.setData({ ...message.structuredContent, status: 'Ready' });
+    return;
+  }
+  if (message.type !== 'mcpkit:tool-state') return;
+  if (message.requestId !== this.activeQuoteRequest) return;
+  this.setData({ status: message.state });
+  if (message.state === 'ready' && !message.result.isError) {
+    this.setData(message.result.structuredContent);
+  }
+},
+```
+
+A new request gets a new ID. `pending` means waiting; `ready`, `error` and `cancelled` stop waiting. For several simultaneous requests, keep separate state for each ID.
+
+The small calculation finishes quickly. To observe a long pending/cancel interaction, use the asynchronous [Business Demo](business-tools.md). Cancellation does not undo a result that has already completed.
 
 Responses have `type: 'mcpkit:tool-state'`, `requestId`, `state`, `attempt` (starting at 1), and the effective `policy`. `pending` may include `progress`; `ready` includes the MCP tool `result`; `error` and `cancelled` include `{ code, message }` in `error`. Timeout codes are `request_timeout` and `total_timeout`; business and transport failures use `tool_error`. Invalid tool names/arguments produce `invalid_request` without executing work. Empty or missing IDs are ignored. Reusing an ID is ignored, including after completion, so delayed messages cannot start or replace a different invocation. Keep state keyed by ID when several calls run concurrently. Host cancellation, page replacement and view closure cancel all outstanding calls; a per-ID cancellation affects only that call.
 
@@ -32,12 +77,12 @@ Configure generated server and view budgets through the ESM API:
 
 ```js
 await buildPlugin({
-  source: './weather-agent', name: 'weather-agent',
+  source: './my-quote', name: 'my-quote',
   requestPolicy: {
     totalTimeoutMs: 60000, requestTimeoutMs: 15000,
     resetTimeoutOnProgress: true, maxRetries: 1, retryDelayMs: 250,
   },
-  retrySafeTools: ['get_weather'],
+  retrySafeTools: ['calculate_total'],
 });
 ```
 
@@ -90,4 +135,6 @@ The page bridge disallows ID reuse for the whole View lifetime; a bare `RequestL
 
 ---
 
-[Documentation index](../README.md) · Previous: [Typed business tools](business-tools.md) · Next: [Public metadata](metadata.md)
+[Learning path](../README.md)
+
+**Next, if needed:** [Inspect the request flow](inspector.md).

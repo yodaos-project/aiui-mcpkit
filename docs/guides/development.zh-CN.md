@@ -1,24 +1,57 @@
-# 修改、重建、迭代
+# 修改、预览与更新
 
-[English](development.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](development.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**前置条件：** Node 22+ 和已安装的仓库依赖。更新已安装插件还需要接入客户端。以下命令在仓库根目录执行。
+**适用场景：** 已有[能运行的应用](../getting-started/first-agent.zh-CN.md)，需要稳定的修改、预览循环，或更新安装进客户端的副本。先执行 `npm ci`，以下命令都在仓库根目录运行。
 
-## 本地监听与自动刷新
+## 1. 先确认你正在使用哪份应用
+
+| 当前使用方式 | 修改源码后做什么 |
+| --- | --- |
+| **浏览器预览** | 保持监听运行，自动重建与刷新。 |
+| **直接注册的服务** | 重建产物，重启客户端的 MCP 连接，打开新 View。 |
+| **已安装插件** | 重建、更新或重装客户端中的插件副本，重启连接，打开新 View。 |
+
+## 2. 使用本地预览修改
+
+仓库示例：
 
 ```sh
-npm run watch:examples -- counter --input '{"initialCount":5}'
-# 或：npm run watch:examples -- business
+npm run watch:examples -- counter
 ```
 
-打开输出中的本机 URL。Agent 编辑会触发完整构建，成功后通过真实 MCP Apps bridge 和 Ink/WASM 自动替换预览 iframe。这些独立插件位于 `dist/watch/<example>`，不会更新已安装的 marketplace 副本。在浏览器打开 URL 无需浏览器自动化依赖。预览仅提供启动参数与显示上下文；业务或宿主工具服务仍需要集成测试宿主。
+打开终端 `preview` 行中的地址。修改 `examples/counter/pages/counter/index.ink`，保存后等待构建成功。[第一次修改](../getting-started/edit-example.zh-CN.md)标出了可以直接尝试的代码行。
 
-自己的 Agent 先构建库，再从任意工作目录运行辅助 CLI：
+页面工具教程中的自建应用：
 
 ```sh
-node /path/to/aiui-mcpkit/scripts/build-plugin.mjs ./agent --name my-agent --watch \
-  --out ./dist/my-agent --port 4173 --input '{"recordId":"42"}'
+node scripts/build-plugin.mjs ./my-agent --name my-agent --out ./dist/my-agent --watch --input '{"initialCount":5}'
 ```
+
+还没添加必填参数 schema 时，可以省略 `--input`。辅助脚本需要先用 `npm run build` 构建一次 MCPKit 库。
+
+成功刷新会创建新的 App/Page 实例，重置内存状态。构建失败时，预览继续使用上一次成功的版本；按终端诊断修正并再次保存。按 Ctrl+C 停止。请使用专用输出目录，监听程序会替换该目录的全部内容。
+
+普通预览显示界面、提供启动参数。服务端业务调用和对话服务，需要支持的客户端或测试环境。
+
+## 3. 主动更新客户端副本
+
+Counter 的监听预览写入 `dist/watch/counter/`，可安装示例则单独构建到 `dist/examples/`，两者都不会自动替换客户端缓存的插件。
+
+已安装仓库 Counter 时执行：
+
+```sh
+npm run update:examples -- --example counter
+```
+
+然后重新加载客户端的服务或宿主，打开新的 View。自己的应用则重新执行构建命令，按客户端的更新或重装流程操作。`update:examples` 只处理仓库示例，不处理自建的 `my-agent`。
+
+**完成检查：** 保存后浏览器显示新内容；更新客户端后，新 View 也显示同一改动。没有生效时，按[构建诊断](build-diagnostics.zh-CN.md)检查。
+
+## 进阶：构建系统接入与准确的刷新行为
+
+<details>
+<summary>ESM 监听 API、重建顺序与生命周期约定</summary>
 
 `--no-preview` 仅监听与构建，不启动预览服务。Ctrl+C/SIGTERM 停止轮询并等待丢弃正在执行的构建。监听器管理整个输出目录，该目录必须为空或包含同名的已构建插件；其他文件应放在别处。`typesFile` 必须位于输出目录内，以便声明和产物一起发布。
 
@@ -56,6 +89,11 @@ console.log(watcher.previewUrl, watcher.state);
 
 成功后的 `state.action` 为 `reload-view`、`restart-server` 或 `refresh-manifest`，构建中和失败时为 `none`；`hostSteps` 提供手动步骤。监听器不会重启真实宿主的 stdio 连接、复制安装副本或绕过宿主缓存。更新后将实际服务响应的 `_meta.mcpkit.build.id` 和已加载 View 标记与成功构建 ID 比较。新卡片仍过时时，通过[构建诊断](build-diagnostics.zh-CN.md)检查连接与宿主资源缓存。本地刷新不能证明桌面客户端或模型行为。
 
+</details>
+
+<details>
+<summary>已安装插件路径、更新脚本与诊断</summary>
+
 ## 选择正确的更新路径
 
 | 接入方式 | 修改源码后怎么做 |
@@ -87,6 +125,6 @@ npm run update:examples -- --example business --plugin-dir /absolute/path/to/ins
 
 运行 `npm run diagnose:examples -- --example counter --plugin-dir /absolute/path/to/installed/ink-counter`，可在不修改文件的情况下比较源码、构建和安装字节。实际服务与视图 ID、缓存诊断及 URI 升级规则见[构建诊断](build-diagnostics.zh-CN.md)。更新助手不会重启服务或清理宿主缓存。
 
----
+</details>
 
-[文档目录](../README.zh-CN.md) · 上一篇：[客户端接入](clients.zh-CN.md) · 下一篇：[故障排查](troubleshooting.zh-CN.md)
+**按需继续：** [排查问题](troubleshooting.zh-CN.md)，或[自动验证预览](preview-verification.zh-CN.md)。

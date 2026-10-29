@@ -1,6 +1,8 @@
 # 构建参考
 
-[English](build-api.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](build-api.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+查询构建选项、生成文件或导出类型。第一次构建请先读[第一个应用](../getting-started/first-agent.zh-CN.md)，独立项目脚本则先看 [ESM 接入](../guides/esm-build.zh-CN.md)。
 
 `@yodaos-pkg/aiui-mcpkit` 导出 `buildPlugin(options): Promise<BuildPluginResult>`。本篇作为 [ESM 教程](../guides/esm-build.zh-CN.md)的查阅参考，实际类型定义见 [`src/index.ts`](../../src/index.ts)。
 
@@ -147,4 +149,4 @@ PNG/JPEG/GIF/WebP 和 TTF/OTF/WOFF/WOFF2 有已知 MIME 提示，实际解码取
 
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[故障排查](../guides/troubleshooting.zh-CN.md) · 下一篇：[页面消息](messages.zh-CN.md)
+[学习路线](../README.zh-CN.md) · 上一篇：[故障排查](../guides/troubleshooting.zh-CN.md) · 下一篇：[页面消息](messages.zh-CN.md)

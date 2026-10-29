@@ -1,14 +1,14 @@
-# 创建自己的 Agent
+# 创建自己的应用
 
-[English](first-agent.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](first-agent.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**前置条件：** 完成[快速开始](quickstart.zh-CN.md)，保持仓库依赖已安装。本教程创建独立的 `my-agent` 源码目录，构建命令仍在 MCPKit 仓库根目录执行。先用静态页面确认流程，再替换为下方的交互页面。
+**这一课的结果：** 用两个源文件创建一个独立的计数器。先完成[第一次修改](edit-example.zh-CN.md)；这一课只需要会创建文件、保存文字。
 
-## 1. 创建两个源码文件
+AIUI 把应用称为 **Agent（智能体）**，这里指你维护的应用源码，不要求你训练或实现 AI 模型。所有终端命令都在 MCPKit 仓库根目录执行。
 
-在方便的位置创建 `my-agent/` 和其中的 `pages/` 目录，把以下内容分别保存为 `app.json` 和 `pages/home.ink`。构建和安装命令中的 `/path/to/my-agent` 是占位路径，请替换为真实绝对路径；含空格时加引号。
+## 1. 创建目录
 
-示例跑通后，就可以换成自己的页面。最小项目结构如下：
+按 **Ctrl+C** 停止之前的监听。在编辑器里，在仓库根目录创建：
 
 ```text
 my-agent/
@@ -17,96 +17,104 @@ my-agent/
     └── home.ink
 ```
 
-`app.json` 定义应用名称和页面列表：
+只需要这两个源文件，扩展名要与上面一致。
+
+## 2. 注册页面
+
+将以下完整内容保存为 `my-agent/app.json`：
 
 ```json
 {
-  "name": "My Agent",
+  "name": "My First App",
   "pages": ["pages/home"]
 }
 ```
 
-`pages/home.ink` 定义第一个界面：
+`name` 是应用显示名称，`pages` 列出页面路径。`pages/home` 对应 `pages/home.ink`，这里省略扩展名。
 
-```html
-<page>
-  <view>
-    <text>Hello from AIUI Agent</text>
-  </view>
-</page>
-```
+## 3. 编写页面
 
-`app.json` 中的页面路径不带 `.ink` 后缀。需要按钮和状态管理时，可以参考完整的 [Counter 页面](../../examples/counter/pages/counter/index.ink)。
-
-在 MCPKit 仓库中运行本地构建脚本。把 `/path/to/my-agent` 换成自己项目的实际路径：
-
-```sh
-npm run build
-node scripts/build-plugin.mjs /path/to/my-agent \
-  --name my-agent \
-  --out /path/to/my-agent/dist/plugin
-```
-
-项目根目录直接包含 `app.json` 和 `pages/`；输出可以放在项目的 `dist/` 下，构建器会排除输出目录。输出目录不能等于或包含源码目录。这个脚本用于在仓库内调试；包对外提供的集成入口是 [ESM 库](../guides/esm-build.zh-CN.md)。
-
-将自己的插件安装到 Codex：
-
-```sh
-codex plugin marketplace add /path/to/my-agent/dist/plugin
-codex plugin add my-agent@my-agent-local
-```
-
-安装后重新加载桌面宿主。自己的 Agent 默认通过 `open_app` 工具打开。其他客户端可以[直接连接生成的服务](../guides/clients.zh-CN.md)。
-
-## 2. 确认静态页面能打开
-
-按上面的命令构建、安装后，重载宿主，让它用 `{}` 调用 `open_app`。支持 Apps 的宿主应显示 “Hello from AIUI Agent”；纯文字客户端会返回解释，不会显示页面。
-
-不要直接在浏览器打开 `view.html`。生成的界面依赖 MCP Apps 宿主提供初始化消息通道和工具数据。
-
-## 3. 加入状态和按钮
-
-将 `pages/home.ink` 的**全部内容**替换为：
+将以下完整内容保存为 `my-agent/pages/home.ink`：
 
 ```html
 <script setup>
 export default {
   data: { count: 0 },
-  increment() { this.setData({ count: this.data.count + 1 }); },
+  increment() {
+    this.setData({ count: this.data.count + 1 });
+  },
 };
 </script>
 
 <page>
   <view class="screen">
-    <text class="title">My first Agent</text>
+    <text class="title">My first app</text>
     <text class="count">{{count}}</text>
     <button class="control" bindtap="increment">+ ADD ONE</button>
   </view>
 </page>
 
 <style>
-.screen { width: 100%; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background-color: #000000; color: #40ff5e; }
-.title { font-size: 20px; }
-.count { font-size: 40px; }
-.control { padding: 8px 16px; background-color: #000000; color: #40ff5e; border-width: 1px; border-style: solid; border-color: #40ff5e; }
+.screen {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: #000000;
+  color: #40ff5e;
+}
+.title {
+  font-size: 20px;
+}
+.count {
+  font-size: 40px;
+}
+.control {
+  padding: 8px 16px;
+  background-color: #000000;
+  color: #40ff5e;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #40ff5e;
+}
 </style>
 ```
 
-`data` 保存页面状态，`{{count}}` 读取该状态，`bindtap="increment"` 在点击时调用 `increment` 方法，`setData` 更新状态并重绘。这个按钮只修改本地界面状态，不调用业务 handler。
+可以分成三部分理解：
 
-## 4. 重新构建并确认新版本
+- `data` 保存状态，`{{count}}` 显示当前值。
+- `bindtap="increment"` 在点击时调用 `increment()`，其中的 `setData()` 更新状态并重绘界面。
+- `<style>` 让组件居中，并设置页面颜色。
 
-再次执行前面的 `node scripts/build-plugin.mjs ...` 命令。直接注册服务的客户端需要重载服务并打开新界面。通过 Codex 安装的插件需要使用客户端的插件更新或重新安装流程，把新目录同步到缓存，再重载宿主、打开新卡片。仓库的 `update:examples` 只更新自带示例，不更新 `my-agent`。
+## 4. 构建并预览
 
-预期页面从 0 开始，点击 **+ ADD ONE** 后变成 1。Ink 默认的数字插值可能显示为 `0.0` 和 `1.0`，数值含义相同。这个例子没有持久化逻辑，新建页面会重新从 0 开始。
+在仓库根目录运行：
 
-## 5. 接下来学什么
+```sh
+node scripts/build-plugin.mjs ./my-agent --name my-agent --out ./dist/my-agent --watch
+```
 
-- 想让 AI 传入参数：按[页面工具](../guides/page-tools.zh-CN.md)增加输入 schema。
-- 想在服务端计算或获取数据：按[业务工具](../guides/business-tools.zh-CN.md)增加输出 schema 和 handler。
-- 想在自己的项目中构建：使用 [ESM 库](../guides/esm-build.zh-CN.md)。
-- 想理解产物和选项：查看[构建 API](../reference/build-api.zh-CN.md)。
+[快速开始](quickstart.zh-CN.md)已经构建过 MCPKit 库；如果跳过了那一步，请先执行 `npm run build`。打开终端 `preview` 行提供的地址。
 
----
+**预期结果：** 显示“My first app”、数字 **0** 和 **+ ADD ONE**。点击一次，数字变成 **1**。再修改页面标题并保存，等待预览刷新。刷新后计数重置，因为它属于这份打开的应用实例。
 
-[文档目录](../README.zh-CN.md) · 上一篇：[运行示例](quickstart.zh-CN.md) · 下一篇：[页面工具](../guides/page-tools.zh-CN.md)
+## 5. 了解生成了什么
+
+源码仍在 `my-agent/`，构建产物在 `dist/my-agent/`：
+
+| 文件 | 用途 |
+| --- | --- |
+| `view.html` | 应用界面，包含你的应用与 Ink/WASM。 |
+| `dist/server.mjs` | 客户端可以启动的本地 MCP 服务。 |
+| `plugin.json`、`mcp.json`、`.agents/` | 插件名称及客户端连接、安装所需的元数据。 |
+
+此时还没有把插件安装进客户端，浏览器预览已经可以用于开发界面。重新构建会替换产物，请修改源码文件。
+
+**完成检查：** 自己的应用能打开、按钮能工作、保存源码后能看到变化。
+
+**下一步：** [为应用添加工具参数](../guides/page-tools.zh-CN.md)。想先在助手中体验？按[连接自己的应用](../guides/clients.zh-CN.md#连接自己的应用)操作；尚未声明页面 schema 时，默认工具名为 `open_app`。

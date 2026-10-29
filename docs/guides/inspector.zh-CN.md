@@ -1,6 +1,10 @@
 # 检查请求与 Agent 数据流
 
-[English](inspector.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](inspector.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 应用能运行，但想看清调用了哪个工具、返回了什么、发布了哪些上下文。
+
+**开始前：** 先按[开发迭代](development.zh-CN.md)构建并打开应用。Inspector 是开发面板，排查时开启，发布时重新构建并关闭。
 
 构建插件时启用开发面板，再在 MCP Apps 宿主中打开 View，点击右下角 **Inspector**。生产构建应移除此选项。
 
@@ -72,3 +76,5 @@ this.postMessage({
 | `diagnostic.resource` | 检查失败的浏览器资源 URL、响应、CORS 和资源域名。 |
 
 宿主完全禁止脚本时，Inspector 也无法运行。Ink guest 或宿主内部没有暴露的错误需要其日志或显式诊断消息，浏览器不能自动读取。HTML 本身未加载时使用宿主/浏览器开发者工具。自动测试使用真实 Ink WASM View、真实 stdio 业务服务以及浏览器 CSP/资源失败，不代表所有桌面宿主均已验证。运行 `npm run build:examples` 后，再运行 `node --test tests/inspector.test.mjs tests/host-provider.test.mjs tests/inspector-browser.test.mjs` 可复现。
+
+**按需继续：** [进行可重复的预览验证](preview-verification.zh-CN.md)。

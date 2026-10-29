@@ -1,16 +1,10 @@
 # 配置和检查公开元数据
 
-[English](metadata.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](metadata.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**前置条件：** 已能构建的 Agent 和 [ESM API](esm-build.zh-CN.md)。这些进阶选项用于定制工具发现元数据，第一篇教程不需要使用。选项与结果类型见[构建参考](../reference/build-api.zh-CN.md)。
+**适用场景：** 默认配置已能运行，现在需要定制公开的工具、资源字段或允许访问的网络来源。
 
-## 网络和资源 CSP
-
-使用 `uiCsp: { connectDomains: [...], resourceDomains: [...] }` 配置带类型的构建默认值。连接域对应 fetch/XHR/WebSocket 权限；资源域对应图片、字体、脚本、样式与媒体。仍可使用 `resourceMetadata.ui.csp`。两处同时声明同一列表时，域集合必须一致，否则在写入输出前失败。自定义资源的 `_meta.ui.csp` 列表可以有意替换默认值。
-
-域列表接受规范 HTTP(S) origin、`https://*.example.com` 这样的子域通配符，以及显式端口。连接列表也接受 WS(S) origin。不允许全局 `*`、仅协议范围、路径、凭据、查询参数、片段、CSP 关键字或注入指令。资源列表可声明本地 `blob:`/`data:` 协议。默认和自定义 metadata 中的 CSP 都会校验，包括 frame/base-URI 域列表。空列表无需外部域。
-
-声明 `app.json` 字体的生成 View 会在最终资源域列表加入 `blob:`，用于 Ink 本地字体 object URL。通过 `inspectProtocol()` 或 `resources/read` 检查最终 metadata。宿主执行声明，也可能施加更严格限制；CORS 和加载器支持仍然生效。资源路径和大小报告见[二进制资源和 CSP](../reference/build-api.zh-CN.md#二进制资源和-csp)。连接域与资源域的区分遵循 [MCP Apps CSP 指南](https://github.com/modelcontextprotocol/ext-apps/blob/main/docs/csp-cors.md)。
+**开始前：** 先按 [ESM 接入](esm-build.zh-CN.md)构建应用。元数据指公开的描述与配置字段；CSP 用来声明宿主可以允许哪些网络或资源来源。
 
 ## 先做一个小改动
 
@@ -56,6 +50,16 @@ console.log(JSON.stringify(result.inspectProtocol(clientCapabilities), null, 2))
 
 元数据、HTML 和 schema 是作者显式提供的公开内容，凭据应保留在服务端 handler/环境变量中。检查接口不加载 handler 代码、`.env`、进程环境、资源 HTML 或私密源码路径。元数据递归拒绝常见凭据/配置字段名：`password`、`secret`、`token`、`apiKey`、`authorization`、`credentials`、`env`、`headers` 及 access/refresh/client-secret 变体。这项保护不能识别藏在任意字符串中的凭据，因此只应提供公开值。无效元数据在创建或替换输出前失败，保留已有构建产物。
 
+## 网络和资源 CSP
+
+使用 `uiCsp: { connectDomains: [...], resourceDomains: [...] }` 配置带类型的构建默认值。连接域对应 fetch/XHR/WebSocket 权限；资源域对应图片、字体、脚本、样式与媒体。仍可使用 `resourceMetadata.ui.csp`。两处同时声明同一列表时，域集合必须一致，否则在写入输出前失败。自定义资源的 `_meta.ui.csp` 列表可以有意替换默认值。
+
+域列表接受规范 HTTP(S) origin、`https://*.example.com` 这样的子域通配符，以及显式端口。连接列表也接受 WS(S) origin。不允许全局 `*`、仅协议范围、路径、凭据、查询参数、片段、CSP 关键字或注入指令。资源列表可声明本地 `blob:`/`data:` 协议。默认和自定义 metadata 中的 CSP 都会校验，包括 frame/base-URI 域列表。空列表无需外部域。
+
+声明 `app.json` 字体的生成 View 会在最终资源域列表加入 `blob:`，用于 Ink 本地字体 object URL。通过 `inspectProtocol()` 或 `resources/read` 检查最终 metadata。宿主执行声明，也可能施加更严格限制；CORS 和加载器支持仍然生效。资源路径和大小报告见[二进制资源和 CSP](../reference/build-api.zh-CN.md#二进制资源和-csp)。连接域与资源域的区分遵循 [MCP Apps CSP 指南](https://github.com/modelcontextprotocol/ext-apps/blob/main/docs/csp-cors.md)。
+
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[请求生命周期](tool-lifecycle.zh-CN.md) · 下一篇：[ESM 构建接入](esm-build.zh-CN.md)
+[学习路线](../README.zh-CN.md)
+
+**按需继续：** [查询完整构建选项](../reference/build-api.zh-CN.md)。

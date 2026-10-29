@@ -1,6 +1,8 @@
 # Page messages and result formats
 
-English | [简体中文](messages.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](messages.zh-CN.md) · [Learning path](../README.md)
+
+Look up the exact input/result envelope while implementing [business results](../guides/first-business-tool.md) or [loading and cancellation](../guides/tool-lifecycle.md). These fields are a reference; start with the runnable tutorials.
 
 Optional `mcpkit:inspect` messages associate application user events and explicitly selected bindings with a `requestId`. They are consumed only by the opt-in [Inspector](../guides/inspector.md), omitted from model context, and omit private values by default. See `AgentInspectionMessage` for the typed contract.
 
@@ -68,12 +70,12 @@ Keep concurrent state keyed by ID. Host cancellation, view closure and page repl
 
 An expected `BusinessToolError` returns `isError: true`, text `CODE: message`, `_meta.businessError` and optional `_meta.uiOnly` details. It omits successful `structuredContent`. Unexpected exceptions expose generic `INTERNAL_ERROR`. See [business tools](../guides/business-tools.md) for the handler contract.
 
----
-
-[Documentation index](../README.md) · Previous: [Build API](build-api.md) · Next: [Protocol compatibility](compatibility.md)
-
 Shared application result events also include `tool` (the server tool name) and `input` (its validated arguments). Register named UI routes with `applications`; see [shared App ownership and routing](../guides/shared-agent.md).
 
 ## Scoped restoration messages
 
 `mcpkit:state-connect`, `mcpkit:restore-state`, `mcpkit:state-ready`, `mcpkit:state-save` and `mcpkit:state-status` form an opt-in App/View handshake. They use a launch nonce and a host-bound store; snapshots are consumed before debug logging and never published automatically to the model. See [message fields, ordering and failure behavior](../guides/state-restoration.md#restore-then-receive-new-results).
+
+---
+
+[Learning path](../README.md) · Previous: [Build API](build-api.md) · Next: [Protocol compatibility](compatibility.md)

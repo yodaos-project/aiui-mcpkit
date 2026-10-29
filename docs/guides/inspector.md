@@ -1,6 +1,10 @@
 # Inspect requests and Agent data flow
 
-English | [简体中文](inspector.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](inspector.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** You can run the app, but need to see which tool was called, what it returned or what context was published.
+
+**Before you start:** Follow [development workflow](development.md) to build and open your app. The Inspector is a development panel; enable it for debugging and rebuild without it for release.
 
 Enable the local developer panel when building a plugin, then open its View in an MCP Apps host. Click **Inspector** in the bottom-right corner. Rebuild without this option for production.
 
@@ -72,3 +76,5 @@ The panel and browser listeners initialize before the host handshake and WASM lo
 | `diagnostic.resource` | Check the failing browser resource URL, response, CORS and resource domains. |
 
 A host that blocks all script execution cannot run the Inspector. Failures hidden inside the Ink guest or host require its own logs or explicit diagnostic messages; the browser cannot inspect them automatically. Use client/browser developer tools when the HTML itself never loads. Automated coverage uses a real Ink WASM View, real stdio business server and browser CSP/resource failures; it does not establish compatibility with every desktop host. Run `npm run build:examples`, then `node --test tests/inspector.test.mjs tests/host-provider.test.mjs tests/inspector-browser.test.mjs` to reproduce it.
+
+**Next, if needed:** [Capture a repeatable verification](preview-verification.md).

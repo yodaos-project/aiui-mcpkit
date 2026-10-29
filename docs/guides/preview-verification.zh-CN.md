@@ -1,6 +1,10 @@
 # 验证 Agent 并截图
 
-[English](preview-verification.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](preview-verification.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 已经手动跑通界面，需要可重复的就绪检查，或文档用 PNG 截图。
+
+**开始前：** 先完成[浏览器快速开始](../getting-started/quickstart.zh-CN.md)。本篇是自动化步骤，需要额外安装 Playwright 及其浏览器；交互式监听预览不需要这一步。
 
 `verifyPlugin()` 在本地 MCP Apps `AppBridge` 宿主中打开构建好的 Agent，执行真实 Ink/WASM 运行时，返回明确的就绪检查结果，并可将 Agent 画布保存为 PNG。仓库 CLI 直接调用同一个 ESM API。
 
@@ -106,3 +110,5 @@ npm run verify:plugin -- dist/examples/counter \
 `--timeout` 设置每个阶段的预算。`--page`、`--dpr`、`--chromium`、`--error-gate collect` 对应 ESM 参数。CLI 输出 JSON，仅 `passed` 退出码为 0；失败和未完成均为 1。详见 `node scripts/verify-plugin.mjs --help`。
 
 本地宿主提供启动参数和显示上下文，不启动生成的 MCP 服务端，也不提供业务/宿主工具服务；依赖这些服务的页面需要专用集成宿主。本地验证不能证明部署后的桌面宿主或真实模型兼容性，相关边界见[运行时集成](runtime-integration.zh-CN.md)和[客户端配置](clients.zh-CN.md)。
+
+**按需继续：** [录制并回放交互](interaction-replay.zh-CN.md)。

@@ -1,6 +1,10 @@
 # Record and replay Agent interactions
 
-English | [简体中文](interaction-replay.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](interaction-replay.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** You have a working interaction and want to replay it as an automated regression check.
+
+**Before you start:** Learn [the Inspector](inspector.md) and [preview verification](preview-verification.md) first. Record, inspect the exported data, then replay with explicit tool mocks and state assertions.
 
 Record a fresh development View, export its authorized test data from the Inspector, then run the same inputs and canvas actions in an isolated browser. Replay checks public state assertions, exact outbound tool requests and explicit model context publications. A screenshot is additional evidence, never the only assertion.
 
@@ -105,4 +109,6 @@ Version 1 supports click-driven selection/expansion and host-driven mode changes
 
 Reproduce the round-trip and failure gates with `npm run build:examples`, then `node --test tests/interactions.test.mjs tests/interactions-browser.test.mjs`. The browser fixture records selection, expansion, fullscreen and a host result, replays twice, compares the canvas, and checks corrupted state/context/mocks plus a blocked network write.
 
-[Documentation index](../README.md) · [Inspector](inspector.md) · [Preview verification](preview-verification.md)
+[Learning path](../README.md) · [Inspector](inspector.md) · [Preview verification](preview-verification.md)
+
+**Next, if needed:** [Read the replay validation record](../validation/interaction-replay-2026-10-29.md).

@@ -1,82 +1,56 @@
-# 体验示例
+# 运行第一个预览
 
-[English](quickstart.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](quickstart.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**目标：** 打开真实 Ink 界面，验证按钮和参数。先完成[环境准备](installation.zh-CN.md)。以下终端命令都在 MCPKit 仓库根目录执行。`open_counter({...})` 等示例表示让客户端调用工具，不是终端命令。
+**这一课的结果：** 在本地打开一个计数器，点击按钮就能改变数字。需要 Node.js 22+、Git 和浏览器，不需要助手客户端或 API Key。工具没有安装好时，先按[准备环境](installation.zh-CN.md)操作。
 
-先运行一个现成的例子，再决定要写什么。这份教程会构建 Counter 计数器，并安装到 **Codex 桌面版**。
+## 1. 下载并安装
 
-## 1. 准备工具
-
-安装 [Node.js](https://nodejs.org/en/download) **22 或更新版本**（自带 npm）、[Git](https://git-scm.com/downloads)、Codex 桌面版，以及支持 `codex plugin` 命令的 Codex CLI。下面的命令都在终端中执行。
-
-使用 Claude Desktop 或 VS Code？完成第 2 步后，直接跳到[对应客户端的接入说明](../guides/clients.zh-CN.md)。
-
-## 2. 下载并构建
+打开终端，运行：
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
 cd aiui-mcpkit
 npm ci
-npm run build:examples
 ```
 
-完成后，Counter 和业务插件分别位于 `dist/examples/counter` 与 `dist/examples/business`，共享的 marketplace 位于 `dist/examples/.agents/plugins/marketplace.json`。下一步继续在当前仓库目录中执行。
+已经完成“准备环境”？保留那个位于仓库根目录的终端，直接进入第 2 步。
 
-## 3. 安装到 Codex
+## 2. 打开预览
+
+在仓库根目录运行：
 
 ```sh
-codex plugin marketplace add ./dist/examples
-codex plugin add ink-counter@aiui-mcpkit-examples
-codex plugin add business-demo@aiui-mcpkit-examples
+npm run watch:examples -- counter
 ```
 
-第一条命令注册共享的本地插件目录，后两条分别安装 Counter 和业务示例。请按示例复制插件标识，它们需要与生成的元数据一致。
+等待终端出现包含 `"type":"preview"` 的一行，把其中的 `url` 复制到浏览器。地址以 `http://127.0.0.1:` 开头，端口会自动分配。使用预览期间，请保持终端中的命令运行。
 
-首次安装后重启 Codex 桌面版，从插件的界面入口打开 **AIUI MCPKit Counter**。在已提供本地工具的 Codex 对话中，也可以让它调用 `open_counter`。
+命令会构建库和 Counter，并监听源码变化。你应该看到绿色计数器，初始值为 **0**。Ink 有时将数字显示为 `0.0`，含义相同。
 
-## 4. 试着操作
+## 3. 点击按钮
 
-Counter 采用 AIUI 单绿设计。点击 **+ ADD ONE**，计数就会变化。在支持全屏的宿主中展开界面，还可以看到会话统计、最近操作记录和更多控制按钮。
+点击一次 **+ ADD ONE**，数字变为 **1**。再点一次，变为 **2**。
 
-示例还提供了两个通过页面配置定义的工具。可以让客户端调用：
+**完成检查：** 预览地址能打开、能看到 Counter、点击能改变数字。你已经通过 Ink/WASM 跑起了一个真实的 AIUI 应用。
 
-```text
-open_counter({ "initialCount": 5, "label": "Demo" })
-open_countdown({ "start": 8, "step": 2 })
-```
+要结束预览，回到终端按 **Ctrl+C**。下次用相同命令重新启动；新的预览从零开始。
 
-`open_counter` 打开 Counter 页面，初始值为 5，标题为 “Demo”；点击 **+ ADD ONE** 后变成 6。两个参数均可选，省略 `initialCount` 时从零开始。Counter 状态仅保留于当前 View。共享目录示例展示通过具有明确作用域的[恢复适配器](../guides/state-restoration.zh-CN.md)与 App 消息协议接入跨 View 恢复。`open_countdown` 打开独立的 Countdown 页面，初始值为 8，每次点击减 2，最低为 0。`start` 必填，`step` 在页面逻辑中默认为 1。缺失 `start`、负数初始计数或非正数步长会被 MCP 服务端拒绝。
+## 刚才运行了哪些东西
 
-两个工具均在各自页面的 `<script def>` 中声明，通过 `onLoad(query)` 接收参数。浏览器测试使用真实 Ink WASM 验证页面选择、初始状态和按钮交互。如果之前从 `ink-counter-local` 安装 Counter，请按上面的命令注册共享 marketplace 并重新安装。后续使用 `update:examples` 同步已安装的示例插件及其服务端，再重载宿主刷新工具列表。
+- **源码：** `examples/counter/`，这里的文件可以编辑。
+- **构建产物：** `dist/watch/counter/`，由工具生成。修改源码，不要直接修改这个目录。
+- **预览页面：** 提供运行应用需要的宿主连接。直接双击生成的 `view.html` 无法完成初始化。
 
-[Counter 源码](../../examples/counter/pages/counter/index.ink) 展示状态管理和自适应布局；[Countdown 源码](../../examples/counter/pages/countdown/index.ink) 展示带必填参数的第二个工具。Counter 的内联界面已经在 Codex 桌面版中观察到，全屏行为和页面工具示例通过浏览器测试环境验证。
+预览可以提供工具参数、显示界面；它不会运行 AI 模型、发送对话消息或执行服务端业务工具。后面的教程再接入真实客户端。
 
-## 再试业务示例
+## 没有成功时
 
-业务工具由 AgentWorker 的 `ModelContext.defineAction()` 实现。先在 MCP 服务进程的 PATH 中配置原生 `ink-worker`，或设置该进程的 `INK_WORKER_BIN`，并随插件部署 `worker-app/`。见[业务工具](../guides/business-tools.zh-CN.md)。
+| 现象 | 先做什么 |
+| --- | --- |
+| 找不到 `node` 或 `npm` | 按[准备环境](installation.zh-CN.md)检查安装。 |
+| npm 找不到 `package.json` | 在 `aiui-mcpkit` 仓库根目录打开终端。 |
+| 浏览器连接失败 | 保持命令运行，并复制最新 `preview` 行中的地址。 |
+| 页面空白或构建报错 | 先读终端错误，再看[故障排查](../guides/troubleshooting.zh-CN.md)。 |
 
-让客户端以以下 JSON 参数调用 `quote_order`：
-
-```json
-{ "quantity": 2, "coupon": "DEMO10" }
-```
-
-预期结构化结果：数量 2、单价 18、总价 36、币种 CNY。不传优惠码时，总价为 40。页面还会从仅供界面使用的数据中显示剩余库存 98。点击 **CALCULATE** 再发起一次真实 handler 调用，在加载中点击 **CANCEL** 取消。此操作需要宿主提供 `serverTools` 能力和工具访问权限。
-
-用 `{ "sku": "DEMO" }` 调用 `check_stock`，打开库存页面并得到可用库存 100。其他 SKU 返回 `UNKNOWN_SKU`，其他优惠码返回 `INVALID_COUPON`，无需外部服务即可观察错误路径。
-
-用 `{ "query": "travel" }` 调用 `find_products`，在页面中选择商品后询问模型。完整流程和独立的桌面模型验收步骤见[候选选择](../guides/candidate-selection.zh-CN.md)。
-
-## 完成检查
-
-- 插件已安装，而且工具出现在当前客户端会话中。
-- Counter 从 5 开始，点击一次变成 6。
-- Countdown 从 8 开始，点击一次变成 6。
-- 报价使用 `DEMO10` 时为 36，不使用时为 40。
-
-安装成功和工具已进入当前会话是两件事。当前会话找不到工具时，重载服务或宿主，并检查实际工具列表，见[故障排查](../guides/troubleshooting.zh-CN.md)。下一步可以[创建自己的 Agent](first-agent.zh-CN.md)，或学习[业务工具](../guides/business-tools.zh-CN.md)。
-
----
-
-[文档目录](../README.zh-CN.md) · 上一篇：[准备环境](installation.zh-CN.md) · 下一篇：[创建第一个 Agent](first-agent.zh-CN.md)
+**下一步：** [修改第一个按钮](edit-example.zh-CN.md)。想先看彩色示例？停止 Counter，运行 `npm run watch:examples -- travel`；其他 ID 见[示例集合](../../examples/README.zh-CN.md)。

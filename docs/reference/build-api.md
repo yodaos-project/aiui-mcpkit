@@ -1,6 +1,8 @@
 # Build reference
 
-English | [简体中文](build-api.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](build-api.zh-CN.md) · [Learning path](../README.md)
+
+Look up a build option, generated file or exported type. For a runnable first build, use [your first app](../getting-started/first-agent.md); for a script in another project, use [ESM integration](../guides/esm-build.md).
 
 `buildPlugin(options): Promise<BuildPluginResult>` is exported by `@yodaos-pkg/aiui-mcpkit`. This reference complements the [ESM walkthrough](../guides/esm-build.md). For authoritative implementation types, see [`src/index.ts`](../../src/index.ts).
 
@@ -147,4 +149,4 @@ Generated plugin files are self-contained for execution with Node 22+. `view.htm
 
 ---
 
-[Documentation index](../README.md) · Previous: [Troubleshooting](../guides/troubleshooting.md) · Next: [Page messages](messages.md)
+[Learning path](../README.md) · Previous: [Troubleshooting](../guides/troubleshooting.md) · Next: [Page messages](messages.md)

@@ -1,15 +1,16 @@
 # Contribute
 
-English | [简体中文](contributing.zh-CN.md) · [Documentation index](README.md)
+English | [简体中文](contributing.zh-CN.md) · [Learning path](README.md)
 
 Try the example, connect a new host, or improve the build API. [Open an issue](https://github.com/yodaos-project/aiui-mcpkit/issues) with the client version, build command, and reproduction steps; reports from Claude Desktop and other MCP Apps hosts are especially useful.
 
 | Command | Purpose |
 | --- | --- |
 | `npm run build` | Build the ESM library, types, and runtime templates |
-| `npm run build:examples` | Build both examples and their shared marketplace |
+| `npm run build:examples` | Build all six examples and their shared marketplace |
 | `npm run update:examples` | Update installed example UIs, servers, and manifests |
 | `npm run start:examples` | Start Counter, or select `-- business` |
+| `npm run watch:examples -- counter` | Start the beginner browser preview and rebuild on save |
 | `npm run typecheck` | Check TypeScript types |
 | `npm test` | Run packaging, MCP, and browser tests |
 | `npm run bench` | Measure rendering, server and packaging baselines |
@@ -41,8 +42,17 @@ This tests all four real-WASM scenarios and server workloads; it does not enforc
 
 ## Documentation changes
 
-Keep article pairs, language-switch links and topic indexes aligned. Update public examples when APIs change, use source-linked runnable examples, and distinguish host observations from browser-harness verification. Prefer adding detailed explanations to `docs/` over growing the root README. Preserve the benchmark forwarding pages for existing source-directory links.
+Keep the [learning path](README.md) progressive. A beginner should be able to finish each lesson with a visible result before learning the next capability.
+
+1. State the goal, prerequisites and command working directory before code.
+2. Define a new term when first needed. Put protocol contracts and implementation details in reference/advanced pages.
+3. Label complete files with their paths; identify snippets and where to insert them. Distinguish terminal commands, chat prompts and tool inputs.
+4. Give the expected result, a small completion check and one next step. Introduce client installation, Workers and automation only in the lessons that need them.
+5. Keep English/Chinese pages, navigation and examples aligned. Preserve existing public paths and benchmark forwarding pages.
+6. Check links, anchors, Markdown/code syntax and rendered layout. When a tutorial's commands or complete examples change, run that path and record the actual result. Documentation-only changes do not require unrelated runtime benchmarks.
+
+Source-linked examples and verification records should distinguish local preview behavior from actual desktop-host and model behavior. Prefer detailed explanations in `docs/` and a short path into them from the root README.
 
 ---
 
-[Documentation index](README.md) · Previous: [Benchmarks](reference/benchmarks.md)
+[Learning path](README.md) · Previous: [Benchmarks](reference/benchmarks.md)

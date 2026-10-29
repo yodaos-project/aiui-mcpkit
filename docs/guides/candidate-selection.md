@@ -1,6 +1,10 @@
 # Candidate selection and model context
 
-English | [简体中文](candidate-selection.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](candidate-selection.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** The assistant returns candidates and the user needs to choose what enters the next conversation turn.
+
+**Before you start:** Read [business tool setup](business-tools.md) and [Agent sessions](agent-session.md). This guide uses the Worker-backed Business Demo; the [example collection](../../examples/README.md) has simpler UI-only starting points.
 
 The [Business Demo](../../examples/business/app.json) includes a complete candidate selection page. `find_products` returns validated product candidates; the user chooses a product and clicks **ASK ABOUT SELECTION** to publish the choice and send a user message. This is a demo catalog and makes no purchase or durable business write.
 
@@ -58,4 +62,6 @@ Record UI actions performed by a person separately from actions performed by an 
 
 ---
 
-[Documentation index](../README.md) · [Verification record](../validation/candidate-selection-2026-10-28.md)
+[Learning path](../README.md) · [Verification record](../validation/candidate-selection-2026-10-28.md)
+
+**Next, if needed:** [Share one App between several tools](shared-agent.md).

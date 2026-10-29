@@ -1,6 +1,8 @@
 # 渲染与打包基准
 
-[English](benchmarks.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](benchmarks.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+功能已经跑通、需要测量性能时阅读。先完成[贡献者环境准备](../contributing.zh-CN.md)；截图和就绪检查则使用[预览验证](../guides/preview-verification.zh-CN.md)。
 
 本套件用于建立 [issue #18](https://github.com/yodaos-project/aiui-mcpkit/issues/18) 的基线：在固定的本地 MCP Apps `AppBridge` 浏览器 host 中运行生成的 MCPKit 插件和**真实 Ink WASM**。无需修改 Ink，也不代表桌面客户端兼容性验收。
 
@@ -93,4 +95,4 @@ API 参考：[Playwright CDPSession](https://playwright.dev/docs/api/class-cdpse
 
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[协议兼容性](compatibility.zh-CN.md) · 下一篇：[参与贡献](../contributing.zh-CN.md)
+[学习路线](../README.zh-CN.md) · 上一篇：[协议兼容性](compatibility.zh-CN.md) · 下一篇：[参与贡献](../contributing.zh-CN.md)

@@ -1,6 +1,10 @@
 # 构建标识与旧视图诊断
 
-[English](build-diagnostics.md) | 简体中文 · [文档索引](../README.zh-CN.md)
+[English](build-diagnostics.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 源码已保存并重建，客户端却仍显示旧应用或旧工具定义。
+
+**开始前：** 先看[源码、构建与安装副本的更新流程](development.zh-CN.md)。build ID 是生成版本的指纹，先比较各份副本，再处理缓存。
 
 每次构建生成 `build.json` 和由内容决定的 SHA-256 构建 ID，覆盖源码、打包后的运行时与依赖、配置以及服务端和视图载荷。相同输入构建到不同输出目录时 ID 相同；源码、配置或运行时变化会产生新 ID。插件 `version` 仍是单独指定的发布版本，不要求时间戳或 Git 仓库。
 
@@ -77,3 +81,5 @@ console.log(await diagnosePlugin({
 不会在地址附加哈希、版本或查询参数。引入诊断保留现有引用和 `ui/resourceUri` 别名。没有构建标记的旧安装、旧视图仍可使用；诊断将证据标记为旧版或未观察，不会推测 ID。
 
 重命名插件、工具、application 或删除资源会改变公共地址。兼容升级应在增加新入口时保留原标识和资源；作者管理的 HTML 可用 `uiResources` 保留旧地址，通过 `toolMetadata` 选择新入口。生成 App 应继续注册原工具或 application，作为迁移期间的旧路由。必须移除旧地址时，先记录旧、新 URI 映射，更新客户端或插件注册，重载发现并打开新卡片。框架无法迁移或强制刷新已有卡片。新 ID 用于识别构建，不负责使宿主缓存失效，也不代表语义 API 兼容性。
+
+**按需继续：** [按现象继续排查](troubleshooting.zh-CN.md)。

@@ -1,6 +1,10 @@
 # 运行时集成与 Agent Worker
 
-[English](runtime-integration.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](runtime-integration.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 要部署 Worker 宿主，或实现与 Ink 运行时的集成。
+
+**开始前：** 普通服务端函数从[第一个业务工具](first-business-tool.zh-CN.md)开始；可选 Worker 方式先看[业务工具配置](business-tools.zh-CN.md)。本篇是实现与部署契约。
 
 本篇介绍 [Agent 会话示例](agent-session.zh-CN.md)背后的运行时契约、无界面业务执行和部署要求。
 
@@ -83,4 +87,6 @@ INK_WORKER_BIN=/absolute/path/to/ink-worker npm test
 
 ---
 
-[文档目录](../README.zh-CN.md) · [协议兼容性](../reference/compatibility.zh-CN.md)
+[学习路线](../README.zh-CN.md) · [协议兼容性](../reference/compatibility.zh-CN.md)
+
+**按需继续：** [核对协议与客户端边界](../reference/compatibility.zh-CN.md)。

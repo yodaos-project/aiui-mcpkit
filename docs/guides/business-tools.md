@@ -1,12 +1,25 @@
-# Business tools in Agent Workers
+# Business tools: Node handlers and Workers
 
-English | [简体中文](business-tools.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](business-tools.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** You have a working business call and want to choose its execution backend or add typed contracts.
+
+**Before you start:** Finish [your first business result](first-business-tool.md) for the simplest Node handler. The Worker sections below are an optional next step.
 
 The [Business Demo](../../examples/business) implements `quote_order`, `check_stock` and `find_products` as `ModelContext.defineAction()` methods in [workers/business.js](../../examples/business/workers/business.js). Pages display results and publish selected context. MCPKit generates the protocol server; the example needs no handwritten server handlers.
 
+## Choose the execution backend
+
+| Choose | When it fits | Where code runs |
+| --- | --- | --- |
+| **Node handler** | Your first calculation, external API call or server integration | The generated Node.js MCP server; supports server environment variables. |
+| **Agent Worker** | You want business actions executed by Ink independently of an open UI | A separately configured Ink Worker host. |
+
+A Worker is a program that runs without drawing a page. Its source is included in the app bundle, so keep secrets in server code instead. For the complete Node tutorial, use [your first business tool](first-business-tool.md); the remaining Worker sections explain the optional Ink backend.
+
 ## Declare and build the Worker
 
-Register the Worker in `app.json.agentWorkers`:
+Add the following **array entry** to `app.json.agentWorkers`, preserving the rest of your manifest:
 
 ```json
 { "name": "business", "script": "workers/business.js", "trigger": { "type": "open" }, "lifetime": "foreground" }
@@ -99,6 +112,8 @@ A page opener without `schema.output` needs no handler. A business tool with `sc
 
 For the Node adapter, export `handlers` from `<source>/mcp-server/handlers.ts`, or select another module with `buildPlugin({ ..., handlers: '/absolute/path/to/handlers.ts' })`. Use generated types:
 
+For the typed fragment below, set `typesFile: './agent/.mcpkit/tools.d.ts'` when building `source: './agent'`, and keep the handler in `agent/mcp-server/handlers.ts`. That makes its relative type import resolve. Without a custom `typesFile`, declarations are generated as `tools.d.ts` inside the output directory.
+
 ```ts
 import type { BusinessHandlers } from '../.mcpkit/tools.js';
 
@@ -123,4 +138,6 @@ Worker builds require a manifest entry matching `worker.name` and cannot also se
 
 ---
 
-[Documentation index](../README.md)
+[Learning path](../README.md)
+
+**Next, if needed:** [Handle loading and cancellation](tool-lifecycle.md).

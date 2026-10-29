@@ -1,24 +1,57 @@
-# Edit, rebuild, repeat
+# Edit, preview and update
 
-English | [简体中文](development.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](development.zh-CN.md) · [Learning path](../README.md)
 
-**Prerequisites:** Node 22+ and installed repository dependencies. Updating installed plugins also needs a client connection. Commands below run from the repository root.
+**Use this when:** you have [a working app](../getting-started/first-agent.md) and want a repeatable edit/preview loop, or need to update the copy installed in a client. Run commands from the repository root after `npm ci`.
 
-## Watch and reload locally
+## 1. Choose the copy you are working on
+
+| You are using | What to do after editing source |
+| --- | --- |
+| **Browser preview** | Keep the watcher running; it rebuilds and reloads automatically. |
+| **Directly registered server** | Rebuild its output, restart the client's MCP connection and open a fresh View. |
+| **Installed plugin** | Rebuild, update/reinstall the client's copied plugin, restart its connection and open a fresh View. |
+
+## 2. Edit with a local preview
+
+For a repository example:
 
 ```sh
-npm run watch:examples -- counter --input '{"initialCount":5}'
-# Or: npm run watch:examples -- business
+npm run watch:examples -- counter
 ```
 
-Open the printed loopback URL. Agent edits trigger complete builds and automatically replace the preview iframe using the real MCP Apps bridge and Ink/WASM. These independent plugins live in `dist/watch/<example>`; installed marketplace copies are not updated. Opening the URL needs no browser automation dependency. The preview supplies launch input and display context; business/host tool services require an integration harness.
+Open the URL from the terminal's `preview` line. Change `examples/counter/pages/counter/index.ink`, save and wait for a successful build. [Your first edit](../getting-started/edit-example.md) shows exactly which line to change.
 
-For your own Agent, build the library first, then run the helper from any working directory:
+For the app from the page-tool lesson:
 
 ```sh
-node /path/to/aiui-mcpkit/scripts/build-plugin.mjs ./agent --name my-agent --watch \
-  --out ./dist/my-agent --port 4173 --input '{"recordId":"42"}'
+node scripts/build-plugin.mjs ./my-agent --name my-agent --out ./dist/my-agent --watch --input '{"initialCount":5}'
 ```
+
+Before adding its required input schema, you can omit `--input`. The helper needs the library built once with `npm run build`.
+
+A successful reload starts a fresh App/Page instance and resets in-memory state. A failed build leaves the previous successful preview running; fix the terminal diagnostic and save again. Press Ctrl+C to stop. Choose a dedicated output directory: the watcher owns and replaces its whole contents.
+
+The ordinary preview shows UI and launch input. Server business calls and conversation services need a supporting client or test harness.
+
+## 3. Update the client copy deliberately
+
+The watcher writes `dist/watch/counter/` for the Counter example. Installable examples are built separately into `dist/examples/`; neither folder automatically replaces the client's cached plugin.
+
+For an already-installed repository Counter:
+
+```sh
+npm run update:examples -- --example counter
+```
+
+Then reload the client's server/host and open a new View. For your own app, rerun its build command and use the client's update/reinstall flow. `update:examples` handles the repository examples, not your `my-agent` app.
+
+**Checkpoint:** a saved edit appears in the browser; after updating a client, its new View shows the same change. If it does not, use [build diagnostics](build-diagnostics.md).
+
+## Advanced: build-system integration and exact reload behavior
+
+<details>
+<summary>ESM watch API, rebuild ordering and lifecycle guarantees</summary>
 
 `--no-preview` watches/builds without serving a preview. Ctrl+C/SIGTERM stops polling and waits for the in-flight build to be discarded. The watcher owns its entire output directory: use an empty directory or the same built plugin, and keep unrelated files elsewhere. `typesFile` must be inside the output so declarations and artifacts publish together.
 
@@ -56,6 +89,11 @@ Each changed successful build reloads the local iframe. **App/Page memory and na
 
 After success, `state.action` is `reload-view`, `restart-server`, or `refresh-manifest`; it is `none` during builds/failures. `hostSteps` provides manual instructions. The watcher does not restart real-host stdio connections, copy installed plugins, or bypass host caching. Compare the actual server `_meta.mcpkit.build.id` and loaded View marker with the successful ID. If a new card remains stale, use [build diagnostics](build-diagnostics.md) to inspect the connection and host resource cache. Local reload does not verify desktop or model behavior.
 
+</details>
+
+<details>
+<summary>Installed plugin paths, update helpers and diagnostics</summary>
+
 ## Pick the update route
 
 | Connection | After changing source |
@@ -87,6 +125,6 @@ To start one stdio server from the terminal, use `npm run start:examples` (Count
 
 Use `npm run diagnose:examples -- --example counter --plugin-dir /absolute/path/to/installed/ink-counter` to compare source/build and installed bytes without changing them. For actual server/View IDs, cache diagnosis and URI upgrade rules, see [build diagnostics](build-diagnostics.md). The update helper does not restart servers or clear host caches.
 
----
+</details>
 
-[Documentation index](../README.md) · Previous: [Client setup](clients.md) · Next: [Troubleshooting](troubleshooting.md)
+**Next, if needed:** [Troubleshoot a failure](troubleshooting.md) or [verify a preview automatically](preview-verification.md).

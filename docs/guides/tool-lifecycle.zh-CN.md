@@ -1,30 +1,75 @@
 # 工具请求生命周期
 
-[English](tool-lifecycle.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](tool-lifecycle.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**目标：** 展示加载与进度、处理错误并停止未完成任务。先读[业务工具](business-tools.zh-CN.md)和[消息格式](../reference/messages.zh-CN.md)。下方页面方法是接入片段；完整可运行实现见[业务页面](../../examples/business/pages/order/index.ink)。
+**适用场景：** 业务调用需要等待，界面要显示加载、错误、进度或取消。
+
+**开始前：** 先跑通[业务结果](first-business-tool.zh-CN.md)。下面是 Page 方法集成片段，接入时再查[消息格式](../reference/messages.zh-CN.md)中的字段。
+
+下面的片段为 Page 方法添加生命周期处理，完整实现可以对照[业务页面](../../examples/business/pages/order/index.ink)。
 
 界面应在发起前记录 ID，`pending` 期间禁用冲突操作，仅更新匹配该 ID 的进度，并在所有终态清除加载。使用每个界面递增的序号生成 ID，例如 `quote-${++this.sequence}`，不要反复使用固定名称。调用外部操作前，先确认宿主当前实际可调用的工具及 `serverTools` 能力。
 
-Agent 页面可以通过 Ink 消息调用 MCP Apps 宿主暴露的工具。这需要宿主提供 `serverTools` 能力和工具访问权限；MCPKit 本身不会注册外部业务工具。每次调用的 `requestId` 必须在视图生命周期内唯一：
+## 1. 点击按钮发起计算
+
+使用[第一个业务工具](first-business-tool.zh-CN.md)中的应用。宿主需要通过 `serverTools` 能力将 `calculate_total` 暴露给 View，普通浏览器监听预览不提供该服务。
+
+把以下**方法**加入 Page 已有的默认导出对象，保留 `data` 和其他方法。对象成员之间用逗号分隔：
 
 ```js
-// 在 Ink 页面内调用：
-this.postMessage({
-  type: 'mcpkit:call-tool', requestId: 'weather-1',
-  name: 'get_weather', arguments: { city: 'Hangzhou' },
-});
-// 取消该请求：
-this.postMessage({ type: 'mcpkit:cancel-tool', requestId: 'weather-1' });
-
-// 在页面定义中添加：
-onMessage(event) {
-  const request = event.data;
-  if (request.type !== 'mcpkit:tool-state') return;
-  // 按 ID 分别保存状态；pending 显示加载，其他状态结束加载。
-  this.setData({ weatherRequest: request });
-}
+requestQuote() {
+  this.quoteSequence = (this.quoteSequence || 0) + 1;
+  this.activeQuoteRequest = 'quote-' + this.quoteSequence;
+  this.postMessage({
+    type: 'mcpkit:call-tool',
+    requestId: this.activeQuoteRequest,
+    name: 'calculate_total',
+    arguments: { quantity: 2 },
+  });
+},
+cancelQuote() {
+  if (this.activeQuoteRequest) {
+    this.postMessage({
+      type: 'mcpkit:cancel-tool',
+      requestId: this.activeQuoteRequest,
+    });
+  }
+},
 ```
+
+在现有 `<view>` 中添加以下**组件**：
+
+```html
+<view style="display: flex; flex-direction: row; gap: 8px">
+  <button bindtap="requestQuote">CALCULATE</button>
+  <button bindtap="cancelQuote">CANCEL</button>
+</view>
+```
+
+## 2. 同时处理初始结果与后续结果
+
+将原来的 `onMessage()` 替换为以下**方法片段**。它保留初始结果处理，并添加当前调用的请求状态：
+
+```js
+onMessage(event) {
+  const message = event.data;
+  if (message.type === 'mcpkit:tool-result') {
+    if (message.isError) this.setData({ status: 'Error' });
+    else this.setData({ ...message.structuredContent, status: 'Ready' });
+    return;
+  }
+  if (message.type !== 'mcpkit:tool-state') return;
+  if (message.requestId !== this.activeQuoteRequest) return;
+  this.setData({ status: message.state });
+  if (message.state === 'ready' && !message.result.isError) {
+    this.setData(message.result.structuredContent);
+  }
+},
+```
+
+每次新请求使用新的 ID。`pending` 表示等待，`ready`、`error`、`cancelled` 都会结束等待。如果同时存在多次调用，需要按各自 ID 保存状态。
+
+本例计算完成很快；想观察较长的加载与取消过程，可以运行异步的[业务示例](business-tools.zh-CN.md)。取消不会撤销已经完成的结果。
 
 响应包含 `type: 'mcpkit:tool-state'`、`requestId`、`state`、从 1 开始的 `attempt` 和实际生效的 `policy`。`pending` 可携带 `progress`；`ready` 携带 MCP 工具的 `result`；`error` 和 `cancelled` 在 `error` 中提供 `{ code, message }`。超时代码为 `request_timeout` 和 `total_timeout`，业务及传输失败为 `tool_error`。工具名或参数无效时返回 `invalid_request`，不会执行调用；缺失或空 ID 会被忽略。重复使用 ID 也会被忽略，包括已完成的请求，避免延迟消息启动或覆盖其他调用。并发时应按 ID 保存各自状态。宿主取消、页面替换和视图关闭会取消所有未完成调用；指定 ID 的取消只影响该请求。
 
@@ -32,12 +77,12 @@ onMessage(event) {
 
 ```js
 await buildPlugin({
-  source: './weather-agent', name: 'weather-agent',
+  source: './my-quote', name: 'my-quote',
   requestPolicy: {
     totalTimeoutMs: 60000, requestTimeoutMs: 15000,
     resetTimeoutOnProgress: true, maxRetries: 1, retryDelayMs: 250,
   },
-  retrySafeTools: ['get_weather'],
+  retrySafeTools: ['calculate_total'],
 });
 ```
 
@@ -90,4 +135,6 @@ const result = await handle.result; // 失败、取消或超时会 reject
 
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[带类型的业务工具](business-tools.zh-CN.md) · 下一篇：[公开元数据](metadata.zh-CN.md)
+[学习路线](../README.zh-CN.md)
+
+**按需继续：** [检查请求过程](inspector.zh-CN.md)。

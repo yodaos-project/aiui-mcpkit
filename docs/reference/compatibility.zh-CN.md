@@ -1,6 +1,8 @@
 # 协议兼容性
 
-[English](compatibility.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](compatibility.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+确认协议或宿主能力是否支持、验证到了哪一层。首次连接客户端时，先按[客户端接入](../guides/clients.zh-CN.md)操作。
 
 目标已发布 MCP 规范为 **2026-07-28**。运行时依赖固定为 `@modelcontextprotocol/server`、`client`、`core` **2.2.0**，以及 `@modelcontextprotocol/ext-apps` **2.0.3**。界面契约采用已发布的 [MCP Apps 2026-01-26 规范](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)；**View** 是包含 AIUI 运行时的 Apps iframe。不声明草案契约支持。
 
@@ -24,4 +26,4 @@
 
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[页面消息](messages.zh-CN.md) · 下一篇：[性能基准](benchmarks.zh-CN.md)
+[学习路线](../README.zh-CN.md) · 上一篇：[页面消息](messages.zh-CN.md) · 下一篇：[性能基准](benchmarks.zh-CN.md)

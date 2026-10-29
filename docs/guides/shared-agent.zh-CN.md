@@ -1,6 +1,10 @@
 # 多工具共享一个 App
 
-[English](shared-agent.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](shared-agent.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 希望多次工具调用更新同一个工作区，并保留导航与选择。
+
+**开始前：** 先运行[业务示例](business-tools.zh-CN.md)，并了解[实时 App/Page 工具](agent-session.zh-CN.md)。共享 App 先解决单个 View 内的状态保留，销毁后恢复放在下一篇。
 
 Business Demo 提供搜索、商品详情和选择共享目录。Worker Action 查询并校验演示商品，App Action 更新原有的实时界面。不购买商品，无需示例专用 MCP server。
 
@@ -57,3 +61,5 @@ node scripts/update-examples.mjs --example business
 `tests/shared-agent-browser.test.mjs` 使用真实 stdio 服务、Ink WASM、两个同时打开的 View 和另一个浏览器页面，覆盖资源去重、独立契约、搜索/详情/选择、新数据保留状态、返回导航、迟到结果、选择失败、销毁与隔离。`tests/metadata.test.mjs` 覆盖契约绑定到其他 UI 页面及非法注册。
 
 目标客户端需记录版本、SDK 和真实调用：搜索 travel、查看包详情、选择包、停留详情时搜索 lamp，再读取状态。实例编号应相同，详情和选择仍是包，搜索已更新为 lamp。返回搜索页，打开第二个目录，确认其没有选择。浏览器 bridge 测试不证明桌面宿主已向模型路由实时工具；结果见[验收记录](../validation/shared-agent-2026-10-28.md)。
+
+**按需继续：** [重建后恢复指定状态](state-restoration.zh-CN.md)。

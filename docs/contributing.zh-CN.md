@@ -1,15 +1,16 @@
 # 参与贡献
 
-[English](contributing.md) | 简体中文 · [文档目录](README.zh-CN.md)
+[English](contributing.md) | 简体中文 · [学习路线](README.zh-CN.md)
 
 欢迎体验示例、接入新的宿主，或改进构建 API。[提交问题](https://github.com/yodaos-project/aiui-mcpkit/issues)时，请附上客户端版本、构建命令和复现步骤；Claude Desktop 和其他 MCP Apps 宿主的实测反馈尤其有帮助。
 
 | 命令 | 用途 |
 | --- | --- |
 | `npm run build` | 构建 ESM 库、类型声明和运行时模板 |
-| `npm run build:examples` | 构建两个示例及共享 marketplace |
+| `npm run build:examples` | 构建六个示例及共享 marketplace |
 | `npm run update:examples` | 更新已安装示例的界面、服务端及 manifest |
 | `npm run start:examples` | 启动 Counter，或用 `-- business` 选择业务示例 |
+| `npm run watch:examples -- counter` | 启动新手浏览器预览，保存后重建 |
 | `npm run typecheck` | 检查 TypeScript 类型 |
 | `npm test` | 运行打包、MCP 和浏览器测试 |
 | `npm run bench` | 测量渲染、服务端和打包基线 |
@@ -41,8 +42,17 @@ npm run bench -- --samples 1 --operations 3 --idle-ms 250 \
 
 ## 修改文档
 
-保持文章对、中英文入口和目录一致。API 变化时更新公开示例，提供链接到源码的可运行参考，区分实际宿主观察和浏览器测试验证。详细说明优先写入 `docs/`，避免继续扩充根 README。保留 benchmark 转发页，兼容原源码目录入口。
+保持[学习路线](README.zh-CN.md)渐进式：读者先在一篇教程里得到能看到的结果，再学习下一种能力。
+
+1. 代码前写清目标、前置条件与命令执行目录。
+2. 在第一次用到时解释新术语，将协议契约和实现细节放进参考或进阶页面。
+3. 完整文件标注路径；片段说明插入位置。区分终端命令、对话提示词与工具输入。
+4. 给出预期结果、完成检查和一个下一步。客户端安装、Worker 与自动化在用到它们的教程中再引入。
+5. 保持中英文文章、导航与示例一致，保留已有公开路径和 benchmark 转发页。
+6. 检查链接、锚点、Markdown/代码语法与渲染布局。教程命令或完整示例改变时，实际走通该路径并记录结果。纯文档改动无需运行无关的运行时 benchmark。
+
+可运行示例应链接到源码，验证记录区分本地预览、真实桌面宿主与模型行为。详细解释优先写入 `docs/`，根 README 保留简短入口。
 
 ---
 
-[文档目录](README.zh-CN.md) · 上一篇：[性能基准](reference/benchmarks.zh-CN.md)
+[学习路线](README.zh-CN.md) · 上一篇：[性能基准](reference/benchmarks.zh-CN.md)

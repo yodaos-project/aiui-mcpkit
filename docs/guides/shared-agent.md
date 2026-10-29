@@ -1,6 +1,10 @@
 # Multiple tools in one App
 
-English | [简体中文](shared-agent.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](shared-agent.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** Several tool calls should update the same open workspace while preserving its navigation and selection.
+
+**Before you start:** Run the [business demo](business-tools.md) and understand [live App/Page tools](agent-session.md). A shared App keeps state for one View; restoration across destroyed Views comes later.
 
 Business Demo includes a shared catalog with search, product details and selection. Worker actions query and validate demo products; App actions update the original live UI. No purchase is made and no example-specific MCP server is needed.
 
@@ -57,3 +61,5 @@ New cards, Views, users and conversations do not join an existing instance autom
 `tests/shared-agent-browser.test.mjs` runs the real stdio server, Ink WASM, two simultaneous Views and another browser page. It verifies resource deduplication, independent contracts, search/detail/selection, preservation after new tool data, back navigation, stale results, failed selection, teardown and state isolation. `tests/metadata.test.mjs` checks bindings to a different UI page and invalid registrations.
 
 For target-client acceptance, record the client version, SDK and actual calls. Search travel, inspect the bag, select it, search lamp while remaining on detail, and read state. The instance ID must stay the same, detail and selection must remain the bag, and search must become lamp. Return to search, open a second catalog and confirm it has no selection. Browser bridge tests do not prove that the desktop host routes live tools to its model. See the [validation record](../validation/shared-agent-2026-10-28.md).
+
+**Next, if needed:** [Restore selected state after reconstruction](state-restoration.md).

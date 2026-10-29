@@ -1,6 +1,10 @@
 # 录制与回放 Agent 交互
 
-[English](interaction-replay.md) | 简体中文 · [文档索引](../README.zh-CN.md)
+[English](interaction-replay.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 已有可用交互，希望把它回放为自动化回归检查。
+
+**开始前：** 先了解 [Inspector](inspector.zh-CN.md)和[预览验证](preview-verification.zh-CN.md)。按录制、检查导出数据、使用显式工具 mock 与状态断言回放的顺序操作。
 
 从全新的开发 View 开始录制，在 Inspector 中导出经过授权的测试数据，再在隔离浏览器中执行同样的输入和画布操作。回放校验公开状态断言、实际发出的工具请求和显式模型上下文。截图是补充证据，不能替代语义断言。
 
@@ -105,4 +109,6 @@ Mock 按调用顺序存储为 `{name, input, result}`；结果包含 MCP `conten
 
 运行 `npm run build:examples`，再执行 `node --test tests/interactions.test.mjs tests/interactions-browser.test.mjs` 可复现完整回放及失败检查。浏览器用例录制选择、展开、全屏和宿主结果，回放两次、比较画布，并覆盖错误状态/上下文/mock 及被阻断的网络写入。
 
-[文档索引](../README.zh-CN.md) · [Inspector](inspector.zh-CN.md) · [预览验证](preview-verification.zh-CN.md)
+[学习路线](../README.zh-CN.md) · [Inspector](inspector.zh-CN.md) · [预览验证](preview-verification.zh-CN.md)
+
+**按需继续：** [查看回放验证记录](../validation/interaction-replay-2026-10-29.md)。

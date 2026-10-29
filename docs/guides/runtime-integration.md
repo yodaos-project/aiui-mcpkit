@@ -1,6 +1,10 @@
 # Runtime integration and Agent Workers
 
-English | [简体中文](runtime-integration.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](runtime-integration.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** You are deploying a Worker host or implementing an integration with the Ink runtime.
+
+**Before you start:** Use [the first business tool](first-business-tool.md) for an ordinary server function, or [Worker setup](business-tools.md) for the optional backend. This page is the implementation/deployment contract.
 
 Use this guide for the runtime contracts, headless business execution and deployment details behind the [Agent-session examples](agent-session.md).
 
@@ -129,4 +133,6 @@ This MCP Apps adapter advertises neither `conversation.sendCard` nor
 
 ---
 
-[Documentation index](../README.md) · [Protocol compatibility](../reference/compatibility.md)
+[Learning path](../README.md) · [Protocol compatibility](../reference/compatibility.md)
+
+**Next, if needed:** [Check protocol and client boundaries](../reference/compatibility.md).
