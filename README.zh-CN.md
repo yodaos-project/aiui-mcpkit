@@ -111,132 +111,36 @@ https://github.com/user-attachments/assets/487a1771-ca2d-4b04-91f4-8a55f8f8eba1
 
 ## 快速开始
 
-**准备：** Node.js **22+**、Git，以及支持 WASM 的 MCP Apps 客户端。先体验 Counter；业务示例还需要配置 [`ink-worker`](docs/guides/business-tools.zh-CN.md)。
+先在浏览器里体验，只需要 **Node.js 22+**、Git 和文本编辑器。第一个预览不需要 AI 账号或 API Key。
 
-### 1. 构建示例
+在终端运行：
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
 cd aiui-mcpkit
 npm ci
-npm run build:examples
+npm run watch:examples -- counter
 ```
 
-构建后，`dist/examples/` 下会生成六个独立插件。Counter 和四个视觉示例无需原生 Worker 或外部服务。[查看全部示例 →](examples/README.zh-CN.md)
+打开终端 `preview` 行中的地址，并保持命令运行。Counter 从 **0** 开始，点击 **+ ADD ONE** 后变成 **1**。保存源码改动会触发重建与刷新；按 **Ctrl+C** 结束预览。
 
-### 2. 安装 Counter
+[完整首次体验教程 →](docs/getting-started/quickstart.zh-CN.md) · [准备环境 →](docs/getting-started/installation.zh-CN.md)
 
-在 Codex Desktop 中体验时，使用支持插件命令的 Codex CLI：
-
-```sh
-codex plugin marketplace add ./dist/examples
-codex plugin add ink-counter@aiui-mcpkit-examples
-```
-
-重启宿主，确认当前会话中能发现 `open_counter`。Claude Desktop、VS Code 和直接 stdio 注册方式见[客户端接入](docs/guides/clients.zh-CN.md)。
-
-### 3. 体验交互
-
-让助手执行：
-
-```text
-用 { "initialCount": 5, "label": "Demo" } 调用 open_counter。
-```
-
-点击 **+ ADD ONE**，计数应从 **5 变为 6**。
-
-[查看 Counter 源码 →](examples/counter/pages/counter/index.ink) · [完整示例教程 →](docs/getting-started/quickstart.zh-CN.md)
-
-<details>
-<summary><strong>体验旅行、专注、数据洞察与活动预约</strong></summary>
-
-添加上面的 marketplace 后，可按需安装以下插件，再重新加载宿主：
-
-```sh
-codex plugin add travel-planner@aiui-mcpkit-examples
-codex plugin add focus-studio@aiui-mcpkit-examples
-codex plugin add analytics-lab@aiui-mcpkit-examples
-codex plugin add event-booking@aiui-mcpkit-examples
-```
-
-| 调用 | 可以体验什么 |
-| :--- | :--- |
-| `open_trip({ "day": 2 })` | 切换日期、收藏地点，显式分享选中的内容。 |
-| `open_focus({ "minutes": 25, "task": "Write the next chapter" })` | 开始、暂停或重置专注计时。 |
-| `open_analytics({ "period": "month" })` | 切换统计周期，同步更新图表。 |
-| `open_workshop({ "seats": 2 })` | 选择场次并核对演示预约。 |
-
-直接启动 stdio 服务可使用 `npm run start:examples -- travel`，其他 ID 为 `counter`、`business`、`focus`、`analytics`、`events`。打开的 View 通过 `ModelContext.defineAction()` 暴露只读的 `trip_state`、`focus_state`、`analytics_state` 和 `workshop_state`，查询需要宿主支持实时 View 工具路由。[示例指南 →](examples/README.zh-CN.md)
-
-</details>
-
-<details>
-<summary><strong>继续体验：报价、商品选择与共享目录</strong></summary>
-
-按 [Worker 配置指南](docs/guides/business-tools.zh-CN.md)，将 `ink-worker` 放入服务进程的 PATH，或设置 `INK_WORKER_BIN`，然后安装：
-
-```sh
-codex plugin add business-demo@aiui-mcpkit-examples
-```
-
-重新加载宿主，确认当前会话中可以发现工具。
-
-| 调用 | 预期结果 |
-| :--- | :--- |
-| `quote_order({ "quantity": 2 })` | **CNY 40**、剩余库存 **98**；宿主开启工具访问后，可使用计算与取消按钮。 |
-| `find_products({ "query": "travel" })` | 返回候选商品，用户通过显式操作发布选择并向助手提问。 |
-| `search_catalog({ "query": "travel" })` | 打开支持搜索、详情与选择的共享目录 App，实时 App Action 更新同一个实例。 |
-
-示例使用 AgentWorker 的 `ModelContext.defineAction()` 方法实现业务。[候选选择](docs/guides/candidate-selection.zh-CN.md)、[共享 App](docs/guides/shared-agent.zh-CN.md)和显式接入的[状态恢复](docs/guides/state-restoration.zh-CN.md)均有独立指南。消息、实时工具路由和恢复能力由宿主支持情况决定。
-
-</details>
+预览使用真实 Ink/WASM，并提供启动参数；它不运行 AI 模型或服务端业务调用。准备好接入助手后，再按[客户端接入](docs/guides/clients.zh-CN.md)操作。
 
 ## 构建自己的智能体
 
-创建包含 `app.json` 和已注册 `.ink` 页面的 AIUI 智能体。在页面的 `script def` 中添加工具元数据与输入 schema，需要业务结果时再添加 `schema.output`。
+每次只增加一种能力，每一步都有可以运行的结果：
 
-构建本仓库后，将下面内容保存为仓库根目录的 `build-agent.mjs`，智能体源码放在 `./agent/`：
+1. **[第一次修改](docs/getting-started/edit-example.zh-CN.md)** — 修改按钮，看到自动刷新
+2. **[第一个应用](docs/getting-started/first-agent.zh-CN.md)** — 用两个源文件创建自己的应用
+3. **[页面工具](docs/guides/page-tools.zh-CN.md)** — 用经过校验的工具参数打开它
+4. **[连接客户端](docs/guides/clients.zh-CN.md)** — 在助手中调用它
+5. **[第一个业务工具](docs/guides/first-business-tool.zh-CN.md)** — 将计算结果同时返回给助手和界面
 
-```js
-import { buildPlugin } from '@yodaos-pkg/aiui-mcpkit';
+[查看完整学习路线 →](docs/README.zh-CN.md)
 
-const plugin = await buildPlugin({
-  source: './agent',
-  name: 'my-agent',
-  outputDir: './dist/my-agent',
-});
-
-console.log(plugin.outputDir);
-```
-
-执行 `node build-agent.mjs`，生成 `view.html`、`dist/server.mjs` 和插件/连接 manifest。部署宿主需要 Node.js 22+；原生 Worker 执行还需要 `ink-worker`。
-
-| 接下来想做什么 | 对应指南 |
-| :--- | :--- |
-| 创建源码文件，写出第一个按钮 | [创建第一个 Agent](docs/getting-started/first-agent.zh-CN.md) |
-| 将页面参数变成带校验的工具 | [页面工具](docs/guides/page-tools.zh-CN.md) |
-| 添加类型明确的业务操作 | [业务工具](docs/guides/business-tools.zh-CN.md) |
-| 在独立 Node.js 项目中使用 MCPKit | [ESM 包接入](docs/guides/esm-build.zh-CN.md) |
-
-### 让助手读取实时界面状态
-
-将下面的方法加入 Page 默认导出对象，即可把当前选择暴露为绑定实例的工具：
-
-```js
-export default {
-  data: { selectedSku: 'DEMO' },
-  getSelection: ModelContext.defineAction({
-    name: 'get_selection',
-    description: '读取当前页面选中的商品',
-    annotations: { readOnlyHint: true },
-    execute() {
-      return { selectedSku: this.data.selectedSku };
-    },
-  }),
-};
-```
-
-在按钮事件中，`getApp().getAgent().conversation.sendMessage()` 可发送用户消息，`agent.provideContext()` 可为后续轮次发布上下文。[Agent 会话](docs/guides/agent-session.zh-CN.md)提供完整页面、动态工具、上下文更新与撤销示例。宿主需要将 View 工具路由给模型，并开启对应的对话能力。
+已经在做项目集成？可以直接看 [ESM 接入](docs/guides/esm-build.zh-CN.md)和[构建 API](docs/reference/build-api.zh-CN.md)。[示例集合](examples/README.zh-CN.md)介绍六个插件及其安装命令。
 
 ## 客户端支持
 

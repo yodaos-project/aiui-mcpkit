@@ -1,6 +1,10 @@
 # Agent 会话与实时工具
 
-[English](agent-session.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](agent-session.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 想让按钮发送消息、分享选中数据，或让助手读取正在打开的页面。
+
+**开始前：** 先按[客户端接入](clients.zh-CN.md)连接一个能运行的应用。从发送消息开始，再按功能需求添加上下文和实时 Action。
 
 MCPKit 使用已发布的 Ink SDK `0.20.0-daily.20261027171530`。运行 `npm ci` 后重新构建插件即可，不再需要本地构建 Ink SDK。更新已安装副本后，需要重载服务并重新打开 View。
 
@@ -122,4 +126,6 @@ const contents = await agent.readResource('demo:stock');
 
 ---
 
-[文档目录](../README.zh-CN.md) · [协议兼容性](../reference/compatibility.zh-CN.md)
+[学习路线](../README.zh-CN.md) · [协议兼容性](../reference/compatibility.zh-CN.md)
+
+**按需继续：** [体验完整的选择流程](candidate-selection.zh-CN.md)。

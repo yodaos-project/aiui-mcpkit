@@ -1,8 +1,10 @@
 # Use the ESM library
 
-English | [简体中文](esm-build.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](esm-build.zh-CN.md) · [Learning path](../README.md)
 
-**Goal:** build your Agent from a standalone Node project. Complete [the first Agent](../getting-started/first-agent.md) so you already have source files. No global MCPKit CLI is required.
+**Use this when:** You want to keep your app in a separate Node.js project or call MCPKit from a build script.
+
+**Before you start:** Create [your first app](../getting-started/first-agent.md). ESM is JavaScript module syntax: `import` and `export`; a `.mjs` script can use it directly.
 
 ## Prepare the consuming project
 
@@ -50,4 +52,6 @@ Put your build script in source control and ignore generated plugin output. Add 
 
 ---
 
-[Documentation index](../README.md) · Previous: [Public metadata](metadata.md) · Next: [Client setup](clients.md)
+[Learning path](../README.md)
+
+**Next, if needed:** [Choose optional metadata](metadata.md).

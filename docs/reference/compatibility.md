@@ -1,6 +1,8 @@
 # Protocol compatibility
 
-English | [简体中文](compatibility.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](compatibility.zh-CN.md) · [Learning path](../README.md)
+
+Check whether a protocol or host capability is supported and how it was verified. To connect a client step by step, use [client setup](../guides/clients.md).
 
 The target released MCP revision is **2026-07-28**. Runtime dependencies are pinned to `@modelcontextprotocol/server`, `client`, and `core` **2.2.0**, and `@modelcontextprotocol/ext-apps` **2.0.3**. The UI contract is the released [MCP Apps 2026-01-26 specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx); a **View** is the Apps iframe containing the AIUI runtime. Draft contracts are not advertised.
 
@@ -24,4 +26,4 @@ Run `npm run build:examples`, `npm run typecheck`, and `npm test` for the compat
 
 ---
 
-[Documentation index](../README.md) · Previous: [Page messages](messages.md) · Next: [Benchmarks](benchmarks.md)
+[Learning path](../README.md) · Previous: [Page messages](messages.md) · Next: [Benchmarks](benchmarks.md)

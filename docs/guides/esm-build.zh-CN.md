@@ -1,8 +1,10 @@
 # 接入 ESM 库
 
-[English](esm-build.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](esm-build.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**目标：** 在独立 Node 项目中构建 Agent。先完成[第一个 Agent](../getting-started/first-agent.zh-CN.md)，准备好源码，无需安装全局 MCPKit CLI。
+**适用场景：** 想把应用放在独立的 Node.js 项目中，或从构建脚本调用 MCPKit。
+
+**开始前：** 先创建[第一个应用](../getting-started/first-agent.zh-CN.md)。ESM 指 JavaScript 的 `import`、`export` 模块写法，`.mjs` 脚本可直接使用。
 
 ## 准备使用方项目
 
@@ -50,4 +52,6 @@ API 导出 `BuildPluginOptions` 和 `BuildPluginResult` 类型。错误通过 Pr
 
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[公开元数据](metadata.zh-CN.md) · 下一篇：[客户端接入](clients.zh-CN.md)
+[学习路线](../README.zh-CN.md)
+
+**按需继续：** [按需配置元数据](metadata.zh-CN.md)。

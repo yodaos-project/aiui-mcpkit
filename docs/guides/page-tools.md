@@ -1,39 +1,28 @@
-# Define tools per page
+# Give your app tool arguments
 
-English | [简体中文](page-tools.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](page-tools.zh-CN.md) · [Learning path](../README.md)
 
-**Goal:** turn an AI request into a page with validated arguments. Complete [your first Agent](../getting-started/first-agent.md) first. The weather example below is a complete replacement `.ink` file, not a real weather API: it displays the city supplied by the client.
+**You will add:** `open_my_counter`, a tool that accepts a starting count. Complete [your own app](../getting-started/first-agent.md) first and keep `my-agent/app.json` unchanged. Commands run from the repository root.
 
-## Step-by-step: add a parameterized page
+A tool is a named operation an assistant can call. Its **input schema** describes which JSON arguments it accepts. MCPKit reads the declaration in your page and generates registration and validation.
 
-1. Create `pages/weather/index.ink` in your Agent source and paste the complete weather page below.
-2. Add `"pages/weather/index"` to `app.json.pages`, preserving `"pages/home"` if you still need it for navigation.
-3. Rebuild, update any installed copy, and reload your MCP server/host.
-4. Verify `show_weather` appears in tool discovery with a required string `city`.
-5. Ask the client to call it with `{ "city": "Hangzhou" }`. The page should display `Hangzhou`.
+## 1. Replace the page
 
-```json
-{
-  "name": "My Agent",
-  "pages": ["pages/home", "pages/weather/index"]
-}
-```
-
-Once a page declares `schema.data`, discovery lists the schema-defined tools rather than the fallback `open_app`. In this example `pages/home` remains navigable but has no public opener. Give it a schema too if you want both pages exposed as tools.
-
-For routes registered in `app.json.pages`, declare a tool in the `.ink` file's JSON `<script def>`. MCPKit uses `description` as the tool description and `schema.data` as the MCP input schema:
+Stop its watcher with Ctrl+C. Replace the **entire** `my-agent/pages/home.ink` file with:
 
 ```html
 <script type="application/json" def>
 {
-  "tool": "show_weather",
-  "navigationBarTitleText": "Weather",
-  "description": "Show weather for the requested city.",
+  "tool": "open_my_counter",
+  "navigationBarTitleText": "My counter",
+  "description": "Open my counter at the requested starting value.",
   "schema": {
     "data": {
       "type": "object",
-      "properties": { "city": { "type": "string", "description": "City name" } },
-      "required": ["city"],
+      "properties": {
+        "initialCount": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "required": ["initialCount"],
       "additionalProperties": false
     }
   }
@@ -42,35 +31,97 @@ For routes registered in `app.json.pages`, declare a tool in the `.ink` file's J
 
 <script setup>
 export default {
-  data: { city: '' },
-  onLoad(query) { this.setData({ city: query.city }); }
+  data: { count: 0 },
+  onLoad(query) {
+    this.setData({ count: Number(query.initialCount) });
+  },
+  increment() {
+    this.setData({ count: this.data.count + 1 });
+  },
 };
 </script>
 
-<page><text>{{city}}</text></page>
+<page>
+  <view class="screen">
+    <text class="title">My first app</text>
+    <text class="count">{{count}}</text>
+    <button class="control" bindtap="increment">+ ADD ONE</button>
+  </view>
+</page>
+
+<style>
+.screen {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: #000000;
+  color: #40ff5e;
+}
+.title {
+  font-size: 20px;
+}
+.count {
+  font-size: 40px;
+}
+.control {
+  padding: 8px 16px;
+  background-color: #000000;
+  color: #40ff5e;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #40ff5e;
+}
+</style>
 ```
 
-`tool` is an optional MCPKit field for an explicit tool name. Without it, the name is `open_` plus the full page route, replacing characters other than letters, numbers, underscores, and hyphens with `_`. For example, `pages/weather/index` becomes `open_pages_weather_index`. Names must be unique. Titles use `navigationBarTitleText`, falling back to the page route.
+Only two things are new: a JSON `script def` declaration and `onLoad(query)`.
 
-Give another page its own `description`, `schema.data`, and optional `tool` to expose a second tool. Each tool has a separate UI resource bound to its page, so invoking `show_weather` opens the weather page. Only pages declaring `schema.data` become tools; other registered pages remain available for internal navigation. If no page declares a schema, MCPKit keeps the single `open_app` opener (or your `tool` / `--tool` override). With page tools, `tool` / `--tool` does not rename them and `page` / `--page` does not override their routes.
+## 2. Preview with a starting value
 
-Arguments are validated before the server returns success. The view receives complete tool arguments from the MCP Apps host and passes them as Ink's launch query to `onLoad(query)`. Ink exposes scalar values as strings and objects/arrays as JSON strings: use `Number(query.days)` or `JSON.parse(query.options)` when appropriate. Page views wait for complete input before opening, so required arguments are available on the first load. Unsupported schema dialects, unresolved references, and invalid page definitions fail the build before output is written.
+Run from the repository root:
 
-`buildPlugin()` returns mappings in `result.tools`, each with `name`, `title`, `description`, `page`, `inputSchema`, and `resourceUri`. The existing `result.tool` is the first registered tool name.
+```sh
+node scripts/build-plugin.mjs ./my-agent --name my-agent --out ./dist/my-agent --watch --input '{"initialCount":5}'
+```
 
-## Understand validation
+Open the printed preview URL. The count starts at **5**; one click makes it **6**. `--input` supplies launch arguments for the local preview; it does not ask an AI to call the tool.
 
-| Call | Expected behavior |
+## 3. Read the declaration
+
+| Field | Meaning |
 | --- | --- |
-| `{ "city": "Hangzhou" }` | Opens the weather page with that city. |
-| `{}` | Rejected: required `city` is missing. |
-| `{ "city": 123 }` | Rejected: input is a number rather than a string. |
-| `{ "city": "Hangzhou", "debug": true }` | Rejected because `additionalProperties` is false. |
+| `tool` | The name a client discovers: `open_my_counter`. |
+| `description` | Explains when an assistant should use the tool. |
+| `schema.data` | JSON Schema for the arguments. |
+| `type: "integer"`, `minimum`, `maximum` | Accept only whole numbers from 0 to 100. |
+| `required` | The call must include `initialCount`. |
+| `additionalProperties: false` | Reject undeclared arguments. |
 
-`required` controls whether a field must exist; its `type` controls accepted values. Declaring `default` in JSON Schema does not replace implementing a default in your page or handler. For optional scalar parameters, check `query.field === undefined` before converting; an empty string and a missing value are different inputs.
+The real server validates arguments before success. Ink exposes scalar launch values as strings, so `Number(query.initialCount)` converts the declared number before storing it in page state. Objects and arrays arrive as JSON strings; parse those according to their schemas.
 
-Page tools validate input but do not run server business logic. For trusted calculations, credentials or service calls, continue with [business tools](business-tools.md). See [request/result messages](../reference/messages.md) for page event formats.
+## 4. Verify through a client
 
----
+After [connecting your own app](clients.md#connect-your-own-app), ask the assistant to call `open_my_counter` with `{ "initialCount": 5 }`. These are **tool inputs**, not terminal commands:
 
-[Documentation index](../README.md) · Previous: [Create your first Agent](../getting-started/first-agent.md) · Next: [Typed business tools](business-tools.md)
+| Input | Expected server behavior |
+| --- | --- |
+| `{ "initialCount": 5 }` | Open at 5. |
+| `{}` | Reject: required argument is missing. |
+| `{ "initialCount": "5" }` | Reject: a string is not an integer. |
+| `{ "initialCount": -1 }` | Reject: below the minimum. |
+
+**Checkpoint:** the preview starts at 5. Once connected, the client discovers `open_my_counter`, accepts valid input and rejects invalid input.
+
+## When you add more pages
+
+Only registered pages declaring `schema.data` become public tools. Adding the declaration replaces the fallback `open_app`; it has not been lost accidentally. Other registered pages remain available for internal navigation.
+
+If no page has a schema, MCPKit supplies `open_app`. Without an explicit `tool` on a schema-defined page, the name is `open_` plus its full route, with unsupported characters replaced by `_`. Choose explicit names and keep them unique. `navigationBarTitleText` sets the title. See [build API](../reference/build-api.md) for route and naming rules.
+
+**Next:** [Connect an AI client](clients.md), then [return a business result](first-business-tool.md).

@@ -1,10 +1,20 @@
 # 故障排查
 
-[English](troubleshooting.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](troubleshooting.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-需要实时跟踪请求时，通过 `buildPlugin({ ..., inspector: true })` 或辅助脚本 `--inspector` 启用 [Inspector](inspector.zh-CN.md)。它真实调用工具、展示生效的生命周期设置、区分实际发送的模型上下文与私有 UI 状态，并导出脱敏诊断，涵盖浏览器、WASM、CSP 和资源失败。
+从最先失败的一步开始。第一次预览的问题，通常通过终端与浏览器就能定位，之后再按需要使用开发检查工具。
 
-按 **构建 → 服务启动 → 工具发现 → 工具调用 → 界面渲染 → 页面主动调用** 的顺序定位。前一步成功不代表后一步成功。以当前客户端真实工具列表和日志为准，不要仅凭 README 命令执行成功就认为工具已可用。
+## 先找到你停在哪一步
+
+| 当前进度 | 接下来检查什么 |
+| --- | --- |
+| 命令无法执行 | 检查 Node 22+、npm、依赖以及仓库根目录。[准备环境](../getting-started/installation.zh-CN.md) |
+| 监听在运行，但页面打不开 | 复制最新 `preview` 地址，并保持终端运行。[快速开始](../getting-started/quickstart.zh-CN.md) |
+| 页面打开，但改动不生效 | 读构建错误，区分源码、预览产物与安装副本。[开发迭代](development.zh-CN.md) |
+| 客户端找不到或无法调用工具 | 检查服务配置与当前会话的工具列表。[客户端接入](clients.zh-CN.md) |
+| 业务或对话操作失败 | 检查输入、处理函数与所需宿主能力。[第一个业务工具](first-business-tool.zh-CN.md) |
+
+浏览器预览与 stdio 服务是两个入口：监听程序输出网页地址，生成的服务通常等待客户端启动并调用。
 
 ## 常见问题
 
@@ -34,6 +44,10 @@
 | Windows 上 benchmark 失败 | RSS 测量目前要求 macOS/Linux，请在支持的环境执行。 |
 | Benchmark A/B 比较被拒绝 | 保持机器、方法、fixture/宿主、工具版本和参数一致，见[性能基准](../reference/benchmarks.zh-CN.md)。 |
 
+## 检查已经运行的请求
+
+应用能运行后，可以用 [Inspector](inspector.zh-CN.md)查看真实调用、结果与上下文发布。用 `buildPlugin({ ..., inspector: true })` 或 `--inspector` 开启，重新构建并打开 View；脱敏诊断也会记录浏览器、WASM、CSP 与资源错误。
+
 ## 调试宿主前先检查元数据
 
 在 ESM 构建脚本中调用 `result.inspectProtocol(capabilities)`，比较工具的 `resourceUri` 与资源列表。不传 Apps 能力时，检查结果会有意省略 UI 元数据。完整代码见[元数据检查示例](metadata.zh-CN.md)。检查证明序列化结果，不会打开界面，也不能证明宿主支持。
@@ -54,4 +68,4 @@
 
 ---
 
-[文档目录](../README.zh-CN.md) · 上一篇：[开发迭代](development.zh-CN.md) · 下一篇：[构建 API](../reference/build-api.zh-CN.md)
+[学习路线](../README.zh-CN.md)

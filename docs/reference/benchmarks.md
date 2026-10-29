@@ -1,6 +1,8 @@
 # Rendering and packaging benchmarks
 
-English | [简体中文](benchmarks.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](benchmarks.zh-CN.md) · [Learning path](../README.md)
+
+Measure performance after functional behavior works. Finish [contributor setup](../contributing.md) first; for screenshots and readiness checks, use [preview verification](../guides/preview-verification.md).
 
 This suite establishes the baseline for [issue #18](https://github.com/yodaos-project/aiui-mcpkit/issues/18). It runs the generated MCPKit plugin with **real Ink WASM**, in a fixed local MCP Apps `AppBridge` browser host. It does not change Ink or establish compatibility with desktop clients.
 
@@ -93,4 +95,4 @@ API references: [Playwright CDPSession](https://playwright.dev/docs/api/class-cd
 
 ---
 
-[Documentation index](../README.md) · Previous: [Protocol compatibility](compatibility.md) · Next: [Contributing](../contributing.md)
+[Learning path](../README.md) · Previous: [Protocol compatibility](compatibility.md) · Next: [Contributing](../contributing.md)

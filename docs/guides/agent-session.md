@@ -1,6 +1,10 @@
 # Agent sessions and live tools
 
-English | [简体中文](agent-session.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](agent-session.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** You want a button to send a message, share selected data, or let the assistant read a live page.
+
+**Before you start:** First connect a working app using [client setup](clients.md). Start with message delivery; add context and live actions when your feature needs them.
 
 MCPKit uses the published Ink SDK `0.20.0-daily.20261027171530`. Run `npm ci` and rebuild your plugin; a local Ink SDK build is unnecessary. Reload the server and reopen its View after updating an installed copy.
 
@@ -122,4 +126,6 @@ Real WASM browser tests cover button-to-message delivery, context updates, App/P
 
 ---
 
-[Documentation index](../README.md) · [Protocol compatibility](../reference/compatibility.md)
+[Learning path](../README.md) · [Protocol compatibility](../reference/compatibility.md)
+
+**Next, if needed:** [Try a complete selection flow](candidate-selection.md).

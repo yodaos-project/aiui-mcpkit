@@ -1,6 +1,8 @@
 # 页面消息与结果格式
 
-[English](messages.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](messages.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+实现[业务结果](../guides/first-business-tool.zh-CN.md)或[加载与取消](../guides/tool-lifecycle.zh-CN.md)时，查询准确的输入、结果格式。这里是字段参考，首次接入先按可运行教程操作。
 
 可选的 `mcpkit:inspect` 消息通过 `requestId` 关联应用用户事件和显式选择的数据绑定，仅在启用 [Inspector](../guides/inspector.zh-CN.md) 时采集，不会发布模型上下文，默认省略私有值。类型契约为 `AgentInspectionMessage`。
 
@@ -68,12 +70,12 @@ this.postMessage({ type: 'mcpkit:cancel-tool', requestId: 'quote-1' });
 
 预期的 `BusinessToolError` 返回 `isError: true`、文字 `CODE: message`、`_meta.businessError`，以及可选 `_meta.uiOnly` 详情，不提供成功用的 `structuredContent`。意外异常仅公开通用 `INTERNAL_ERROR`。Handler 契约见[业务工具](../guides/business-tools.zh-CN.md)。
 
----
-
-[文档目录](../README.zh-CN.md) · 上一篇：[构建 API](build-api.zh-CN.md) · 下一篇：[协议兼容性](compatibility.zh-CN.md)
-
 共享 App 的结果事件还包含 `tool`（服务端工具名）及 `input`（已校验的参数）。通过 `applications` 注册命名 UI 路由，见[共享 App 归属与路由](../guides/shared-agent.zh-CN.md)。
 
 ## 作用域恢复消息
 
 `mcpkit:state-connect`、`mcpkit:restore-state`、`mcpkit:state-ready`、`mcpkit:state-save`、`mcpkit:state-status` 构成可选的 App/View 握手，使用启动随机标识与宿主绑定的存储；快照在调试日志前被消费，不自动发布给模型。详见[消息字段、顺序与失败行为](../guides/state-restoration.zh-CN.md#先恢复再接收新结果)。
+
+---
+
+[学习路线](../README.zh-CN.md) · 上一篇：[构建 API](build-api.zh-CN.md) · 下一篇：[协议兼容性](compatibility.zh-CN.md)

@@ -1,6 +1,10 @@
 # Restore scoped App state
 
-English | [简体中文](state-restoration.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](state-restoration.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** A host destroys a View and you need selected data to survive reconstruction.
+
+**Before you start:** Understand [shared App ownership](shared-agent.md). A store is the trusted storage component you provide; this guide defines what it saves, who can restore it and when.
 
 A live App preserves its state when switching between inline and fullscreen. Destroying that View destroys its realm. To rebuild state in a new View, configure an explicit restoration adapter backed by a host-owned or application-owned store. Restoration is optional; MCPKit does not assume every MCP Apps host has a persistence API.
 
@@ -100,3 +104,5 @@ Counter is intentionally transient and no longer uses app-wide `wx` storage to r
 ## Verification boundary
 
 The [validation record](../validation/state-restoration.md) covers real Ink/WASM reconstruction, draft input, selection/navigation recovery, display modes, isolation, migration, conflicts and unavailable storage. It uses an application-owned test host, not Codex Desktop persistence. MCPKit does not provide a universal Codex/Claude snapshot store; production restoration requires a host or authenticated application integration and separate acceptance in that target environment.
+
+**Next, if needed:** [Inspect the restored app](inspector.md).

@@ -1,39 +1,28 @@
-# 为每个页面定义工具
+# 为应用添加工具参数
 
-[English](page-tools.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](page-tools.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-**目标：** 把 AI 请求转换为带验证参数的页面。先完成[第一个 Agent](../getting-started/first-agent.zh-CN.md)。下方 weather 示例是可完整替换的 `.ink` 文件，用来显示客户端传入的城市，不会查询真实天气 API。
+**这一课要添加：** 一个接受起始计数的工具 `open_my_counter`。先完成[创建自己的应用](../getting-started/first-agent.zh-CN.md)，保留 `my-agent/app.json` 不变。命令在仓库根目录执行。
 
-## 按步骤添加带参数页面
+工具是助手可以调用的命名操作。**输入 schema** 用来说明可以接收哪些 JSON 参数。MCPKit 读取页面中的声明，生成工具注册与参数校验。
 
-1. 在 Agent 源码中创建 `pages/weather/index.ink`，粘贴下面完整的 weather 页面。
-2. 向 `app.json.pages` 添加 `"pages/weather/index"`；仍需内部导航时保留 `"pages/home"`。
-3. 重新构建，同步已安装副本，重载 MCP 服务或宿主。
-4. 确认工具列表出现 `show_weather`，输入包含必填字符串 `city`。
-5. 用 `{ "city": "Hangzhou" }` 调用，页面应显示 `Hangzhou`。
+## 1. 替换页面
 
-```json
-{
-  "name": "My Agent",
-  "pages": ["pages/home", "pages/weather/index"]
-}
-```
-
-只要有页面声明 `schema.data`，工具发现就使用页面工具列表，而非兜底 `open_app`。本例的 `pages/home` 仍可用于导航，但没有公开 opener；想让两个页面都可被调用，需要分别声明 schema。
-
-在 `app.json.pages` 注册的页面中，通过 `.ink` 文件的 JSON `<script def>` 声明工具。MCPKit 将 `description` 用作工具描述，将 `schema.data` 用作 MCP 输入参数 schema：
+用 Ctrl+C 停止监听，将 `my-agent/pages/home.ink` **完整替换**为：
 
 ```html
 <script type="application/json" def>
 {
-  "tool": "show_weather",
-  "navigationBarTitleText": "天气",
-  "description": "展示指定城市的天气。",
+  "tool": "open_my_counter",
+  "navigationBarTitleText": "My counter",
+  "description": "Open my counter at the requested starting value.",
   "schema": {
     "data": {
       "type": "object",
-      "properties": { "city": { "type": "string", "description": "城市名称" } },
-      "required": ["city"],
+      "properties": {
+        "initialCount": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "required": ["initialCount"],
       "additionalProperties": false
     }
   }
@@ -42,35 +31,97 @@
 
 <script setup>
 export default {
-  data: { city: '' },
-  onLoad(query) { this.setData({ city: query.city }); }
+  data: { count: 0 },
+  onLoad(query) {
+    this.setData({ count: Number(query.initialCount) });
+  },
+  increment() {
+    this.setData({ count: this.data.count + 1 });
+  },
 };
 </script>
 
-<page><text>{{city}}</text></page>
+<page>
+  <view class="screen">
+    <text class="title">My first app</text>
+    <text class="count">{{count}}</text>
+    <button class="control" bindtap="increment">+ ADD ONE</button>
+  </view>
+</page>
+
+<style>
+.screen {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: #000000;
+  color: #40ff5e;
+}
+.title {
+  font-size: 20px;
+}
+.count {
+  font-size: 40px;
+}
+.control {
+  padding: 8px 16px;
+  background-color: #000000;
+  color: #40ff5e;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #40ff5e;
+}
+</style>
 ```
 
-`tool` 是 MCPKit 提供的可选字段，用于指定工具名称。不填写时，使用 `open_` 加完整页面路径，并将字母、数字、下划线和连字符之外的字符替换为 `_`。例如，`pages/weather/index` 对应 `open_pages_weather_index`。工具名称必须唯一。标题使用 `navigationBarTitleText`，未填写时使用页面路径。
+新增内容只有两部分：JSON `script def` 声明，以及 `onLoad(query)`。
 
-另一个页面声明自己的 `description`、`schema.data` 和可选的 `tool` 后，就会生成第二个工具。每个工具都有独立的 UI 资源并绑定对应页面，因此调用 `show_weather` 就会打开天气页。只有声明了 `schema.data` 的页面会注册为工具，其余已注册页面仍可供内部导航使用。所有页面均未声明 schema 时，保留单个 `open_app` 入口，也可通过 `tool` / `--tool` 覆盖。启用页面工具后，`tool` / `--tool` 不会重命名这些工具，`page` / `--page` 不会覆盖它们的目标路径。
+## 2. 带起始值预览
 
-服务端先校验参数，再返回成功结果。视图接收 MCP Apps 宿主发送的完整工具参数，通过 Ink 的启动 query 传入 `onLoad(query)`。Ink 将标量暴露为字符串，将对象和数组暴露为 JSON 字符串；按需使用 `Number(query.days)` 或 `JSON.parse(query.options)`。页面工具的视图等待完整输入后再打开，确保首次加载就能收到必填参数。不支持的 schema 版本、无法解析的引用和无效的页面定义会在写入输出前令构建失败。
+在仓库根目录运行：
 
-`buildPlugin()` 通过 `result.tools` 返回工具映射，其中包含 `name`、`title`、`description`、`page`、`inputSchema` 和 `resourceUri`。原有的 `result.tool` 返回第一个已注册工具的名称。
+```sh
+node scripts/build-plugin.mjs ./my-agent --name my-agent --out ./dist/my-agent --watch --input '{"initialCount":5}'
+```
 
-## 理解参数验证
+打开终端输出的预览地址，计数从 **5** 开始，点击一次变为 **6**。`--input` 为本地预览提供启动参数，此时还没有让 AI 调用工具。
 
-| 调用参数 | 预期行为 |
+## 3. 读懂工具声明
+
+| 字段 | 含义 |
 | --- | --- |
-| `{ "city": "Hangzhou" }` | 打开天气页面并显示该城市。 |
-| `{}` | 拒绝：缺少必填 `city`。 |
-| `{ "city": 123 }` | 拒绝：传入数字，而非字符串。 |
-| `{ "city": "Hangzhou", "debug": true }` | 拒绝：`additionalProperties` 为 false。 |
+| `tool` | 客户端发现的名称：`open_my_counter`。 |
+| `description` | 告诉助手什么时候使用这个工具。 |
+| `schema.data` | 参数的 JSON Schema。 |
+| `type: "integer"`、`minimum`、`maximum` | 只接受 0 到 100 的整数。 |
+| `required` | 调用必须带上 `initialCount`。 |
+| `additionalProperties: false` | 拒绝未声明的参数。 |
 
-`required` 决定字段是否必须存在，`type` 决定允许什么值。JSON Schema 中声明 `default` 并不能替代页面或 handler 中的默认值逻辑。可选标量参数在转换前先判断 `query.field === undefined`，空字符串与缺少参数不是一回事。
+真实服务会在返回成功前验证参数。Ink 将标量启动参数提供为字符串，因此用 `Number(query.initialCount)` 转换后再保存到页面状态。对象、数组会以 JSON 字符串传入，需要按声明解析。
 
-页面工具验证输入，但不执行服务端业务逻辑。可信计算、凭据或服务调用应使用[业务工具](business-tools.zh-CN.md)。页面事件格式见[请求与结果消息](../reference/messages.zh-CN.md)。
+## 4. 在客户端验证
 
----
+完成[连接自己的应用](clients.zh-CN.md#连接自己的应用)后，让助手以 `{ "initialCount": 5 }` 调用 `open_my_counter`。以下是**工具输入**，不是终端命令：
 
-[文档目录](../README.zh-CN.md) · 上一篇：[创建第一个 Agent](../getting-started/first-agent.zh-CN.md) · 下一篇：[带类型的业务工具](business-tools.zh-CN.md)
+| 输入 | 服务端预期行为 |
+| --- | --- |
+| `{ "initialCount": 5 }` | 从 5 打开计数器。 |
+| `{}` | 拒绝：缺少必填参数。 |
+| `{ "initialCount": "5" }` | 拒绝：字符串不是整数。 |
+| `{ "initialCount": -1 }` | 拒绝：小于最小值。 |
+
+**完成检查：** 预览从 5 开始；连接后，客户端能发现 `open_my_counter`，合法输入成功，不合法输入被拒绝。
+
+## 之后添加更多页面时
+
+已注册页面中，只有声明 `schema.data` 的页面会成为公开工具。添加声明后，会替代默认的 `open_app`，并不是工具意外丢失。其他已注册页面仍可用于应用内导航。
+
+没有页面声明 schema 时，MCPKit 提供 `open_app`。已声明 schema 的页面如果没有显式 `tool`，会使用 `open_` 加完整页面路径，并把不支持的字符替换为 `_`。建议显式命名，并保证名称唯一。`navigationBarTitleText` 设置标题；路径和命名规则详见[构建 API](../reference/build-api.zh-CN.md)。
+
+**下一步：** [连接 AI 客户端](clients.zh-CN.md)，然后[返回业务结果](first-business-tool.zh-CN.md)。

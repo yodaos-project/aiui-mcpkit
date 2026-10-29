@@ -1,14 +1,14 @@
-# Create your own agent
+# Create your own app
 
-English | [简体中文](first-agent.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](first-agent.zh-CN.md) · [Learning path](../README.md)
 
-**Prerequisites:** complete [the quickstart](quickstart.md) and keep the repository dependencies installed. This tutorial creates a separate `my-agent` source directory; build commands run from the MCPKit repository root. Start with a static page, then replace it with the interactive version below.
+**You will build:** an independent Counter with two source files. First complete [your first edit](edit-example.md). Knowing how to create a file and save text is enough for this lesson.
 
-## 1. Create the two source files
+AIUI calls an app an **Agent**. Here it means the source files you own; you do not need to build an AI model. Run all terminal commands from the MCPKit repository root.
 
-Create `my-agent/` wherever convenient, add a `pages/` directory, then save the following contents as `app.json` and `pages/home.ink`. Paths in build/install commands are placeholders: replace `/path/to/my-agent` with the actual absolute path, quoted if it contains spaces.
+## 1. Create the folders
 
-Once the example works, replace it with your own page. You can start with this minimal project:
+Stop the previous watcher with **Ctrl+C**. In your editor, create this structure inside the repository root:
 
 ```text
 my-agent/
@@ -17,96 +17,104 @@ my-agent/
     └── home.ink
 ```
 
-`app.json` gives the app a name and lists its pages:
+Only these two source files are needed. Keep the file extensions exactly as shown.
+
+## 2. Register the page
+
+Save this complete file as `my-agent/app.json`:
 
 ```json
 {
-  "name": "My Agent",
+  "name": "My First App",
   "pages": ["pages/home"]
 }
 ```
 
-`pages/home.ink` defines the first screen:
+`name` is the app's display name. `pages` lists its page routes; `pages/home` refers to `pages/home.ink`, with the extension omitted.
 
-```html
-<page>
-  <view>
-    <text>Hello from AIUI Agent</text>
-  </view>
-</page>
-```
+## 3. Add the page
 
-Page paths in `app.json` omit the `.ink` extension. For buttons and state, use the [Counter page](../../examples/counter/pages/counter/index.ink) as a working reference.
-
-From the MCPKit repository, run the local build helper. Replace `/path/to/my-agent` with your project's actual path:
-
-```sh
-npm run build
-node scripts/build-plugin.mjs /path/to/my-agent \
-  --name my-agent \
-  --out /path/to/my-agent/dist/plugin
-```
-
-The project root directly contains `app.json` and `pages/`. Output may live under the project’s `dist/` directory and is excluded from UI assets. The output directory cannot equal or contain the source directory. The helper is for development in this repository. The package's public integration API is the [ESM library](../guides/esm-build.md).
-
-To install your new plugin in Codex:
-
-```sh
-codex plugin marketplace add /path/to/my-agent/dist/plugin
-codex plugin add my-agent@my-agent-local
-```
-
-Reload the desktop host after installation. Your agent's opener tool is `open_app` by default. Other clients can [connect directly to its server](../guides/clients.md).
-
-## 2. Verify the static page
-
-After building and installing with the commands above, reload your host and ask it to invoke `open_app` with `{}`. An Apps host should show “Hello from AIUI Agent”. A text-only client returns an explanation rather than a rendered page.
-
-You do not open `view.html` directly in a browser. The generated View expects its MCP Apps host to supply the initialization channel and tool data.
-
-## 3. Add state and a button
-
-Replace the **entire** `pages/home.ink` file with:
+Save this complete file as `my-agent/pages/home.ink`:
 
 ```html
 <script setup>
 export default {
   data: { count: 0 },
-  increment() { this.setData({ count: this.data.count + 1 }); },
+  increment() {
+    this.setData({ count: this.data.count + 1 });
+  },
 };
 </script>
 
 <page>
   <view class="screen">
-    <text class="title">My first Agent</text>
+    <text class="title">My first app</text>
     <text class="count">{{count}}</text>
     <button class="control" bindtap="increment">+ ADD ONE</button>
   </view>
 </page>
 
 <style>
-.screen { width: 100%; min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background-color: #000000; color: #40ff5e; }
-.title { font-size: 20px; }
-.count { font-size: 40px; }
-.control { padding: 8px 16px; background-color: #000000; color: #40ff5e; border-width: 1px; border-style: solid; border-color: #40ff5e; }
+.screen {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: #000000;
+  color: #40ff5e;
+}
+.title {
+  font-size: 20px;
+}
+.count {
+  font-size: 40px;
+}
+.control {
+  padding: 8px 16px;
+  background-color: #000000;
+  color: #40ff5e;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #40ff5e;
+}
 </style>
 ```
 
-`data` stores page state. `{{count}}` reads that state. `bindtap="increment"` calls the `increment` method when tapped, and `setData` updates the state and redraws the page. This button changes local UI state; it does not call a business handler.
+Read it in three pieces:
 
-## 4. Rebuild and inspect the new version
+- `data` holds state; `{{count}}` displays the current value.
+- `bindtap="increment"` calls `increment()` on a click. `setData()` updates the state and redraws the UI.
+- `<style>` centers the components and gives the page its colors.
 
-Run the same `node scripts/build-plugin.mjs ...` command again. For a directly registered server, reload that server and open a new View. For a Codex-installed plugin, use the client's plugin update/reinstall flow so its cached copy receives the rebuilt directory, then reload the host and open a new card. Repository `update:examples` updates the bundled examples only, not `my-agent`.
+## 4. Build and preview your app
 
-Expected result: the page starts at 0 and becomes 1 after **+ ADD ONE**. Ink may format numeric interpolation as `0.0` and `1.0`; these represent the same counts. This example has no persistence: a newly created page starts at 0 again.
+From the repository root:
 
-## 5. Where to go next
+```sh
+node scripts/build-plugin.mjs ./my-agent --name my-agent --out ./dist/my-agent --watch
+```
 
-- To accept input from the AI, add a page input schema using [page tools](../guides/page-tools.md).
-- To calculate or fetch data on the server, add an output schema and handler using [business tools](../guides/business-tools.md).
-- To put this build into your own project, use [the ESM library](../guides/esm-build.md).
-- To understand the generated files and options, consult [the build API](../reference/build-api.md).
+The [quickstart](quickstart.md) already built the MCPKit library. If you skipped it, run `npm run build` first. Open the URL from the terminal's `preview` line.
 
----
+**Expected:** “My first app”, a count of **0**, and **+ ADD ONE**. Click once: the count becomes **1**. Edit the title, save, and wait for the preview to reload. The count resets on reload; it belongs to this open app instance.
 
-[Documentation index](../README.md) · Previous: [Run the examples](quickstart.md) · Next: [Page tools](../guides/page-tools.md)
+## 5. Know what the build produced
+
+Your source stays in `my-agent/`. Generated output goes to `dist/my-agent/`:
+
+| File | What it is for |
+| --- | --- |
+| `view.html` | The UI, including your app and Ink/WASM. |
+| `dist/server.mjs` | The local MCP server a client can start. |
+| `plugin.json`, `mcp.json`, `.agents/` | Plugin identity and client connection/install metadata. |
+
+You have not installed this plugin into a client yet. The browser preview is sufficient to develop its UI. Generated output is replaced on rebuild; edit your source files instead.
+
+**Checkpoint:** your own app runs, its button works, and a source edit appears after saving.
+
+**Next:** [Give your app tool arguments](../guides/page-tools.md). Prefer to try it in an assistant now? [Connect a client](../guides/clients.md#connect-your-own-app); without page schemas its default tool is `open_app`.

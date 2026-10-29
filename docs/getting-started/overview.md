@@ -1,79 +1,48 @@
-# What is AIUI MCPKit?
+# What you can build with MCPKit
 
-English | [简体中文](overview.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](overview.zh-CN.md) · [Learning path](../README.md)
 
-MCPKit packages an AIUI Agent as a local MCP server and an interactive MCP Apps View. Start here if you have never written an Agent or connected an MCP tool.
+Imagine asking an assistant to show an itinerary. It opens a small app: you switch days, save a place and choose what to share back. MCPKit helps you build that interface and package it for an AI client.
 
-## What you will build
+You write an **AIUI app** with JavaScript, page markup and styles. MCPKit builds the files a client needs to call your tools and display your app. You can start in a browser before connecting an assistant.
 
-Imagine asking an AI assistant to calculate an order quote. A text-only tool returns a total. With MCPKit, the same tool can return a total and open a page with quantities, a calculate button, loading state and cancellation. The AI can use the structured result, while the user can operate the page.
+## See the idea
 
-The repository includes Counter, Countdown and a deterministic business demo. The business demo uses example data and places no orders.
+The repository includes travel planning, a focus timer, analytics, workshop booking, Counter and a business demo. [Browse real runtime screenshots](../../README.md#tools-people-can-use) or [run Counter locally](quickstart.md).
 
-## Vocabulary
+These are working examples with demo data. Workshop confirmation makes no real reservation or payment. The focus timer runs while its View is open and pauses when hidden.
 
-| Term | Meaning in this project |
+## Three pieces to remember
+
+| Piece | Its job |
 | --- | --- |
-| AIUI Agent | Your app source: `app.json`, `.ink` pages and their assets. |
-| Ink | The runtime that executes your page logic and renders its UI. The generated View embeds the real WebAssembly runtime. |
-| MCP | The protocol a client uses to discover and call tools and read resources. |
-| MCP client / host | The application that starts the server and, if it supports Apps, displays its UI. |
-| MCP tool | A named operation with a description and JSON Schema input. A page opener displays a page; a business tool also runs server logic. |
-| MCP resource | Content read by URI. MCPKit supplies HTML UI resources using `ui://` URIs. |
-| MCP Apps View | The host's iframe containing the HTML and Ink runtime. This is where your UI runs. |
-| stdio | Communication over a local process's standard input/output. No HTTP port or website deployment is required. |
-| Plugin / marketplace | The generated plugin directory and local installation catalog used by Codex. Other clients can register the server directly. |
-| JSON Schema | A machine-readable declaration of accepted fields, types and constraints. It validates input and business output. |
-| Handler | A server-side function implementing a business tool. |
+| **AIUI** | The app format you author: `app.json`, `.ink` pages, JavaScript and assets. |
+| **Ink** | The runtime that executes your page code and draws the interface. MCPKit bundles its WebAssembly version. |
+| **MCPKit** | The builder that packages your app with an MCP server and an interactive View. |
 
-## From source to interaction
+An `.ink` file groups page markup, JavaScript and styles in one file. Knowing basic HTML, CSS and JavaScript helps; AIUI has its own components and APIs, which the tutorials introduce as needed.
 
-```mermaid
-flowchart LR
-  Source[app.json and .ink pages] --> Build[buildPlugin]
-  Handlers[Server handlers] --> Build
-  Build --> Server[dist/server.mjs]
-  Build --> View[view.html with Ink WASM]
-  Client[MCP client] -->|stdio discovery and calls| Server
-  Server -->|tool data and UI resource| Client
-  Client -->|Apps host channel| View
-```
+## Learn by adding one capability at a time
 
-1. You write a page and optionally its input/output schema.
-2. `buildPlugin()` discovers registered pages, generates tool types, bundles the server and embeds UI assets/runtime.
-3. The client starts `dist/server.mjs` and discovers tools.
-4. A call validates arguments. Business tools execute a handler and validate its output.
-5. An Apps-capable host reads the linked HTML resource and delivers input/result to the page.
-6. The page updates its state, displays a result, and can request further tools through the host.
+1. **See an interface:** run a local browser preview.
+2. **Make it yours:** edit a button, then create a two-file app.
+3. **Let an assistant open it:** declare tool inputs and connect a client.
+4. **Return useful results:** add a server function, then optionally connect UI state to the conversation.
 
-## Choose your learning path
+You can stop at each step with a working result. Follow the [learning path](../README.md) rather than reading every guide first.
 
-- **First-time user:** [Install prerequisites](installation.md), [run the examples](quickstart.md), then [create your first Agent](first-agent.md).
-- **UI developer:** Learn [page tools](../guides/page-tools.md), then [business tools](../guides/business-tools.md) and [request lifecycle](../guides/tool-lifecycle.md).
-- **Build-tool developer:** Start with the [ESM integration](../guides/esm-build.md) and [build API reference](../reference/build-api.md).
-- **Connecting a client:** Read [client setup](../guides/clients.md) and the [compatibility boundaries](../reference/compatibility.md).
+## Terms you will meet later
 
-## What to expect today
+- A **tool** is a named operation the assistant can call with JSON arguments, such as `open_counter` with a starting count.
+- A **host/client** is the assistant application that starts your server. It needs MCP Apps support to show an interactive interface.
+- A **View** is one open instance of your app's interface inside that host.
+- **stdio** means the client talks to a local server process through its input/output streams. It is a connection method, not a web address.
+- A **handler** is your server function for a business tool. A Worker is an optional execution backend introduced in the advanced guides.
 
-The generated server needs Node.js 22+. Its bundled output needs no separate npm install. The client must support MCP Apps to display UI and permit WebAssembly compilation. A client supporting only MCP can still discover/call tools and receive text or business data.
+## What works locally and in a client
 
-MCPKit currently generates local stdio servers. It does not generate an HTTP service, authentication layer, cloud deployment, `.mcpb` extension or `aix pack --target mcp-apps`. Text and binary assets are packaged; see [asset paths and CSP](../reference/build-api.md#binary-assets-and-csp). See [compatibility](../reference/compatibility.md) before selecting a host.
+The browser preview runs real Ink/WASM, supplies launch arguments and reloads when source changes. Conversation messages, assistant tool calls and server-side business results need a supporting host or a test harness. A preview is a place to develop your UI; [client setup](../guides/clients.md) is a later step.
 
-## Adapt to inline and fullscreen Views
+MCPKit currently generates local stdio servers. For HTTP deployment, protocol details and client-specific verification, consult [compatibility](../reference/compatibility.md) when you reach that stage.
 
-A host can show a compact inline card or expand it to fullscreen. MCPKit maps these modes to Ink targets `_current` and `_blank`. Keep the primary result usable in inline mode, then reveal details or additional controls when fullscreen is available. A host may restrict the allowed modes, so fullscreen is not guaranteed.
-
-Use a target media rule in your page's `<style>`; this fragment follows the [Counter source](../../examples/counter/pages/counter/index.ink):
-
-```css
-.details { display: none; }
-@media (target: _blank) {
-  .details { display: flex; }
-}
-```
-
-Give the detail container `class="details"`. Host mode changes are forwarded to the runtime. Local browser tests verify mode restrictions and state continuity; the exact fullscreen controls and available space still depend on the desktop host.
-
----
-
-[Documentation index](../README.md) · Next: [Prepare your environment](installation.md)
+**Next:** [Run your first preview](quickstart.md).

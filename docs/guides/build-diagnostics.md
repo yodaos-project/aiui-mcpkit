@@ -1,6 +1,10 @@
 # Build identity and stale Views
 
-English | [简体中文](build-diagnostics.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](build-diagnostics.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** You saved and rebuilt, but the client still shows an old app or tool definition.
+
+**Before you start:** Read [the source/build/installed update workflow](development.md). A build ID is a fingerprint for one generated version; compare it across each copy before changing cache settings.
 
 Every build produces `build.json` and a content-derived SHA-256 build ID. The ID covers source, bundled runtime/dependencies, build configuration and the server/View payloads. Rebuilding identical inputs in a different output directory keeps the ID; source, options or runtime changes produce another ID. Plugin `version` remains a separately chosen release version. No timestamp or Git checkout is required.
 
@@ -77,3 +81,5 @@ Generated addresses are stable across build IDs and release versions:
 No hash/version/query is appended to these addresses. Adding diagnostics preserves existing references and aliases, including `ui/resourceUri`. Old installations/Views without build markers remain usable; diagnostics label their evidence legacy or unobserved rather than guessing an ID.
 
 Renaming a plugin/tool/application or removing a resource changes its public address. For a compatible upgrade, retain the original identifier/resource while introducing the replacement; use `uiResources` to keep author-managed HTML at a former address and `toolMetadata` to select the new entrypoint. For a generated App, keep its original registered tool/application as the old route until clients migrate. Before a breaking removal, document the old/new URI mapping, update client/plugin registration, reload discovery and open new cards. Existing cards cannot be migrated or forcibly refreshed by this framework. A new ID detects a build; it does not invalidate the host cache or provide semantic API compatibility.
+
+**Next, if needed:** [Follow symptom-based troubleshooting](troubleshooting.md).

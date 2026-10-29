@@ -1,65 +1,54 @@
 # 准备开发环境
 
-[English](installation.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](installation.md) | 简体中文 · [学习路线](../README.zh-CN.md)
 
-本教程从本地仓库开始，确保你能构建库并运行全部示例，不依赖“npm 上已经发布这个版本”的假设。命令在终端中执行，不是输入到 AI 对话框。会创建文件、编辑 JSON 就可以开始。
+**目标：** 准备第一个浏览器预览需要的工具。macOS、Linux、Windows 均可，Node.js 需要 22 或更新版本。
 
-## 需要哪些工具
+## 1. 安装必需工具
 
-| 工具 | 用途 | 检查命令 |
+| 工具 | 用途 | 在终端中检查 |
 | --- | --- | --- |
-| Node.js **22 或更新版本**与 npm | 构建项目、运行生成的服务 | `node --version`、`npm --version` |
-| Git | 下载仓库 | `git --version` |
-| 文本编辑器 | 编辑 `app.json`、`.ink` 和 handler | 任意编辑器；后续 TypeScript 支持会有帮助 |
-| MCP 客户端 | 调用工具；显示界面还需支持 Apps | 见[客户端接入](../guides/clients.zh-CN.md) |
-| 支持插件命令的 Codex CLI | 仅 Codex 插件安装路径需要 | `codex plugin --help` |
-| Playwright 的 Chromium | 仅浏览器测试和 benchmark 需要 | 按[贡献指南](../contributing.zh-CN.md)安装 |
-| 原生 `ink-worker` | Business Demo 及其集成测试 | 按[业务工具](../guides/business-tools.zh-CN.md)构建和配置 |
+| [Node.js 22+](https://nodejs.org/en/download) | 运行构建脚本；自带安装依赖的 npm。 | `node --version` 和 `npm --version` |
+| [Git](https://git-scm.com/downloads) | 下载项目。 | `git --version` |
+| 浏览器与文本编辑器 | 显示预览、编辑文件。 | 使用你熟悉的浏览器和编辑器即可。 |
 
-从 [Node.js](https://nodejs.org/en/download) 和 [Git](https://git-scm.com/downloads) 安装对应工具。安装后仍提示找不到命令时，重新打开终端。桌面应用的 `PATH` 可能与终端不同，必要时使用 Node 可执行文件的绝对路径。
+**终端**是输入命令的窗口：macOS 可以用“终端”，Linux 可以用终端应用，Windows 可以用 PowerShell。编辑器内置的终端也可以。将 shell 代码块逐行粘贴到这里执行。
 
-## 下载并安装依赖
+运行：
+
+```sh
+node --version
+npm --version
+git --version
+```
+
+Node 应显示 `v22` 或更高的主版本。如果安装后提示找不到命令，关闭终端重新打开，再试一次。
+
+## 2. 下载项目
+
+先进入你平时保存项目的目录，然后运行：
 
 ```sh
 git clone https://github.com/yodaos-project/aiui-mcpkit.git
 cd aiui-mcpkit
-node --version
 npm ci
-npm run build:examples
 ```
 
-`npm ci` 按锁文件安装依赖；`build:examples` 先构建 ESM 库，再构建两个示例。后续教程默认继续在仓库根目录执行命令。
+`cd` 表示进入项目文件夹，`npm ci` 会按锁文件安装依赖。等它正常结束后再继续。
 
-完成后应有这些目录：
+已经下载过项目？直接在该文件夹打开终端，执行 `npm ci`，跳过 clone。教程中的**仓库根目录**指包含 `package.json`、`scripts/`、`examples/`、`docs/` 的这一层目录；没有特别说明时，命令都在这里执行。
 
-```text
-aiui-mcpkit/
-├── dist/                         # 构建后的库和示例
-│   └── examples/
-│       ├── counter/
-│       ├── business/
-│       └── .agents/plugins/marketplace.json
-├── examples/                     # 可以编辑的示例源码
-├── scripts/                      # 仓库开发辅助脚本
-└── docs/                         # 当前文档
-```
+**完成检查：** 版本检查正常，`npm ci` 成功结束。接着做[快速开始的第 2 步](quickstart.zh-CN.md#2-打开预览)。
 
-`.agents` 在某些文件管理器中属于隐藏目录，普通列表看不到并不代表构建失败。
+## 用到时再安装其他工具
 
-## 分清三个目录
+| 之后要做的事 | 额外需要什么 |
+| --- | --- |
+| 在 AI 对话中使用应用 | 支持 MCP Apps 与 WASM 的客户端，见[客户端接入](../guides/clients.zh-CN.md)。 |
+| 安装 Codex 插件 | 提供 `codex plugin --help` 命令的 Codex CLI。 |
+| 自动验证浏览器效果 | Playwright 与 Chromium，见[预览验证](../guides/preview-verification.zh-CN.md)。 |
+| 使用可选的 Agent Worker 执行方式 | 已配置的 Worker 宿主，见[业务工具](../guides/business-tools.zh-CN.md)。 |
 
-- **源码目录：** 编辑 `examples/counter/` 或你自己的 Agent 目录。
-- **构建目录：** 构建器生成 `dist/examples/counter/`，重新构建会替换产物，应修改源码。
-- **已安装插件目录：** 客户端可能把产物复制到缓存。只重新构建不会同步那份缓存，详见[开发迭代](../guides/development.zh-CN.md)。
+第一个预览不需要 AI 账号、API Key、插件安装、原生 Worker 或 Rust 工具链。
 
-## 在自己的 Node 项目中使用
-
-Agent 不必放在本仓库里。先用 `npm pack` 生成本地包，在自己的项目安装 tarball，再从 ESM 脚本调用 `buildPlugin()`。完整文件和操作见 [ESM 接入](../guides/esm-build.zh-CN.md)。仓库辅助脚本不是全局安装的 CLI。
-
-## 完成检查
-
-`npm run build:examples` 正常结束，而且 `dist/examples/counter/dist/server.mjs` 存在，就可以继续[运行示例](quickstart.zh-CN.md)。安装和启动异常请查[故障排查](../guides/troubleshooting.zh-CN.md)。
-
----
-
-[文档目录](../README.zh-CN.md) · 上一篇：[认识 MCPKit](overview.zh-CN.md) · 下一篇：[运行示例](quickstart.zh-CN.md)
+**下一步：** [在浏览器中打开 Counter](quickstart.zh-CN.md#2-打开预览)。安装失败时，先看[故障排查](../guides/troubleshooting.zh-CN.md)。

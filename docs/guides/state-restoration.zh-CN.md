@@ -1,6 +1,10 @@
 # 恢复具有明确作用域的 App 状态
 
-[English](state-restoration.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](state-restoration.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 宿主销毁了 View，需要在重建时恢复指定数据。
+
+**开始前：** 先理解[共享 App 的状态归属](shared-agent.zh-CN.md)。store 指你提供的可信存储组件，本篇说明保存什么、谁能恢复，以及何时恢复。
 
 在 inline 与 fullscreen 之间切换时，存活的 App 会保留状态；销毁 View 则销毁其运行域。要在新 View 中重建状态，需要显式配置恢复适配器，并接入宿主或应用拥有的存储。恢复能力可选，MCPKit 不假设每个 MCP Apps 宿主都有持久化 API。
 
@@ -100,3 +104,5 @@ Counter 有意保持临时状态，不再从应用级 `wx` 存储恢复无作用
 ## 验证边界
 
 [验收记录](../validation/state-restoration.md)覆盖真实 Ink/WASM 重建、草稿输入、选择与导航恢复、显示模式、隔离、迁移、冲突及无可用存储的情况。测试使用应用拥有的测试宿主，不是 Codex Desktop 持久化验收。MCPKit 没有通用的 Codex/Claude 快照存储；生产环境需要宿主或认证后的应用接入，并在目标环境另行验收。
+
+**按需继续：** [检查恢复后的应用](inspector.zh-CN.md)。

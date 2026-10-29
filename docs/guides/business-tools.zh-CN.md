@@ -1,12 +1,25 @@
-# AgentWorker 中的业务工具
+# 业务工具：Node 处理函数与 Worker
 
-[English](business-tools.md) | 简体中文 · [文档目录](../README.zh-CN.md)
+[English](business-tools.md) | 简体中文 · [学习路线](../README.zh-CN.md)
+
+**适用场景：** 已经跑通业务调用，接下来需要选择执行方式，或添加类型契约。
+
+**开始前：** 先完成[第一个业务结果](first-business-tool.zh-CN.md)，用普通 Node 处理函数跑通。下面的 Worker 部分是可选的下一步。
 
 [Business Demo](../../examples/business) 将 `quote_order`、`check_stock`、`find_products` 全部实现为 [workers/business.js](../../examples/business/workers/business.js) 中的 `ModelContext.defineAction()` 方法。页面负责展示和发布用户选择的上下文。MCPKit 生成协议服务，示例无需手写服务端 Handler。
 
+## 选择执行方式
+
+| 选择 | 适合什么情况 | 代码在哪里运行 |
+| --- | --- | --- |
+| **Node 处理函数** | 第一个计算、外部 API 调用或服务端集成 | 生成的 Node.js MCP 服务中，可以读取服务端环境变量。 |
+| **Agent Worker** | 希望通过 Ink 执行业务 Action，并独立于已打开的 UI | 单独配置的 Ink Worker 宿主中。 |
+
+Worker 可以理解为不绘制页面的运行程序。它的源码会进入应用包，因此秘密信息应保留在服务端代码中。完整的 Node 入门教程见[第一个业务工具](first-business-tool.zh-CN.md)，下面的 Worker 部分介绍可选的 Ink 执行方式。
+
 ## 声明并构建 Worker
 
-在 `app.json.agentWorkers` 中注册：
+将下面的对象作为**数组元素**加入 `app.json.agentWorkers`，保留 manifest 中的其他字段：
 
 ```json
 { "name": "business", "script": "workers/business.js", "trigger": { "type": "open" }, "lifetime": "foreground" }
@@ -99,6 +112,8 @@ Node Handler 在生成的 MCP 服务进程中执行，可以使用 Node.js API�
 
 Node 适配器默认从 `<source>/mcp-server/handlers.ts` 读取导出的 `handlers`，也可通过 `buildPlugin({ ..., handlers: '/absolute/path/to/handlers.ts' })` 指定其他模块。使用生成类型：
 
+下面的类型片段假设构建时设置 `source: './agent'` 与 `typesFile: './agent/.mcpkit/tools.d.ts'`，处理函数位于 `agent/mcp-server/handlers.ts`，这样相对类型导入才能对应。未定制 `typesFile` 时，声明默认生成在输出目录的 `tools.d.ts`。
+
 ```ts
 import type { BusinessHandlers } from '../.mcpkit/tools.js';
 
@@ -123,4 +138,6 @@ Worker 构建要求 `worker.name` 对应 manifest 条目，且不能同时配置
 
 ---
 
-[文档目录](../README.zh-CN.md)
+[学习路线](../README.zh-CN.md)
+
+**按需继续：** [处理加载与取消](tool-lifecycle.zh-CN.md)。

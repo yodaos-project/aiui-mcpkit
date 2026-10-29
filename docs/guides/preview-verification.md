@@ -1,6 +1,10 @@
 # Verify an Agent and capture screenshots
 
-English | [简体中文](preview-verification.zh-CN.md) · [Documentation index](../README.md)
+English | [简体中文](preview-verification.zh-CN.md) · [Learning path](../README.md)
+
+**Use this when:** The UI works manually and you need a repeatable readiness check or a PNG for documentation.
+
+**Before you start:** Complete [the browser quickstart](../getting-started/quickstart.md). Unlike interactive watch mode, this automation step needs Playwright and a browser installed for it.
 
 `verifyPlugin()` opens a built Agent in a local MCP Apps `AppBridge` harness using the real Ink/WASM runtime. It returns explicit readiness checks and can capture the Agent canvas as a PNG. The repository CLI delegates to the same ESM API.
 
@@ -106,3 +110,5 @@ npm run verify:plugin -- dist/examples/counter \
 `--timeout` sets every stage's budget. `--page`, `--dpr`, `--chromium`, and `--error-gate collect` map to the ESM options. The CLI prints JSON and exits 0 only for `passed`; failed and incomplete runs exit 1. See `node scripts/verify-plugin.mjs --help`.
 
 This local harness supplies launch input and display context. It does not start the generated MCP server or provide business/host tool services; pages needing those services require their own integration harness. Local verification does not establish compatibility with a deployed desktop host or real model. See [runtime integration](runtime-integration.md) and [client setup](clients.md) for those boundaries.
+
+**Next, if needed:** [Record and replay interactions](interaction-replay.md).
